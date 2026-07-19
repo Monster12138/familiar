@@ -1,9 +1,13 @@
-use crate::hook_trait::AgentHook;
+use anyhow::Result;
 use async_trait::async_trait;
+use tokio::sync::mpsc;
 
-#[derive(Debug, Clone)]
+use familiar_core::event::{AgentEvent, AgentCategory};
+use crate::hook_trait::AgentHook;
+
+#[derive(Debug)]
 pub struct CodexHook {
-    // Codex hook specific configuration
+    // fields will be added later
 }
 
 impl CodexHook {
@@ -14,8 +18,19 @@ impl CodexHook {
 
 #[async_trait]
 impl AgentHook for CodexHook {
-    async fn execute(&self) -> anyhow::Result<()> {
-        // Implementation for executing Codex hook
+    fn name(&self) -> &str {
+        "codex"
+    }
+
+    fn category(&self) -> AgentCategory {
+        AgentCategory::Coding
+    }
+
+    async fn start(&self, _sender: mpsc::Sender<AgentEvent>) -> Result<()> {
+        Ok(())
+    }
+
+    async fn stop(&self) -> Result<()> {
         Ok(())
     }
 }

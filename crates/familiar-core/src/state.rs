@@ -1,22 +1,27 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use crate::event::{AgentSource, AgentCategory};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AgentStatus {
     Idle,
-    Active,
-    Sleeping,
-    Error,
+    Thinking,
+    Working,
+    WaitingInput,
+    Completed,
+    Failed,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum FamiliarMood {
     Happy,
-    Neutral,
-    Sad,
-    Focused,
-    Curious,
+    Thinking,
+    Busy,
+    Sleepy,
+    Alarmed,
+    Celebrating,
+    Watching,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,16 +47,41 @@ pub struct Notification {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentState {
+    pub id: String,
+    pub source: AgentSource,
+    pub category: AgentCategory,
     pub status: AgentStatus,
-    pub mood: FamiliarMood,
-    pub energy_level: u8,
     pub current_activity: Option<String>,
+    pub progress: Option<f32>,
+    pub started_at: Option<DateTime<Utc>>,
+    pub last_event_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RenderState {
-    pub agent: AgentState,
+    pub agents: Vec<AgentState>,
+    pub active_agent_count: usize,
+    pub agents_by_category: HashMap<AgentCategory, Vec<AgentState>>,
     pub stats: DailyStats,
     pub sources: HashMap<String, SourceStats>,
-    pub active_notifications: Vec<Notification>,
+    pub mood: FamiliarMood,
+    pub notifications: Vec<Notification>,
+}
+
+impl Default for RenderState {
+    fn default() -> Self {
+        Self {
+            agents: Vec::new(),
+            active_agent_count: 0,
+            agents_by_category: HashMap::new(),
+            stats: DailyStats {
+                interactions: 0,
+                active_time_seconds: 0,
+                tasks_completed: 0,
+            },
+            sources: HashMap::new(),
+            mood: FamiliarMood::Sleepy,
+            notifications: Vec::new(),
+        }
+    }
 }

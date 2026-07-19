@@ -2,39 +2,54 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use serde_json::Value;
-use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum AgentSource {
-    System,
-    User,
-    Application,
-    Network,
-    Hardware,
+    ClaudeCode,
+    Codex,
+    Antigravity,
+    Custom(String),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum AgentCategory {
-    Info,
-    Warning,
-    Error,
-    Action,
-    Metric,
+    Coding,
+    Workflow,
+    DevOps,
+    General,
+    Custom(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AgentEventType {
-    Created,
-    Updated,
-    Deleted,
-    StateChanged,
-    Custom(String),
+    // Lifecycle
+    AgentStarted,
+    AgentStopped,
+    
+    // Core states
+    Thinking,
+    Processing { description: String },
+    
+    // Coding specific
+    ReadingFile { path: String },
+    WritingFile { path: String },
+    RunningCommand { cmd: String },
+    SearchingCode { query: String },
+    BrowsingWeb { url: String },
+    
+    // Results
+    TaskCompleted { summary: String },
+    TaskFailed { error: String },
+    WaitingForInput,
+    
+    // Subagents
+    SubagentStarted { agent_type: String },
+    SubagentStopped { agent_type: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EventMetadata {
-    pub tags: Vec<String>,
-    pub properties: HashMap<String, Value>,
+    pub extra: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,6 +59,5 @@ pub struct AgentEvent {
     pub source: AgentSource,
     pub category: AgentCategory,
     pub event_type: AgentEventType,
-    pub message: String,
     pub metadata: Option<EventMetadata>,
 }
