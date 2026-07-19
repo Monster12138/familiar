@@ -6,3 +6,4 @@ pub mod stats;
 pub mod storage;
 pub mod config;
 pub mod plugin;
+pub mod logger;

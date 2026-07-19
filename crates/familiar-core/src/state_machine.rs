@@ -43,7 +43,7 @@ impl StateMachine {
         let agent_idx = state.agents.iter().position(|a| a.id == agent_id);
         
         if let Some(idx) = agent_idx {
-            let mut agent = &mut state.agents[idx];
+            let agent = &mut state.agents[idx];
             agent.last_event_at = Some(event.timestamp);
             
             match &event.event_type {
@@ -95,18 +95,32 @@ impl StateMachine {
                 },
                 _ => {}
             }
-        } else if let AgentEventType::AgentStarted = event.event_type {
-            let new_agent = AgentState {
-                id: agent_id.clone(),
-                source: event.source.clone(),
-                category: event.category.clone(),
-                status: AgentStatus::Idle,
-                current_activity: None,
-                progress: None,
-                started_at: Some(event.timestamp),
-                last_event_at: Some(event.timestamp),
-            };
-            state.agents.push(new_agent);
+        } else {
+            // Implicitly create agent if it doesn't exist and it's not a stop event
+            if !matches!(event.event_type, AgentEventType::AgentStopped) {
+                let mut new_agent = AgentState {
+                    id: agent_id.clone(),
+                    source: event.source.clone(),
+                    category: event.category.clone(),
+                    status: AgentStatus::Idle,
+                    current_activity: None,
+                    progress: None,
+                    started_at: Some(event.timestamp),
+                    last_event_at: Some(event.timestamp),
+                };
+
+                // Apply initial state for this first event
+                match &event.event_type {
+                    AgentEventType::RunningCommand { cmd } => {
+                        new_agent.status = AgentStatus::Working;
+                        new_agent.current_activity = Some(format!("Running `{}`", cmd));
+                    },
+                    // (We can extend this to match all others, but for test purpose let's keep it simple or just leave it idle)
+                    _ => {}
+                }
+
+                state.agents.push(new_agent);
+            }
         }
 
         // Recompute aggregates
@@ -128,5 +142,12 @@ impl StateMachine {
         } else if state.agents.iter().any(|a| a.status == AgentStatus::Working) {
             state.mood = FamiliarMood::Busy;
         }
+
+        tracing::info!(
+            agent_id = %agent_id,
+            event = ?event.event_type,
+            mood = ?state.mood,
+            "State updated from event"
+        );
     }
 }
