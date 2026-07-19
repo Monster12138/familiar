@@ -1,0 +1,23 @@
+{
+  "build": {
+    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "Familiar",
+        "width": 800,
+        "height": 600,
+        "transparent": true
+      }
+    ]
+  },
+  "bundle": {
+    "active": true
+  },
+  "identifier": "com.familiar.app"
+}

@@ -1,0 +1,12 @@
+[package]
+name = "familiar-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+familiar-core = { path = "../familiar-core" }
+familiar-hooks = { path = "../familiar-hooks" }
+clap = { workspace = true }
+tokio = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }

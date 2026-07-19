@@ -1,0 +1,37 @@
+[general]
+language = "zh-CN"
+auto_start = true
+data_retention_days = 90
+
+[hooks]
+enabled = ["claude-code", "codex"]
+socket_path = "/tmp/familiar.sock"
+
+[renderer]
+enabled = ["desktop-pet", "menu-bar"]
+
+[renderer.desktop-pet]
+sprite = "pixel-cat"
+scale = 2
+position = "bottom-right"
+always_on_top = true
+opacity = 0.95
+
+[renderer.menu-bar]
+show_active_count = true
+show_today_stats = true
+
+[renderer.dashboard]
+port = 9527
+
+[api]
+enabled = true
+port = 9528
+
+[notifications]
+dnd_start = "22:00"
+dnd_end = "08:00"
+min_level = "info"
+
+[achievements]
+enabled = true

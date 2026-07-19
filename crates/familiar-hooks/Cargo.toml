@@ -1,0 +1,11 @@
+[package]
+name = "familiar-hooks"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+familiar-core = { path = "../familiar-core" }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+anyhow = { workspace = true }
