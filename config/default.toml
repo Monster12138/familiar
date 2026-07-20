@@ -19,7 +19,7 @@ enabled = [
 
 [renderer.desktop-pet]
 sprite = "pixel-cat"
-scale = 2
+scale = 1
 position = "bottom-right"
 always_on_top = true
 opacity = 0.8999999761581421

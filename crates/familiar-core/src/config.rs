@@ -40,7 +40,7 @@ pub struct RendererConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DesktopPetConfig {
     pub sprite: String,
-    pub scale: u32,
+    pub scale: f32,
     pub position: String,
     pub always_on_top: bool,
     pub opacity: f32,
@@ -92,7 +92,7 @@ impl Default for FamiliarConfig {
                 enabled: vec!["desktop-pet".to_string(), "menu-bar".to_string()],
                 desktop_pet: DesktopPetConfig {
                     sprite: "pixel-cat".to_string(),
-                    scale: 2,
+                    scale: 2.0,
                     position: "bottom-right".to_string(),
                     always_on_top: true,
                     opacity: 0.95,
