@@ -56,7 +56,7 @@ export const translations = {
         'modal_title_preview': '确认注入 Hooks 契约',
         'modal_desc_preview': '以下配置将会合并到 Agent 的配置文件中。我们将自动生成一个 <code>.bak</code> 备份以防万一。',
         'btn_cancel': '取消',
-        'btn_confirm_inject': '确认注入',
+        'btn_confirm_inject': '确认',
     },
     'en-US': {
         'nav_close': 'Close Settings',
@@ -115,7 +115,7 @@ export const translations = {
         'modal_title_preview': 'Confirm Hooks Injection',
         'modal_desc_preview': 'The following configuration will be merged into the Agent\'s config file. We will automatically generate a <code>.bak</code> backup just in case.',
         'btn_cancel': 'Cancel',
-        'btn_confirm_inject': 'Confirm Injection',
+        'btn_confirm_inject': 'Confirm',
     }
 };
 

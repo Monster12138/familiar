@@ -192,12 +192,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btnModalCancel = document.getElementById('btn-modal-cancel');
     const btnModalConfirm = document.getElementById('btn-modal-confirm');
     const hookPreviewCode = document.getElementById('hook-preview-code');
+    const hookModalPath = document.getElementById('hook-modal-path');
     
     let currentInjectingAgent = null;
+    let hooksStatusCache = {};
+
+    function syntaxHighlightJSON(json) {
+        if (typeof json != 'string') {
+             json = JSON.stringify(json, undefined, 2);
+        }
+        json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+            let cls = 'json-number';
+            if (/^"/.test(match)) {
+                if (/:$/.test(match)) {
+                    cls = 'json-key';
+                } else {
+                    cls = 'json-string';
+                }
+            } else if (/true|false/.test(match)) {
+                cls = 'json-boolean';
+            } else if (/null/.test(match)) {
+                cls = 'json-null';
+            }
+            return '<span class="' + cls + '">' + match + '</span>';
+        });
+    }
 
     async function fetchHooksStatus() {
         try {
             const status = await invoke('get_hooks_status');
+            if (status) {
+                hooksStatusCache = status;
+            }
             if (status && status.antigravity) {
                 const isInj = status.antigravity.injected;
                 badgeAntigravity.className = isInj ? 'badge badge-injected' : 'badge badge-not-injected';
@@ -215,7 +242,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             currentInjectingAgent = 'antigravity';
             const payload = await invoke('get_hook_payload', { agent: currentInjectingAgent });
-            hookPreviewCode.textContent = JSON.stringify(payload, null, 2);
+            hookPreviewCode.innerHTML = syntaxHighlightJSON(payload);
+            
+            const agentStatus = hooksStatusCache[currentInjectingAgent];
+            if (agentStatus && agentStatus.config_path) {
+                hookModalPath.innerHTML = `即将修改: <span>${agentStatus.config_path}</span>`;
+                hookModalPath.style.display = 'block';
+            } else {
+                hookModalPath.style.display = 'none';
+            }
+            
             hookModal.style.display = 'flex';
         } catch (e) {
             alert("Failed to get payload: " + e);

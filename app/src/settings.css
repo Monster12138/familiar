@@ -396,7 +396,11 @@ input:checked + .slider:before {
     color: var(--text-main);
     border: none;
     border-radius: 6px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
     cursor: pointer;
+    transition: background-color 0.2s;
 }
 .secondary-btn:hover {
     background-color: rgba(255, 255, 255, 0.2);
@@ -448,3 +452,23 @@ input:checked + .slider:before {
     justify-content: flex-end;
     gap: 12px;
 }
+
+.modal-path {
+    font-family: 'Menlo', 'Monaco', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 6px 10px;
+    border-radius: 4px;
+    margin-bottom: 12px;
+    word-break: break-all;
+}
+.modal-path span {
+    color: var(--accent-blue);
+}
+
+.json-key { color: #9CDCFE; }
+.json-string { color: #CE9178; }
+.json-number { color: #B5CEA8; }
+.json-boolean { color: #569CD6; }
+.json-null { color: #569CD6; }
