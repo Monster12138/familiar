@@ -2,7 +2,8 @@ export class BubbleOverlay {
     constructor() {
         this.bubble = document.createElement('div');
         this.bubble.style.position = 'fixed';
-        this.bubble.style.top = '10px';    // Anchor to top left of window
+        // Anchor to the bottom, perfectly tracking the cat's scaled sprite height
+        this.bubble.style.bottom = 'calc(100vw / 1.777 - 10px)';
         this.bubble.style.left = '10px';
         this.bubble.style.padding = '8px 12px'; // slightly smaller padding to save space
         this.bubble.style.background = 'rgba(255, 255, 255, 0.95)';
