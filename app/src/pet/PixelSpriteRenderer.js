@@ -27,22 +27,32 @@ export class PixelSpriteRenderer extends SpriteRenderer {
         this.canvas.style.left = '0';
         this.canvas.style.width = '100%';
         this.canvas.style.height = '100%';
-        this.canvas.style.background = 'transparent';
-        this.canvas.style.setProperty('-webkit-app-region', 'drag');
-        this.canvas.setAttribute('data-tauri-drag-region', '');
+        this.canvas.style.pointerEvents = 'none'; // allow clicks to pass through transparent pixels
         
         this.ctx = this.canvas.getContext('2d');
         // Ensure crisp pixels
         this.ctx.imageSmoothingEnabled = false;
 
-        // Manually trigger Tauri window drag when clicking on the canvas
-        this.canvas.addEventListener('mousedown', (e) => {
+        // Create a precise hitbox for dragging so the transparent areas don't block clicks
+        this.dragHitbox = document.createElement('div');
+        this.dragHitbox.style.position = 'absolute';
+        this.dragHitbox.style.width = '120px';
+        this.dragHitbox.style.height = '140px';
+        this.dragHitbox.style.left = '50%';
+        this.dragHitbox.style.bottom = '10px';
+        this.dragHitbox.style.transform = 'translateX(-50%)';
+        this.dragHitbox.style.cursor = 'grab';
+        this.dragHitbox.style.pointerEvents = 'auto';
+
+        // Manually trigger Tauri window drag when clicking on the hitbox
+        this.dragHitbox.addEventListener('mousedown', (e) => {
             if (e.button === 0) { // Left click only
                 getCurrentWebviewWindow().startDragging();
             }
         });
         
         container.appendChild(this.canvas);
+        container.appendChild(this.dragHitbox);
         
         window.addEventListener('resize', () => {
             this.canvas.width = window.innerWidth;
