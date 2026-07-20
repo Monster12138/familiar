@@ -182,7 +182,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             saveBtn.textContent = t('btn_save', lang);
             saveBtn.disabled = false;
         }
-        }
     });
 
     // --- Hooks Injection Logic ---
