@@ -4,18 +4,25 @@ auto_start = true
 data_retention_days = 90
 
 [hooks]
-enabled = ["claude-code", "codex"]
+enabled = [
+    "claude-code",
+    "codex",
+]
 socket_path = "/tmp/familiar.sock"
+tcp_port = 9528
 
 [renderer]
-enabled = ["desktop-pet", "menu-bar"]
+enabled = [
+    "desktop-pet",
+    "menu-bar",
+]
 
 [renderer.desktop-pet]
 sprite = "pixel-cat"
-scale = 2
+scale = 4
 position = "bottom-right"
 always_on_top = true
-opacity = 0.95
+opacity = 0.4000000059604645
 
 [renderer.menu-bar]
 show_active_count = true

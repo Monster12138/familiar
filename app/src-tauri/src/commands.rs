@@ -33,3 +33,30 @@ pub fn save_config(config: FamiliarConfig) -> Result<(), String> {
 pub fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
+
+#[tauri::command]
+pub async fn open_settings_window(app_handle: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+    if let Some(_window) = app_handle.get_webview_window("settings") {
+        return Ok(());
+    }
+
+    let _ = tauri::WebviewWindowBuilder::new(
+        &app_handle,
+        "settings",
+        tauri::WebviewUrl::App("settings.html".into()),
+    )
+    .title("Settings")
+    .inner_size(800.0, 600.0)
+    .resizable(true)
+    .build()
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn open_url(url: String) -> Result<(), String> {
+    let _ = open::that(url);
+    Ok(())
+}

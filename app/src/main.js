@@ -15,18 +15,7 @@ async function fetchManifest(spriteName) {
 
 function setupContextMenu() {
     const contextMenu = document.getElementById("context-menu");
-    const settingsModalBackdrop = document.getElementById("settings-modal-backdrop");
-    const settingsModal = document.getElementById("settings-modal");
-    
     const menuSettings = document.getElementById("menu-settings");
-    const btnCancelSettings = document.getElementById("btn-cancel-settings");
-    const btnSaveSettings = document.getElementById("btn-save-settings");
-
-    // Inputs
-    const hookAntigravity = document.getElementById("setting-hook-antigravity");
-    const hookClaude = document.getElementById("setting-hook-claude");
-    const ipcUds = document.getElementById("setting-ipc-uds");
-    const ipcTcp = document.getElementById("setting-ipc-tcp");
 
     // Custom Context Menu
     document.addEventListener('contextmenu', e => {
@@ -57,73 +46,10 @@ function setupContextMenu() {
     // Settings Modal Open
     menuSettings.addEventListener("click", async () => {
         contextMenu.style.display = "none";
-        
         try {
-            // Populate these values on load
-            const config = await invoke("get_config");
-            if (config) {
-                // Try to handle nested or flat structure gracefully
-                if (config.hooks) {
-                    hookAntigravity.checked = !!config.hooks.antigravity;
-                    hookClaude.checked = !!config.hooks.claude_code;
-                } else {
-                    hookAntigravity.checked = !!config.hook_antigravity;
-                    hookClaude.checked = !!config.hook_claude_code;
-                }
-                
-                if (config.ipc) {
-                    ipcUds.value = config.ipc.uds_path || "/tmp/familiar.sock";
-                    ipcTcp.value = config.ipc.tcp_port || 9528;
-                } else {
-                    ipcUds.value = config.ipc_uds_path || "/tmp/familiar.sock";
-                    ipcTcp.value = config.ipc_tcp_port || 9528;
-                }
-            }
+            await invoke("open_settings_window");
         } catch (e) {
-            console.error("Failed to load config:", e);
-        }
-
-        settingsModalBackdrop.style.display = "flex";
-    });
-
-    // Close Settings Modal
-    const closeModal = () => {
-        settingsModalBackdrop.style.display = "none";
-    };
-
-    btnCancelSettings.addEventListener("click", closeModal);
-
-    // Close on click outside or Escape
-    settingsModalBackdrop.addEventListener("click", (e) => {
-        if (e.target === settingsModalBackdrop) {
-            closeModal();
-        }
-    });
-
-    document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && settingsModalBackdrop.style.display === "flex") {
-            closeModal();
-        }
-    });
-
-    // Save Settings
-    btnSaveSettings.addEventListener("click", async () => {
-        const modifiedConfig = {
-            hooks: {
-                antigravity: hookAntigravity.checked,
-                claude_code: hookClaude.checked
-            },
-            ipc: {
-                uds_path: ipcUds.value,
-                tcp_port: parseInt(ipcTcp.value, 10) || 9528
-            }
-        };
-
-        try {
-            await invoke("save_config", { config: modifiedConfig });
-            closeModal();
-        } catch (e) {
-            console.error("Failed to save config:", e);
+            console.error("Failed to open settings window:", e);
         }
     });
 }

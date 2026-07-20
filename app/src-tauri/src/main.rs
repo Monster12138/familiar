@@ -156,7 +156,7 @@ fn main() {
                                                     if source == "antigravity" {
                                                         if let Some(payload) = val.get("payload") {
                                                             let event_name = val.get("hook_event_name").and_then(|s| s.as_str()).unwrap_or("");
-                                                            let hook = AntigravityHook::new("".to_string());
+                                                            let hook = AntigravityHook::new();
                                                             if let Ok(event) = hook.parse(event_name, payload) {
                                                                 let _ = bus_clone.publish(event).await;
                                                             }
@@ -191,6 +191,8 @@ fn main() {
             commands::greet,
             commands::get_config,
             commands::save_config,
+            commands::open_settings_window,
+            commands::open_url,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
