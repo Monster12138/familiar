@@ -209,11 +209,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // --- Hooks Injection Logic ---
-    const badgeAntigravity = document.getElementById('badge-antigravity');
-    const btnInjectAntigravity = document.getElementById('btn-inject-antigravity');
-    const btnViewConfigAntigravity = document.getElementById('btn-view-config-antigravity');
-    const btnUninstallAntigravity = document.getElementById('btn-uninstall-antigravity');
     const hookModal = document.getElementById('hook-modal');
+    const btnModalCancel = document.getElementById('btn-modal-cancel');
+    const btnModalConfirm = document.getElementById('btn-modal-confirm');
+    const injectBeforeCode = document.getElementById('inject-before-code');
+    const injectAfterCode = document.getElementById('inject-after-code');
     const btnModalCancel = document.getElementById('btn-modal-cancel');
     const btnModalConfirm = document.getElementById('btn-modal-confirm');
     const hookPreviewCode = document.getElementById('hook-preview-code');
@@ -294,81 +294,99 @@ document.addEventListener('DOMContentLoaded', async () => {
             const status = await invoke('get_hooks_status');
             if (status) {
                 hooksStatusCache = status;
-            }
-            if (status && status.antigravity) {
-                const isInj = status.antigravity.injected;
-                badgeAntigravity.className = isInj ? 'badge badge-injected' : 'badge badge-not-injected';
-                badgeAntigravity.textContent = isInj ? t('badge_injected', elLanguage.value) : t('badge_not_injected', elLanguage.value);
-                
-                btnInjectAntigravity.style.display = isInj ? 'none' : 'inline-block';
-                btnViewConfigAntigravity.style.display = isInj ? 'inline-block' : 'none';
-                btnUninstallAntigravity.style.display = isInj ? 'inline-block' : 'none';
+                const agents = ['antigravity', 'claude-code', 'codex'];
+                agents.forEach(agent => {
+                    if (status[agent]) {
+                        const isInj = status[agent].injected;
+                        const badge = document.getElementById(`badge-${agent}`);
+                        const btnInject = document.getElementById(`btn-inject-${agent}`);
+                        const btnViewConfig = document.getElementById(`btn-view-config-${agent}`);
+                        const btnUninstall = document.getElementById(`btn-uninstall-${agent}`);
+                        
+                        if (badge) {
+                            badge.className = isInj ? 'badge badge-injected' : 'badge badge-not-injected';
+                            badge.textContent = isInj ? t('badge_injected', elLanguage.value) : t('badge_not_injected', elLanguage.value);
+                        }
+                        if (btnInject) btnInject.style.display = isInj ? 'none' : 'inline-block';
+                        if (btnViewConfig) btnViewConfig.style.display = isInj ? 'inline-block' : 'none';
+                        if (btnUninstall) btnUninstall.style.display = isInj ? 'inline-block' : 'none';
+                    }
+                });
             }
         } catch (e) {
             console.error("Failed to fetch hooks status", e);
         }
     }
 
-    btnViewConfigAntigravity.addEventListener('click', async () => {
-        try {
-            const content = await invoke('get_config_content', { agent: 'antigravity' });
-            if (hooksStatusCache && hooksStatusCache.antigravity && hooksStatusCache.antigravity.config_path) {
-                document.getElementById('config-viewer-path-text').textContent = hooksStatusCache.antigravity.config_path;
-                document.getElementById('config-viewer-path-bar').style.display = 'flex';
-            } else {
-                document.getElementById('config-viewer-path-text').textContent = '';
-                document.getElementById('config-viewer-path-bar').style.display = 'none';
-            }
-            configViewerCode.innerHTML = syntaxHighlightJSON(content || "{}");
-            configViewerModal.style.display = 'flex';
-        } catch (e) {
-            console.error(e);
+    const AGENTS = ['antigravity', 'claude-code', 'codex'];
+    AGENTS.forEach(agent => {
+        const btnViewConfig = document.getElementById(`btn-view-config-${agent}`);
+        const btnInject = document.getElementById(`btn-inject-${agent}`);
+        const btnUninstall = document.getElementById(`btn-uninstall-${agent}`);
+        
+        if (btnViewConfig) {
+            btnViewConfig.addEventListener('click', async () => {
+                try {
+                    const content = await invoke('get_config_content', { agent });
+                    if (hooksStatusCache && hooksStatusCache[agent] && hooksStatusCache[agent].config_path) {
+                        document.getElementById('config-viewer-path-text').textContent = hooksStatusCache[agent].config_path;
+                        document.getElementById('config-viewer-path-bar').style.display = 'flex';
+                    } else {
+                        document.getElementById('config-viewer-path-text').textContent = '';
+                        document.getElementById('config-viewer-path-bar').style.display = 'none';
+                    }
+                    configViewerCode.innerHTML = syntaxHighlightJSON(content || "{}");
+                    configViewerModal.style.display = 'flex';
+                } catch (e) {
+                    console.error(e);
+                }
+            });
+        }
+        
+        if (btnInject) {
+            btnInject.addEventListener('click', async () => {
+                try {
+                    const diff = await invoke('preview_inject_hook', { agent });
+                    renderDiff(diff.before, diff.after, injectBeforeCode, injectAfterCode);
+                    
+                    if (hooksStatusCache && hooksStatusCache[agent] && hooksStatusCache[agent].config_path) {
+                        document.getElementById('inject-path-text').textContent = hooksStatusCache[agent].config_path;
+                        document.getElementById('inject-path-bar').style.display = 'flex';
+                    } else {
+                        document.getElementById('inject-path-bar').style.display = 'none';
+                    }
+                    
+                    currentInjectingAgent = agent;
+                    hookModal.style.display = 'flex';
+                } catch(e) {
+                    alert("Preview failed: " + e);
+                }
+            });
+        }
+        
+        if (btnUninstall) {
+            btnUninstall.addEventListener('click', async () => {
+                try {
+                    const diff = await invoke('preview_uninstall_hook', { agent });
+                    renderDiff(diff.before, diff.after, uninstallBeforeCode, uninstallAfterCode);
+                    
+                    if (hooksStatusCache && hooksStatusCache[agent] && hooksStatusCache[agent].config_path) {
+                        document.getElementById('uninstall-path-text').textContent = hooksStatusCache[agent].config_path;
+                        document.getElementById('uninstall-path-bar').style.display = 'flex';
+                    } else {
+                        document.getElementById('uninstall-path-bar').style.display = 'none';
+                    }
+                    
+                    currentUninstallingAgent = agent;
+                    uninstallModal.style.display = 'flex';
+                } catch(e) {
+                    alert("Preview uninstall failed: " + e);
+                }
+            });
         }
     });
 
     btnConfigViewerClose.addEventListener('click', () => {
-        configViewerModal.style.display = 'none';
-    });
-
-    btnInjectAntigravity.addEventListener('click', async () => {
-        try {
-            const diff = await invoke('preview_inject_hook', { agent: 'antigravity' });
-            renderDiff(diff.before, diff.after, injectBeforeCode, injectAfterCode);
-            
-            if (hooksStatusCache && hooksStatusCache.antigravity && hooksStatusCache.antigravity.config_path) {
-                document.getElementById('inject-path-text').textContent = hooksStatusCache.antigravity.config_path;
-                document.getElementById('inject-path-bar').style.display = 'flex';
-            } else {
-                document.getElementById('inject-path-bar').style.display = 'none';
-            }
-            
-            currentInjectingAgent = 'antigravity';
-            hookModal.style.display = 'flex';
-        } catch(e) {
-            alert("Preview failed: " + e);
-        }
-    });
-
-    btnUninstallAntigravity.addEventListener('click', async () => {
-        try {
-            const diff = await invoke('preview_uninstall_hook', { agent: 'antigravity' });
-            renderDiff(diff.before, diff.after, uninstallBeforeCode, uninstallAfterCode);
-            
-            if (hooksStatusCache && hooksStatusCache.antigravity && hooksStatusCache.antigravity.config_path) {
-                document.getElementById('uninstall-path-text').textContent = hooksStatusCache.antigravity.config_path;
-                document.getElementById('uninstall-path-bar').style.display = 'flex';
-            } else {
-                document.getElementById('uninstall-path-bar').style.display = 'none';
-            }
-            
-            currentUninstallingAgent = 'antigravity';
-            uninstallModal.style.display = 'flex';
-        } catch(e) {
-            alert("Preview uninstall failed: " + e);
-        }
-    });
-
-    btnUninstallCancel.addEventListener('click', () => {
         uninstallModal.style.display = 'none';
         currentUninstallingAgent = null;
     });

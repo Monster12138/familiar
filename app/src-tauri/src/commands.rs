@@ -76,25 +76,44 @@ pub async fn open_url(url: String) -> Result<(), String> {
 }
 
 use familiar_hooks::antigravity::AntigravityHook;
+use familiar_hooks::claude_code::ClaudeCodeHook;
+use familiar_hooks::codex::CodexHook;
 use familiar_hooks::hook_trait::AgentHook;
 use serde_json::json;
 
+fn get_hook_by_name(agent: &str) -> Option<Box<dyn AgentHook>> {
+    match agent {
+        "antigravity" => Some(Box::new(AntigravityHook::new())),
+        "claude-code" => Some(Box::new(ClaudeCodeHook::new())),
+        "codex" => Some(Box::new(CodexHook::new())),
+        _ => None,
+    }
+}
+
 #[tauri::command]
 pub fn get_hooks_status() -> Result<serde_json::Value, String> {
-    let hook = AntigravityHook::new();
-    let status = json!({
-        "antigravity": {
+    let hooks: Vec<Box<dyn AgentHook>> = vec![
+        Box::new(AntigravityHook::new()),
+        Box::new(ClaudeCodeHook::new()),
+        Box::new(CodexHook::new()),
+    ];
+    
+    let mut status_map = serde_json::Map::new();
+    for hook in hooks {
+        let agent_name = hook.name().to_string();
+        let status = json!({
             "injected": hook.is_injected(),
             "config_path": hook.config_path().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default()
-        }
-    });
-    Ok(status)
+        });
+        status_map.insert(agent_name, status);
+    }
+    
+    Ok(serde_json::Value::Object(status_map))
 }
 
 #[tauri::command]
 pub fn get_hook_payload(agent: &str) -> Result<serde_json::Value, String> {
-    if agent == "antigravity" {
-        let hook = AntigravityHook::new();
+    if let Some(hook) = get_hook_by_name(agent) {
         return Ok(hook.get_injection_payload().unwrap_or(json!({})));
     }
     Err("Unknown agent".into())
@@ -102,8 +121,7 @@ pub fn get_hook_payload(agent: &str) -> Result<serde_json::Value, String> {
 
 #[tauri::command]
 pub fn inject_hook(agent: &str) -> Result<(), String> {
-    if agent == "antigravity" {
-        let hook = AntigravityHook::new();
+    if let Some(hook) = get_hook_by_name(agent) {
         return hook.inject().map_err(|e| e.to_string());
     }
     Err("Unknown agent".into())
@@ -111,8 +129,7 @@ pub fn inject_hook(agent: &str) -> Result<(), String> {
 
 #[tauri::command]
 pub fn uninstall_hook(agent: &str) -> Result<(), String> {
-    if agent == "antigravity" {
-        let hook = AntigravityHook::new();
+    if let Some(hook) = get_hook_by_name(agent) {
         return hook.uninstall().map_err(|e| e.to_string());
     }
     Err("Unknown agent".into())
@@ -120,8 +137,7 @@ pub fn uninstall_hook(agent: &str) -> Result<(), String> {
 
 #[tauri::command]
 pub fn get_config_content(agent: &str) -> Result<String, String> {
-    if agent == "antigravity" {
-        let hook = AntigravityHook::new();
+    if let Some(hook) = get_hook_by_name(agent) {
         if let Some(path) = hook.config_path() {
             if path.exists() {
                 return std::fs::read_to_string(&path).map_err(|e| e.to_string());
@@ -140,8 +156,7 @@ pub struct DiffPreview {
 
 #[tauri::command]
 pub fn preview_inject_hook(agent: &str) -> Result<DiffPreview, String> {
-    if agent == "antigravity" {
-        let hook = AntigravityHook::new();
+    if let Some(hook) = get_hook_by_name(agent) {
         let (before, after) = hook.preview_inject().map_err(|e| e.to_string())?;
         return Ok(DiffPreview { before, after });
     }
@@ -150,8 +165,7 @@ pub fn preview_inject_hook(agent: &str) -> Result<DiffPreview, String> {
 
 #[tauri::command]
 pub fn preview_uninstall_hook(agent: &str) -> Result<DiffPreview, String> {
-    if agent == "antigravity" {
-        let hook = AntigravityHook::new();
+    if let Some(hook) = get_hook_by_name(agent) {
         let (before, after) = hook.preview_uninstall().map_err(|e| e.to_string())?;
         return Ok(DiffPreview { before, after });
     }
