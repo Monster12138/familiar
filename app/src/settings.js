@@ -1,3 +1,5 @@
+import { applyTranslations, t } from './i18n.js';
+
 const { invoke } = window.__TAURI__.core;
 const { getCurrentWebviewWindow } = window.__TAURI__.webviewWindow;
 
@@ -95,8 +97,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // General
         if (currentConfig.general) {
-            if (currentConfig.general.language) elLanguage.value = currentConfig.general.language;
+            if (currentConfig.general.language) {
+                elLanguage.value = currentConfig.general.language;
+                applyTranslations(currentConfig.general.language);
+            } else {
+                applyTranslations('en-US'); // default
+            }
             elAutostart.checked = currentConfig.general.auto_start !== false;
+        } else {
+            applyTranslations('en-US');
         }
         if (currentConfig.api && currentConfig.api.port) {
             elApiPort.value = currentConfig.api.port;
@@ -130,9 +139,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error("Failed to load config", e);
     }
 
+    // Change language live preview
+    elLanguage.addEventListener('change', () => {
+        applyTranslations(elLanguage.value);
+    });
+
     // Save config
     saveBtn.addEventListener('click', async () => {
-        saveBtn.textContent = '保存中...';
+        const lang = elLanguage.value;
+        saveBtn.textContent = t('msg_saving', lang);
         saveBtn.disabled = true;
 
         if (!currentConfig.general) currentConfig.general = {};
@@ -155,17 +170,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         try {
             await invoke('save_config', { config: currentConfig });
-            statusMsg.textContent = '设置已保存！部分设置重启生效。';
+            statusMsg.textContent = t('msg_saved', lang);
             statusMsg.style.opacity = '1';
             setTimeout(() => {
                 statusMsg.style.opacity = '0';
             }, 3000);
         } catch (e) {
-            statusMsg.textContent = '保存失败: ' + e;
+            statusMsg.textContent = t('msg_failed', lang) + e;
             statusMsg.style.color = '#FF3B30';
             statusMsg.style.opacity = '1';
         } finally {
-            saveBtn.textContent = '保存并应用';
+            saveBtn.textContent = t('btn_save', lang);
             saveBtn.disabled = false;
         }
     });

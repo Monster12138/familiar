@@ -19,10 +19,11 @@ enabled = [
 
 [renderer.desktop-pet]
 sprite = "pixel-cat"
-scale = 2.0
+scale = 2.5
 position = "bottom-right"
 always_on_top = true
-opacity = 0.8999999761581421
+opacity = 1.0
+bubble_scale = 1.2999999523162842
 
 [renderer.menu-bar]
 show_active_count = true

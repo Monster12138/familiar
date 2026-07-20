@@ -5,9 +5,11 @@ import { LogicalSize } from "@tauri-apps/api/dpi";
 
 import { PixelSpriteRenderer } from "./pet/PixelSpriteRenderer.js";
 import { BubbleOverlay } from "./pet/BubbleOverlay.js";
+import { applyTranslations, t } from "./i18n.js";
 
 let renderer = null;
 let bubbleOverlay = null;
+let currentLang = 'en-US';
 
 async function fetchManifest(spriteName) {
     const res = await fetch(`/sprites/${spriteName}/manifest.json`);
@@ -113,7 +115,7 @@ async function init() {
             const isCompleted = ["Completed", "WaitingInput"].includes(activeAgent.status);
             const duration = isCompleted ? 3000 : 2000; // Keep checkmark visible a bit longer
             renderer.showBubble(
-                activeAgent.user_instruction || "Waiting for task...",
+                activeAgent.user_instruction || t("status_waiting", currentLang),
                 activeAgent.current_activity || "",
                 isCompleted,
                 duration
@@ -135,7 +137,14 @@ async function init() {
 }
 
 async function applyConfigToWindow(config) {
-    if (!config || !config.renderer || !config.renderer['desktop-pet']) return;
+    if (!config) return;
+
+    if (config.general && config.general.language) {
+        currentLang = config.general.language;
+        applyTranslations(currentLang);
+    }
+
+    if (!config.renderer || !config.renderer['desktop-pet']) return;
     
     const petConf = config.renderer['desktop-pet'];
     const appWindow = getCurrentWebviewWindow();

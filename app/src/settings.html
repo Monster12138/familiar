@@ -11,35 +11,35 @@
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-header">
-                <button class="back-btn" id="back-btn">
+                <button class="back-btn" id="back-btn" data-i18n="nav_close" data-i18n-text-only>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                     关闭设置
                 </button>
                 <div class="search-box">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-                    <input type="text" placeholder="搜索设置...">
+                    <input type="text" placeholder="搜索设置..." data-i18n="nav_search">
                 </div>
             </div>
 
             <div class="sidebar-menu">
                 <div class="menu-section">
-                    <div class="menu-title">偏好</div>
-                    <a href="#section-general" class="menu-item active" data-target="section-general">
+                    <div class="menu-title" data-i18n="nav_pref">偏好</div>
+                    <a href="#section-general" class="menu-item active" data-target="section-general" data-i18n="nav_general" data-i18n-text-only>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                         常规配置
                     </a>
-                    <a href="#section-pet" class="menu-item" data-target="section-pet">
+                    <a href="#section-pet" class="menu-item" data-target="section-pet" data-i18n="nav_pet" data-i18n-text-only>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> 
                         桌面宠物配置
                     </a>
                 </div>
                 <div class="menu-section">
-                    <div class="menu-title">系统</div>
-                    <a href="#section-hooks" class="menu-item" data-target="section-hooks">
+                    <div class="menu-title" data-i18n="nav_sys">系统</div>
+                    <a href="#section-hooks" class="menu-item" data-target="section-hooks" data-i18n="nav_hooks" data-i18n-text-only>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> 
                         Hooks
                     </a>
-                    <a href="#section-about" class="menu-item" data-target="section-about">
+                    <a href="#section-about" class="menu-item" data-target="section-about" data-i18n="nav_about" data-i18n-text-only>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> 
                         关于
                     </a>
@@ -50,19 +50,19 @@
         <!-- Main Content -->
         <main class="main-content">
             <header class="content-header">
-                <h1 id="content-title">常规配置</h1>
+                <h1 id="content-title" data-i18n="title_general">常规配置</h1>
             </header>
 
             <div class="content-scroll" id="content-scroll">
                 
                 <!-- 常规配置 -->
                 <section class="settings-group" id="section-general">
-                    <h2>通用设置</h2>
+                    <h2 data-i18n="group_general">通用设置</h2>
                     <div class="settings-card">
                         <div class="setting-item">
                             <div class="setting-info">
-                                <div class="setting-title">应用语言</div>
-                                <div class="setting-desc">设置 Familiar 客户端的显示语言</div>
+                                <div class="setting-title" data-i18n="lbl_lang">应用语言</div>
+                                <div class="setting-desc" data-i18n="desc_lang">设置 Familiar 客户端的显示语言</div>
                             </div>
                             <div class="custom-select">
                                 <select id="setting-language">
@@ -74,8 +74,8 @@
                         <div class="divider"></div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <div class="setting-title">开机自启</div>
-                                <div class="setting-desc">系统启动时自动运行 Familiar 守护进程</div>
+                                <div class="setting-title" data-i18n="lbl_autostart">开机自启</div>
+                                <div class="setting-desc" data-i18n="desc_autostart">系统启动时自动运行 Familiar 守护进程</div>
                             </div>
                             <label class="switch">
                                 <input type="checkbox" id="setting-autostart" checked>
@@ -85,8 +85,8 @@
                         <div class="divider"></div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <div class="setting-title">API 端口</div>
-                                <div class="setting-desc">外部服务访问 Familiar HTTP API 的本地端口</div>
+                                <div class="setting-title" data-i18n="lbl_api_port">API 端口</div>
+                                <div class="setting-desc" data-i18n="desc_api_port">外部服务访问 Familiar HTTP API 的本地端口</div>
                             </div>
                             <div class="custom-input">
                                 <input type="number" id="setting-api-port" value="9528">
@@ -97,12 +97,12 @@
 
                 <!-- 桌面宠物配置 -->
                 <section class="settings-group" id="section-pet">
-                    <h2>桌宠外观与行为</h2>
+                    <h2 data-i18n="group_pet">桌宠外观与行为</h2>
                     <div class="settings-card">
                         <div class="setting-item">
                             <div class="setting-info">
-                                <div class="setting-title">桌宠缩放比例</div>
-                                <div class="setting-desc">调整桌面宠物的显示大小 (1.0 - 5.0)</div>
+                                <div class="setting-title" data-i18n="lbl_pet_scale">桌宠缩放比例</div>
+                                <div class="setting-desc" data-i18n="desc_pet_scale">调整桌面宠物的显示大小 (1.0 - 5.0)</div>
                             </div>
                             <div class="custom-range">
                                 <input type="range" id="setting-pet-scale" min="1" max="5" step="0.1" value="2.0">
@@ -112,8 +112,8 @@
                         <div class="divider"></div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <div class="setting-title">气泡缩放比例</div>
-                                <div class="setting-desc">调整信息气泡的显示大小 (0.5 - 3.0)</div>
+                                <div class="setting-title" data-i18n="lbl_bubble_scale">气泡缩放比例</div>
+                                <div class="setting-desc" data-i18n="desc_bubble_scale">调整信息气泡的显示大小 (0.5 - 3.0)</div>
                             </div>
                             <div class="custom-range">
                                 <input type="range" id="setting-bubble-scale" min="0.5" max="3" step="0.1" value="1.0">
@@ -123,8 +123,8 @@
                         <div class="divider"></div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <div class="setting-title">总是在最前</div>
-                                <div class="setting-desc">让桌宠悬浮在所有系统窗口之上，避免被遮挡</div>
+                                <div class="setting-title" data-i18n="lbl_always_top">总是在最前</div>
+                                <div class="setting-desc" data-i18n="desc_always_top">让桌宠悬浮在所有系统窗口之上，避免被遮挡</div>
                             </div>
                             <label class="switch">
                                 <input type="checkbox" id="setting-pet-always-top" checked>
@@ -134,8 +134,8 @@
                         <div class="divider"></div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <div class="setting-title">桌宠不透明度</div>
-                                <div class="setting-desc">调整桌宠的基础透明度 (0.1 - 1.0)</div>
+                                <div class="setting-title" data-i18n="lbl_opacity">桌宠不透明度</div>
+                                <div class="setting-desc" data-i18n="desc_opacity">调整桌宠的基础透明度 (0.1 - 1.0)</div>
                             </div>
                             <div class="custom-range">
                                 <input type="range" id="setting-pet-opacity" min="0.1" max="1.0" step="0.05" value="0.95">
@@ -147,12 +147,12 @@
 
                 <!-- Hooks 配置 -->
                 <section class="settings-group" id="section-hooks">
-                    <h2>Agent 进程间通信 (IPC)</h2>
+                    <h2 data-i18n="group_ipc">Agent 进程间通信 (IPC)</h2>
                     <div class="settings-card">
                         <div class="setting-item">
                             <div class="setting-info">
-                                <div class="setting-title">Unix Domain Socket 路径</div>
-                                <div class="setting-desc">用于与本地原生 Agent 工具 (如 Antigravity, Claude Code) 进行极速通信的 UDS 文件路径。<br><span style="color:var(--text-muted);font-size:11px;">通常无需修改，保持默认即可。</span></div>
+                                <div class="setting-title" data-i18n="lbl_uds">Unix Domain Socket 路径</div>
+                                <div class="setting-desc" data-i18n="desc_uds" data-i18n-html>用于与本地原生 Agent 工具 (如 Antigravity, Claude Code) 进行极速通信的 UDS 文件路径。<br><span style="color:var(--text-muted);font-size:11px;">通常无需修改，保持默认即可。</span></div>
                             </div>
                             <div class="custom-input large-input">
                                 <input type="text" id="setting-uds-path" value="/tmp/familiar.sock">
@@ -161,8 +161,8 @@
                         <div class="divider"></div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <div class="setting-title">备用 TCP 端口</div>
-                                <div class="setting-desc">当操作系统不支持 UDS 时（如 Windows），使用的备用 TCP 通信端口</div>
+                                <div class="setting-title" data-i18n="lbl_tcp">备用 TCP 端口</div>
+                                <div class="setting-desc" data-i18n="desc_tcp">当操作系统不支持 UDS 时（如 Windows），使用的备用 TCP 通信端口</div>
                             </div>
                             <div class="custom-input">
                                 <input type="number" id="setting-tcp-port" value="9528">
@@ -173,25 +173,25 @@
 
                 <!-- 关于 -->
                 <section class="settings-group" id="section-about">
-                    <h2>Familiar</h2>
+                    <h2 data-i18n="group_familiar">Familiar</h2>
                     <div class="settings-card">
                         <div class="setting-item">
                             <div class="setting-info">
-                                <div class="setting-title">当前版本</div>
-                                <div class="setting-desc">v1.0.0 (Beta) - Powered by Rust & Tauri 2.0</div>
+                                <div class="setting-title" data-i18n="lbl_version">当前版本</div>
+                                <div class="setting-desc" data-i18n="desc_version">v1.0.0 (Beta) - Powered by Rust & Tauri 2.0</div>
                             </div>
                         </div>
                         <div class="divider"></div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <div class="setting-title">开源协议</div>
-                                <div class="setting-desc">MIT License</div>
+                                <div class="setting-title" data-i18n="lbl_license">开源协议</div>
+                                <div class="setting-desc" data-i18n="desc_license">MIT License</div>
                             </div>
                         </div>
                         <div class="divider"></div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <div class="setting-title">项目地址</div>
+                                <div class="setting-title" data-i18n="lbl_url">项目地址</div>
                                 <div class="setting-desc"><a href="#" onclick="window.__TAURI__.core.invoke('open_url', {url: 'https://github.com'})">https://github.com/familiar-agent/familiar</a></div>
                             </div>
                         </div>
@@ -199,7 +199,7 @@
                 </section>
                 
                 <div class="action-bar" style="margin-bottom: 60px;">
-                    <button id="save-btn" class="primary-btn">保存并应用</button>
+                    <button id="save-btn" class="primary-btn" data-i18n="btn_save">保存并应用</button>
                     <span id="save-status" class="status-msg"></span>
                 </div>
 
