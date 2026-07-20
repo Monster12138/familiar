@@ -1,3 +1,5 @@
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+
 export class BubbleOverlay {
     constructor() {
         this.bubble = document.createElement('div');
@@ -15,7 +17,7 @@ export class BubbleOverlay {
         this.bubble.style.color = '#333';
         this.bubble.style.opacity = '0';
         this.bubble.style.transition = 'opacity 0.3s ease-in-out';
-        this.bubble.style.pointerEvents = 'none';
+        this.bubble.style.pointerEvents = 'auto';
         this.bubble.style.whiteSpace = 'normal';
         this.bubble.style.width = 'fit-content';
         this.bubble.style.maxWidth = '280px'; // Fits safely inside 320px window width
@@ -26,9 +28,16 @@ export class BubbleOverlay {
         this.bubble.style.wordBreak = 'break-word';
         this.bubble.style.boxShadow = '2px 2px 0px rgba(0,0,0,0.1)';
         this.bubble.style.zIndex = '1000';
+        this.bubble.style.cursor = 'grab';
         
         document.body.appendChild(this.bubble);
         this.timeoutId = null;
+
+        this.bubble.addEventListener('mousedown', (e) => {
+            if (e.button === 0) {
+                getCurrentWebviewWindow().startDragging();
+            }
+        });
 
         // Create inner elements
         this.innerContainer = document.createElement('div');
