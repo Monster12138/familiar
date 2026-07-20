@@ -265,22 +265,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         let beforeHTML = '';
         let afterHTML = '';
         
-        // Simple line-by-line diff
+        // Simple line-by-line diff with forced alignment
         let maxLines = Math.max(beforeLines.length, afterLines.length);
         for(let i=0; i<maxLines; i++) {
             const bLine = i < beforeLines.length ? beforeLines[i] : null;
             const aLine = i < afterLines.length ? afterLines[i] : null;
             
             if (bLine === aLine) {
-                beforeHTML += (bLine !== null ? syntaxHighlightJSON(bLine) : '') + '\n';
-                afterHTML += (aLine !== null ? syntaxHighlightJSON(aLine) : '') + '\n';
+                beforeHTML += `<div class="diff-line">${bLine !== null ? syntaxHighlightJSON(bLine) : ''}</div>`;
+                afterHTML += `<div class="diff-line">${aLine !== null ? syntaxHighlightJSON(aLine) : ''}</div>`;
             } else if (bLine !== null && aLine === null) {
-                beforeHTML += '<span class="diff-remove">' + syntaxHighlightJSON(bLine) + '</span>\n';
+                beforeHTML += `<div class="diff-line diff-remove">${syntaxHighlightJSON(bLine)}</div>`;
+                afterHTML += `<div class="diff-line"></div>`;
             } else if (bLine === null && aLine !== null) {
-                afterHTML += '<span class="diff-add">' + syntaxHighlightJSON(aLine) + '</span>\n';
+                beforeHTML += `<div class="diff-line"></div>`;
+                afterHTML += `<div class="diff-line diff-add">${syntaxHighlightJSON(aLine)}</div>`;
             } else {
-                beforeHTML += '<span class="diff-remove">' + syntaxHighlightJSON(bLine) + '</span>\n';
-                afterHTML += '<span class="diff-add">' + syntaxHighlightJSON(aLine) + '</span>\n';
+                beforeHTML += `<div class="diff-line diff-remove">${syntaxHighlightJSON(bLine)}</div>`;
+                afterHTML += `<div class="diff-line diff-add">${syntaxHighlightJSON(aLine)}</div>`;
             }
         }
         elBefore.innerHTML = beforeHTML;

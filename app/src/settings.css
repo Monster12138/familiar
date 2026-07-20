@@ -527,14 +527,19 @@ input:checked + .slider:before {
     display: block;
 }
 
+.diff-line {
+    display: block;
+    min-height: 19.5px; /* 13px font size * 1.5 line height */
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
 .diff-add {
     background-color: rgba(46, 160, 67, 0.2);
-    display: block;
 }
 
 .diff-remove {
     background-color: rgba(248, 81, 73, 0.2);
-    display: block;
 }
 
 .modal-path-bar {
