@@ -212,15 +212,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const hookModal = document.getElementById('hook-modal');
     const btnModalCancel = document.getElementById('btn-modal-cancel');
     const btnModalConfirm = document.getElementById('btn-modal-confirm');
-    const injectBeforeCode = document.getElementById('inject-before-code');
-    const injectAfterCode = document.getElementById('inject-after-code');
-    const btnModalCancel = document.getElementById('btn-modal-cancel');
-    const btnModalConfirm = document.getElementById('btn-modal-confirm');
     const hookPreviewCode = document.getElementById('hook-preview-code');
     const hookModalPath = document.getElementById('hook-modal-path');
     const injectBeforeCode = document.getElementById('inject-before-code');
     const injectAfterCode = document.getElementById('inject-after-code');
-    
     const uninstallModal = document.getElementById('uninstall-modal');
     const btnUninstallCancel = document.getElementById('btn-uninstall-cancel');
     const btnUninstallConfirm = document.getElementById('btn-uninstall-confirm');
