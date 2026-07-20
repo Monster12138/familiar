@@ -17,7 +17,6 @@
         /* Make background unclickable, only the cat should be clickable if we add pointer-events logic later */
         user-select: none;
         -webkit-user-select: none;
-        -webkit-app-region: drag;
       }
       #pet-container {
         width: 100%;
@@ -26,8 +25,8 @@
       }
     </style>
   </head>
-  <body data-tauri-drag-region>
-    <div id="pet-container" data-tauri-drag-region></div>
+  <body>
+    <div id="pet-container"></div>
 
     <!-- Context Menu -->
     <div id="context-menu">
