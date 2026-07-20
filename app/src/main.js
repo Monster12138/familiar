@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { LogicalSize } from "@tauri-apps/api/dpi";
 
 import { PixelSpriteRenderer } from "./pet/PixelSpriteRenderer.js";
 import { BubbleOverlay } from "./pet/BubbleOverlay.js";
@@ -153,9 +154,7 @@ async function applyConfigToWindow(config) {
         const width = Math.round(baseWidth * petConf.scale);
         const height = Math.round(baseHeight * petConf.scale);
         
-        // LogicalSize is imported from the dpi module, but since we didn't import it, 
-        // we can just use setSize with an object containing width and height in Tauri v2
-        appWindow.setSize({ width, height, type: "Logical" }).catch(e => console.error("Failed to set window size", e));
+        appWindow.setSize(new LogicalSize(width, height)).catch(e => console.error("Failed to set window size", e));
     }
 }
 
