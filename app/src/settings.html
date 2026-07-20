@@ -236,7 +236,11 @@
                     <pre><code id="inject-after-code" class="code-preview"></code></pre>
                 </div>
             </div>
-            <div id="hook-modal-path" style="margin-top: 10px; font-size: 12px; color: var(--text-muted); padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px; word-break: break-all;"></div>
+            
+            <div class="modal-path-bar" id="inject-path-bar" style="display:none;">
+                <div class="modal-path-text" id="inject-path-text"></div>
+                <button class="modal-path-copy" data-target="inject-path-text" data-i18n="btn_copy">复制</button>
+            </div>
             
             <div class="modal-actions">
                 <button class="secondary-btn" id="btn-modal-cancel" data-i18n="btn_cancel">取消</button>
@@ -262,6 +266,11 @@
                 </div>
             </div>
 
+            <div class="modal-path-bar" id="uninstall-path-bar" style="display:none;">
+                <div class="modal-path-text" id="uninstall-path-text"></div>
+                <button class="modal-path-copy" data-target="uninstall-path-text" data-i18n="btn_copy">复制</button>
+            </div>
+
             <div class="modal-actions">
                 <button class="secondary-btn" id="btn-uninstall-cancel" data-i18n="btn_cancel">取消</button>
                 <button class="danger-btn" id="btn-uninstall-confirm" data-i18n="btn_uninstall" style="padding: 10px 20px; font-size: 14px; font-weight: 500;">确认卸载</button>
@@ -273,8 +282,13 @@
     <div id="config-viewer-modal" class="modal-overlay" style="display:none;">
         <div class="modal-content diff-modal-content">
             <h3 data-i18n="modal_title_view_config">查看配置</h3>
-            <div id="config-viewer-path" style="margin-bottom: 12px; font-size: 12px; color: var(--text-muted); padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px; word-break: break-all;"></div>
             <pre style="flex: 1; overflow: auto; margin-bottom: 16px;"><code id="config-viewer-code" class="code-preview" style="height: 100%; box-sizing: border-box;"></code></pre>
+            
+            <div class="modal-path-bar" id="config-viewer-path-bar" style="display:none;">
+                <div class="modal-path-text" id="config-viewer-path-text"></div>
+                <button class="modal-path-copy" data-target="config-viewer-path-text" data-i18n="btn_copy">复制</button>
+            </div>
+
             <div class="modal-actions">
                 <button class="primary-btn" id="btn-config-viewer-close" data-i18n="btn_close">关闭</button>
             </div>

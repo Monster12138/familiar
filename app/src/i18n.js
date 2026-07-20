@@ -59,6 +59,8 @@ export const translations = {
         'modal_desc_preview': '以下配置将会合并到 Agent 的配置文件中。我们将自动生成一个 <code>.bak</code> 备份以防万一。',
         'btn_cancel': '取消',
         'btn_confirm_inject': '确认',
+        'btn_copy': '复制',
+        'btn_copied': '已复制',
     },
     'en-US': {
         'nav_close': 'Close Settings',
@@ -120,6 +122,8 @@ export const translations = {
         'modal_desc_preview': 'The following configuration will be merged into the Agent\'s config file. We will automatically generate a <code>.bak</code> backup just in case.',
         'btn_cancel': 'Cancel',
         'btn_confirm_inject': 'Confirm',
+        'btn_copy': 'Copy',
+        'btn_copied': 'Copied',
     }
 };
 

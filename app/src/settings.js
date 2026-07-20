@@ -137,8 +137,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (e) {
         console.error("Failed to load config", e);
     }
+    
+    // Copy buttons logic
+    document.querySelectorAll('.modal-path-copy').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const targetId = btn.getAttribute('data-target');
+            const targetEl = document.getElementById(targetId);
+            if (targetEl && targetEl.textContent) {
+                try {
+                    await navigator.clipboard.writeText(targetEl.textContent);
+                    const origText = btn.textContent;
+                    btn.textContent = t('btn_copied', elLanguage.value);
+                    btn.style.backgroundColor = "rgba(46, 160, 67, 0.3)";
+                    btn.style.borderColor = "rgba(46, 160, 67, 0.5)";
+                    setTimeout(() => {
+                        btn.textContent = origText;
+                        btn.style.backgroundColor = "";
+                        btn.style.borderColor = "";
+                    }, 2000);
+                } catch (e) {
+                    console.error("Failed to copy:", e);
+                }
+            }
+        });
+    });
 
-    // Change language live preview
+    // Language setting update UI
     elLanguage.addEventListener('change', () => {
         applyTranslations(elLanguage.value);
     });
@@ -287,9 +311,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const content = await invoke('get_config_content', { agent: 'antigravity' });
             if (hooksStatusCache && hooksStatusCache.antigravity && hooksStatusCache.antigravity.config_path) {
-                configViewerPath.textContent = hooksStatusCache.antigravity.config_path;
+                document.getElementById('config-viewer-path-text').textContent = hooksStatusCache.antigravity.config_path;
+                document.getElementById('config-viewer-path-bar').style.display = 'flex';
             } else {
-                configViewerPath.textContent = '';
+                document.getElementById('config-viewer-path-text').textContent = '';
+                document.getElementById('config-viewer-path-bar').style.display = 'none';
             }
             configViewerCode.innerHTML = syntaxHighlightJSON(content || "{}");
             configViewerModal.style.display = 'flex';
@@ -308,10 +334,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             renderDiff(diff.before, diff.after, injectBeforeCode, injectAfterCode);
             
             if (hooksStatusCache && hooksStatusCache.antigravity && hooksStatusCache.antigravity.config_path) {
-                hookModalPath.textContent = hooksStatusCache.antigravity.config_path;
-                hookModalPath.style.display = 'block';
+                document.getElementById('inject-path-text').textContent = hooksStatusCache.antigravity.config_path;
+                document.getElementById('inject-path-bar').style.display = 'flex';
             } else {
-                hookModalPath.style.display = 'none';
+                document.getElementById('inject-path-bar').style.display = 'none';
             }
             
             currentInjectingAgent = 'antigravity';
@@ -325,6 +351,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const diff = await invoke('preview_uninstall_hook', { agent: 'antigravity' });
             renderDiff(diff.before, diff.after, uninstallBeforeCode, uninstallAfterCode);
+            
+            if (hooksStatusCache && hooksStatusCache.antigravity && hooksStatusCache.antigravity.config_path) {
+                document.getElementById('uninstall-path-text').textContent = hooksStatusCache.antigravity.config_path;
+                document.getElementById('uninstall-path-bar').style.display = 'flex';
+            } else {
+                document.getElementById('uninstall-path-bar').style.display = 'none';
+            }
+            
             currentUninstallingAgent = 'antigravity';
             uninstallModal.style.display = 'flex';
         } catch(e) {
