@@ -49,11 +49,10 @@ impl StateMachine {
                 AgentEventType::AgentStopped => {
                     state.agents.remove(idx);
                 }
-                AgentEventType::AgentStarted { instruction } => {
-                    if let Some(inst) = instruction {
-                        agent.user_instruction = Some(inst.clone());
-                    }
+                AgentEventType::AgentStarted { instruction: Some(inst) } => {
+                    agent.user_instruction = Some(inst.clone());
                 }
+                AgentEventType::AgentStarted { instruction: None } => {}
                 AgentEventType::Thinking => {
                     agent.status = AgentStatus::Thinking;
                     agent.current_activity = Some("Thinking...".to_string());

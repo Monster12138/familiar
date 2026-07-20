@@ -9,6 +9,12 @@ use familiar_core::event::{AgentCategory, AgentEvent, AgentEventType, AgentSourc
 #[derive(Debug, Clone)]
 pub struct AntigravityHook {}
 
+impl Default for AntigravityHook {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AntigravityHook {
     pub fn new() -> Self {
         Self {}

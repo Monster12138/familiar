@@ -3,10 +3,16 @@ use async_trait::async_trait;
 use tokio::sync::mpsc;
 
 use crate::hook_trait::AgentHook;
-use familiar_core::event::{AgentCategory, AgentEvent, AgentEventType, AgentSource};
+use familiar_core::event::{AgentCategory, AgentEvent};
 
 #[derive(Debug, Clone)]
 pub struct CodexHook {}
+
+impl Default for CodexHook {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl CodexHook {
     pub fn new() -> Self {

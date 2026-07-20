@@ -66,7 +66,7 @@ fn main() {
                                 let ns_win = ns_win_ptr as id;
                                 unsafe {
                                     if let Some(panel_class) = Class::get("NSPanel") {
-                                        object_setClass(ns_win as *mut Object, panel_class);
+                                        object_setClass(ns_win, panel_class);
                                     }
                                     
                                     let mask: cocoa::foundation::NSUInteger = msg_send![ns_win, styleMask];
