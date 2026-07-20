@@ -103,7 +103,7 @@ fn main() {
                         if let Ok(listener) = tokio::net::UnixListener::bind(&socket_path) {
                             println!("Listening on UDS: {}", socket_path);
                             loop {
-                                if let Ok((mut stream, _)) = listener.accept().await {
+                                if let Ok((stream, _)) = listener.accept().await {
                                     let bus_clone = bus.clone();
                                     tokio::spawn(async move {
                                         let (reader, _) = tokio::io::split(stream);
@@ -116,7 +116,7 @@ fn main() {
                                                     if source == "antigravity" {
                                                         if let Some(payload) = val.get("payload") {
                                                             let event_name = val.get("hook_event_name").and_then(|s| s.as_str()).unwrap_or("");
-                                                            let hook = AntigravityHook::new("".to_string());
+                                                            let hook = AntigravityHook::new();
                                                             if let Ok(event) = hook.parse(event_name, payload) {
                                                                 let _ = bus_clone.publish(event).await;
                                                             }

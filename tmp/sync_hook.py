@@ -1,17 +1,18 @@
 import time
 import json
-import urllib.request
-import os
+import socket
 
 transcript_path = "/Users/sam.gl/.gemini/antigravity/brain/dcaad95a-be83-4785-9636-bf935bf3676b/.system_generated/logs/transcript.jsonl"
-url = "http://127.0.0.1:9528/api/v1/notify"
+socket_path = "/tmp/familiar.sock"
 
 def post_json(payload):
     try:
-        req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers={'Content-Type': 'application/json'})
-        urllib.request.urlopen(req)
+        data = json.dumps(payload).encode('utf-8') + b'\n'
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+            s.connect(socket_path)
+            s.sendall(data)
     except Exception as e:
-        print(f"HTTP Error: {e}")
+        print(f"UDS Error: {e}")
 
 def process_line(line):
     try:

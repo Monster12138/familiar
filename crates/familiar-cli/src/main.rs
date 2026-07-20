@@ -11,7 +11,7 @@ use familiar_core::event_bus::EventBus;
 use familiar_core::logger::init_logger;
 use familiar_core::state_machine::StateMachine;
 use familiar_hooks::antigravity::AntigravityHook;
-use familiar_hooks::hook_trait::AgentHook; // Assuming we want to use the trait or directly
+// use familiar_hooks::hook_trait::AgentHook; removed
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -65,7 +65,7 @@ async fn main() -> Result<()> {
 
             let state = AppState {
                 event_bus,
-                antigravity_hook: Arc::new(AntigravityHook::new("/tmp/dummy.jsonl".into())),
+                antigravity_hook: Arc::new(AntigravityHook::new()),
             };
 
             let app = Router::new()
@@ -89,13 +89,13 @@ async fn notify_handler(State(state): State<AppState>, Json(mut payload): Json<V
         .to_string();
 
     if let Some(obj) = payload["payload"].as_object_mut() {
-        obj.insert("hook_event_name".to_string(), Value::String(event_name));
+        obj.insert("hook_event_name".to_string(), Value::String(event_name.clone()));
     }
 
     let data = &payload["payload"];
 
     if source == "antigravity" {
-        if let Ok(event) = state.antigravity_hook.parse(data) {
+        if let Ok(event) = state.antigravity_hook.parse(&event_name, data) {
             let _ = state.event_bus.publish(event).await;
             return "OK".into();
         }
