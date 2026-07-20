@@ -195,7 +195,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const hookPreviewCode = document.getElementById('hook-preview-code');
     const hookModalPath = document.getElementById('hook-modal-path');
     
+    const uninstallModal = document.getElementById('uninstall-modal');
+    const btnUninstallCancel = document.getElementById('btn-uninstall-cancel');
+    const btnUninstallConfirm = document.getElementById('btn-uninstall-confirm');
+    
     let currentInjectingAgent = null;
+    let currentUninstallingAgent = null;
     let hooksStatusCache = {};
 
     function syntaxHighlightJSON(json) {
@@ -271,12 +276,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    btnUninstallAntigravity.addEventListener('click', async () => {
+    btnUninstallAntigravity.addEventListener('click', () => {
+        currentUninstallingAgent = 'antigravity';
+        uninstallModal.style.display = 'flex';
+    });
+
+    btnUninstallCancel.addEventListener('click', () => {
+        uninstallModal.style.display = 'none';
+        currentUninstallingAgent = null;
+    });
+
+    btnUninstallConfirm.addEventListener('click', async () => {
+        if (!currentUninstallingAgent) return;
         try {
-            await invoke('uninstall_hook', { agent: 'antigravity' });
+            btnUninstallConfirm.disabled = true;
+            await invoke('uninstall_hook', { agent: currentUninstallingAgent });
+            uninstallModal.style.display = 'none';
             await fetchHooksStatus();
         } catch (e) {
             alert("Uninstall failed: " + e);
+        } finally {
+            btnUninstallConfirm.disabled = false;
+            currentUninstallingAgent = null;
         }
     });
 
