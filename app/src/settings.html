@@ -82,6 +82,26 @@
                                 <input type="number" id="setting-api-port" value="9528">
                             </div>
                         </div>
+                        <div class="divider"></div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <div class="setting-title" data-i18n="lbl_uds">Unix Domain Socket 路径</div>
+                                <div class="setting-desc" data-i18n="desc_uds" data-i18n-html>用于与本地原生 Agent 工具 (如 Antigravity, Claude Code) 进行极速通信的 UDS 文件路径。<br><span style="color:var(--text-muted);font-size:11px;">通常无需修改，保持默认即可。</span></div>
+                            </div>
+                            <div class="custom-input large-input">
+                                <input type="text" id="setting-uds-path" value="/tmp/familiar.sock">
+                            </div>
+                        </div>
+                        <div class="divider"></div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <div class="setting-title" data-i18n="lbl_tcp">备用 TCP 端口</div>
+                                <div class="setting-desc" data-i18n="desc_tcp">当操作系统不支持 UDS 时（如 Windows），使用的备用 TCP 通信端口</div>
+                            </div>
+                            <div class="custom-input">
+                                <input type="number" id="setting-tcp-port" value="9528">
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -139,26 +159,6 @@
                 <section class="settings-group" id="section-hooks">
                     <h2 data-i18n="group_ipc">Agent 进程间通信 (IPC)</h2>
                     <div class="settings-card">
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <div class="setting-title" data-i18n="lbl_uds">Unix Domain Socket 路径</div>
-                                <div class="setting-desc" data-i18n="desc_uds" data-i18n-html>用于与本地原生 Agent 工具 (如 Antigravity, Claude Code) 进行极速通信的 UDS 文件路径。<br><span style="color:var(--text-muted);font-size:11px;">通常无需修改，保持默认即可。</span></div>
-                            </div>
-                            <div class="custom-input large-input">
-                                <input type="text" id="setting-uds-path" value="/tmp/familiar.sock">
-                            </div>
-                        </div>
-                        <div class="divider"></div>
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <div class="setting-title" data-i18n="lbl_tcp">备用 TCP 端口</div>
-                                <div class="setting-desc" data-i18n="desc_tcp">当操作系统不支持 UDS 时（如 Windows），使用的备用 TCP 通信端口</div>
-                            </div>
-                            <div class="custom-input">
-                                <input type="number" id="setting-tcp-port" value="9528">
-                            </div>
-                        </div>
-                        <div class="divider"></div>
                         <div class="setting-item">
                             <div class="setting-info" style="width: 100%;">
                                 <div class="setting-title" data-i18n="lbl_hook_injection">Hooks 一键注入管理</div>
