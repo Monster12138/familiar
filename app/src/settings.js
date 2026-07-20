@@ -272,7 +272,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     btnUninstallAntigravity.addEventListener('click', async () => {
-        if (!confirm(t('confirm_uninstall', elLanguage.value) || "Are you sure you want to uninstall?")) return;
         try {
             await invoke('uninstall_hook', { agent: 'antigravity' });
             await fetchHooksStatus();
