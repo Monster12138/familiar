@@ -215,4 +215,62 @@ impl AgentHook for AntigravityHook {
 
         Ok(())
     }
+
+    fn preview_inject(&self) -> Result<(String, String)> {
+        let path = self.config_path().ok_or_else(|| anyhow::anyhow!("Could not get config path"))?;
+        let payload = self.get_injection_payload().ok_or_else(|| anyhow::anyhow!("No payload defined"))?;
+        
+        let mut config_json = serde_json::json!({});
+        let mut before_content = String::new();
+        
+        if path.exists() {
+            before_content = std::fs::read_to_string(&path).unwrap_or_default();
+            if let Ok(existing) = serde_json::from_str::<serde_json::Value>(&before_content) {
+                config_json = existing;
+            }
+        }
+        
+        if let (Some(obj), Some(payload_obj)) = (config_json.as_object_mut(), payload.as_object()) {
+            for (k, v) in payload_obj {
+                obj.insert(k.clone(), v.clone());
+            }
+        }
+        
+        let after_content = serde_json::to_string_pretty(&config_json)?;
+        Ok((before_content, after_content))
+    }
+
+    fn preview_uninstall(&self) -> Result<(String, String)> {
+        let path = self.config_path().ok_or_else(|| anyhow::anyhow!("Could not get config path"))?;
+        if !path.exists() {
+            return Ok((String::new(), String::new()));
+        }
+        
+        let before_content = std::fs::read_to_string(&path)?;
+        let mut after_content = before_content.clone();
+        
+        if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&before_content) {
+            if let Some(obj) = json.as_object_mut() {
+                let mut keys_to_remove = Vec::new();
+                
+                if let Some(v) = obj.get("on_pre_tool_use") {
+                    if v.as_str().unwrap_or("").contains("familiar-cli") {
+                        keys_to_remove.push("on_pre_tool_use".to_string());
+                    }
+                }
+                if let Some(v) = obj.get("on_post_tool_use") {
+                    if v.as_str().unwrap_or("").contains("familiar-cli") {
+                        keys_to_remove.push("on_post_tool_use".to_string());
+                    }
+                }
+                
+                for k in keys_to_remove {
+                    obj.remove(&k);
+                }
+            }
+            after_content = serde_json::to_string_pretty(&json)?;
+        }
+        
+        Ok((before_content, after_content))
+    }
 }

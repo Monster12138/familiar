@@ -117,3 +117,43 @@ pub fn uninstall_hook(agent: &str) -> Result<(), String> {
     }
     Err("Unknown agent".into())
 }
+
+#[tauri::command]
+pub fn get_config_content(agent: &str) -> Result<String, String> {
+    if agent == "antigravity" {
+        let hook = AntigravityHook::new();
+        if let Some(path) = hook.config_path() {
+            if path.exists() {
+                return std::fs::read_to_string(&path).map_err(|e| e.to_string());
+            }
+            return Ok(String::new());
+        }
+    }
+    Err("Unknown agent or config path".into())
+}
+
+#[derive(serde::Serialize)]
+pub struct DiffPreview {
+    pub before: String,
+    pub after: String,
+}
+
+#[tauri::command]
+pub fn preview_inject_hook(agent: &str) -> Result<DiffPreview, String> {
+    if agent == "antigravity" {
+        let hook = AntigravityHook::new();
+        let (before, after) = hook.preview_inject().map_err(|e| e.to_string())?;
+        return Ok(DiffPreview { before, after });
+    }
+    Err("Unknown agent".into())
+}
+
+#[tauri::command]
+pub fn preview_uninstall_hook(agent: &str) -> Result<DiffPreview, String> {
+    if agent == "antigravity" {
+        let hook = AntigravityHook::new();
+        let (before, after) = hook.preview_uninstall().map_err(|e| e.to_string())?;
+        return Ok(DiffPreview { before, after });
+    }
+    Err("Unknown agent".into())
+}

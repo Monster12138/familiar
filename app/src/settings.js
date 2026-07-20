@@ -194,10 +194,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btnModalConfirm = document.getElementById('btn-modal-confirm');
     const hookPreviewCode = document.getElementById('hook-preview-code');
     const hookModalPath = document.getElementById('hook-modal-path');
+    const injectBeforeCode = document.getElementById('inject-before-code');
+    const injectAfterCode = document.getElementById('inject-after-code');
     
     const uninstallModal = document.getElementById('uninstall-modal');
     const btnUninstallCancel = document.getElementById('btn-uninstall-cancel');
     const btnUninstallConfirm = document.getElementById('btn-uninstall-confirm');
+    const uninstallBeforeCode = document.getElementById('uninstall-before-code');
+    const uninstallAfterCode = document.getElementById('uninstall-after-code');
+
+    const configViewerModal = document.getElementById('config-viewer-modal');
+    const btnConfigViewerClose = document.getElementById('btn-config-viewer-close');
+    const configViewerPath = document.getElementById('config-viewer-path');
+    const configViewerCode = document.getElementById('config-viewer-code');
     
     let currentInjectingAgent = null;
     let currentUninstallingAgent = null;
@@ -225,6 +234,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    function renderDiff(beforeText, afterText, elBefore, elAfter) {
+        const beforeLines = beforeText ? beforeText.split('\n') : [];
+        const afterLines = afterText ? afterText.split('\n') : [];
+        
+        let beforeHTML = '';
+        let afterHTML = '';
+        
+        // Simple line-by-line diff
+        let maxLines = Math.max(beforeLines.length, afterLines.length);
+        for(let i=0; i<maxLines; i++) {
+            const bLine = i < beforeLines.length ? beforeLines[i] : null;
+            const aLine = i < afterLines.length ? afterLines[i] : null;
+            
+            if (bLine === aLine) {
+                beforeHTML += (bLine !== null ? syntaxHighlightJSON(bLine) : '') + '\n';
+                afterHTML += (aLine !== null ? syntaxHighlightJSON(aLine) : '') + '\n';
+            } else if (bLine !== null && aLine === null) {
+                beforeHTML += '<span class="diff-remove">' + syntaxHighlightJSON(bLine) + '</span>\n';
+            } else if (bLine === null && aLine !== null) {
+                afterHTML += '<span class="diff-add">' + syntaxHighlightJSON(aLine) + '</span>\n';
+            } else {
+                beforeHTML += '<span class="diff-remove">' + syntaxHighlightJSON(bLine) + '</span>\n';
+                afterHTML += '<span class="diff-add">' + syntaxHighlightJSON(aLine) + '</span>\n';
+            }
+        }
+        elBefore.innerHTML = beforeHTML;
+        elAfter.innerHTML = afterHTML;
+    }
+
     async function fetchHooksStatus() {
         try {
             const status = await invoke('get_hooks_status');
@@ -245,40 +283,53 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    btnViewConfigAntigravity.addEventListener('click', async () => {
+        try {
+            const content = await invoke('get_config_content', { agent: 'antigravity' });
+            if (hooksStatusCache && hooksStatusCache.antigravity && hooksStatusCache.antigravity.config_path) {
+                configViewerPath.textContent = hooksStatusCache.antigravity.config_path;
+            } else {
+                configViewerPath.textContent = '';
+            }
+            configViewerCode.innerHTML = syntaxHighlightJSON(content || "{}");
+            configViewerModal.style.display = 'flex';
+        } catch (e) {
+            console.error(e);
+        }
+    });
+
+    btnConfigViewerClose.addEventListener('click', () => {
+        configViewerModal.style.display = 'none';
+    });
+
     btnInjectAntigravity.addEventListener('click', async () => {
         try {
-            currentInjectingAgent = 'antigravity';
-            const payload = await invoke('get_hook_payload', { agent: currentInjectingAgent });
-            hookPreviewCode.innerHTML = syntaxHighlightJSON(payload);
+            const diff = await invoke('preview_inject_hook', { agent: 'antigravity' });
+            renderDiff(diff.before, diff.after, injectBeforeCode, injectAfterCode);
             
-            const agentStatus = hooksStatusCache[currentInjectingAgent];
-            if (agentStatus && agentStatus.config_path) {
-                hookModalPath.innerHTML = `即将修改: <span>${agentStatus.config_path}</span>`;
+            if (hooksStatusCache && hooksStatusCache.antigravity && hooksStatusCache.antigravity.config_path) {
+                hookModalPath.textContent = hooksStatusCache.antigravity.config_path;
                 hookModalPath.style.display = 'block';
             } else {
                 hookModalPath.style.display = 'none';
             }
             
+            currentInjectingAgent = 'antigravity';
             hookModal.style.display = 'flex';
-        } catch (e) {
-            alert("Failed to get payload: " + e);
+        } catch(e) {
+            alert("Preview failed: " + e);
         }
     });
 
-    btnViewConfigAntigravity.addEventListener('click', async () => {
-        const agentStatus = hooksStatusCache['antigravity'];
-        if (agentStatus && agentStatus.config_path) {
-            try {
-                await invoke('open_url', { url: agentStatus.config_path });
-            } catch (e) {
-                alert("Failed to open config file: " + e);
-            }
+    btnUninstallAntigravity.addEventListener('click', async () => {
+        try {
+            const diff = await invoke('preview_uninstall_hook', { agent: 'antigravity' });
+            renderDiff(diff.before, diff.after, uninstallBeforeCode, uninstallAfterCode);
+            currentUninstallingAgent = 'antigravity';
+            uninstallModal.style.display = 'flex';
+        } catch(e) {
+            alert("Preview uninstall failed: " + e);
         }
-    });
-
-    btnUninstallAntigravity.addEventListener('click', () => {
-        currentUninstallingAgent = 'antigravity';
-        uninstallModal.style.display = 'flex';
     });
 
     btnUninstallCancel.addEventListener('click', () => {

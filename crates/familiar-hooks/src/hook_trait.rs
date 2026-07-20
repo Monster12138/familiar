@@ -16,4 +16,8 @@ pub trait AgentHook: Send + Sync {
     fn get_injection_payload(&self) -> Option<serde_json::Value> { None }
     fn inject(&self) -> Result<()> { Err(anyhow::anyhow!("Not implemented for this agent")) }
     fn uninstall(&self) -> Result<()> { Err(anyhow::anyhow!("Not implemented for this agent")) }
+    
+    // Returns (before_content, after_content)
+    fn preview_inject(&self) -> Result<(String, String)> { Err(anyhow::anyhow!("Not implemented for this agent")) }
+    fn preview_uninstall(&self) -> Result<(String, String)> { Err(anyhow::anyhow!("Not implemented for this agent")) }
 }

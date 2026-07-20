@@ -471,4 +471,68 @@ input:checked + .slider:before {
 .json-string { color: #CE9178; }
 .json-number { color: #B5CEA8; }
 .json-boolean { color: #569CD6; }
-.json-null { color: #569CD6; }
+.json-null { color: #d19a66; }
+
+.diff-modal-content {
+    width: 90vw;
+    max-width: 900px;
+    height: 80vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.diff-viewer {
+    display: flex;
+    flex: 1;
+    gap: 12px;
+    min-height: 0;
+    margin-bottom: 16px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.diff-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.diff-header {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.diff-pane pre {
+    flex: 1;
+    margin: 0;
+    overflow: auto;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.diff-pane code {
+    font-family: 'Fira Code', 'Menlo', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre;
+    display: block;
+}
+
+.diff-add {
+    background-color: rgba(46, 160, 67, 0.2);
+    display: block;
+}
+
+.diff-remove {
+    background-color: rgba(248, 81, 73, 0.2);
+    display: block;
+}

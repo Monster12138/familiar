@@ -204,6 +204,9 @@ fn main() {
             commands::get_hook_payload,
             commands::inject_hook,
             commands::uninstall_hook,
+            commands::get_config_content,
+            commands::preview_inject_hook,
+            commands::preview_uninstall_hook,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
