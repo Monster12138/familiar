@@ -4,10 +4,29 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Familiar</title>
+    <style>
+      body, html {
+        margin: 0;
+        padding: 0;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        /* Background MUST be transparent for Tauri to blend it with desktop */
+        background-color: transparent !important;
+        /* Make background unclickable, only the cat should be clickable if we add pointer-events logic later */
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-app-region: drag;
+      }
+      #pet-container {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+    </style>
   </head>
-  <body>
-    <div id="app">
-      <h1>Welcome to Familiar</h1>
-    </div>
+  <body data-tauri-drag-region>
+    <div id="pet-container" data-tauri-drag-region></div>
+    <script type="module" src="./main.js"></script>
   </body>
 </html>

@@ -1,7 +1,7 @@
-use tracing_subscriber::{fmt, EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
-use tracing_appender::non_blocking::WorkerGuard;
-use std::path::Path;
 use anyhow::Result;
+use std::path::Path;
+use tracing_appender::non_blocking::WorkerGuard;
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 pub fn init_logger<P: AsRef<Path>>(log_dir: P, file_name: &str) -> Result<WorkerGuard> {
     // File appender
@@ -9,9 +9,7 @@ pub fn init_logger<P: AsRef<Path>>(log_dir: P, file_name: &str) -> Result<Worker
     let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
     // Formatter
-    let fmt_layer = fmt::layer()
-        .with_writer(non_blocking)
-        .with_target(false);
+    let fmt_layer = fmt::layer().with_writer(non_blocking).with_target(false);
 
     // Standard stdout logger
     let stdout_layer = fmt::layer().with_writer(std::io::stdout);

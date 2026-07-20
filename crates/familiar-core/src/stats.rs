@@ -1,7 +1,7 @@
-use crate::state::DailyStats;
 use crate::event::AgentEvent;
-use std::sync::{Arc, RwLock};
+use crate::state::DailyStats;
 use anyhow::Result;
+use std::sync::{Arc, RwLock};
 
 #[derive(Debug, Clone)]
 pub struct StatisticsEngine {

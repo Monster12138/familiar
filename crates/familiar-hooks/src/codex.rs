@@ -2,8 +2,8 @@ use anyhow::Result;
 use async_trait::async_trait;
 use tokio::sync::mpsc;
 
-use familiar_core::event::{AgentEvent, AgentCategory};
 use crate::hook_trait::AgentHook;
+use familiar_core::event::{AgentCategory, AgentEvent};
 
 #[derive(Debug)]
 pub struct CodexHook {

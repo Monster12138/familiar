@@ -1,8 +1,8 @@
 use crate::event::AgentEvent;
+use anyhow::Result;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::sync::{broadcast, RwLock};
-use anyhow::Result;
 
 #[derive(Debug, Clone)]
 pub struct EventBus {
@@ -28,7 +28,7 @@ impl EventBus {
             history.pop_front();
         }
         history.push_back(event.clone());
-        
+
         // Broadcast to subscribers (ignore error if no receivers are active yet)
         let _ = self.sender.send(event);
         Ok(())

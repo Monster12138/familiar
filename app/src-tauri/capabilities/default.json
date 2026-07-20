@@ -1,0 +1,14 @@
+{
+  "identifier": "default",
+  "description": "Default permissions",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-set-visible-on-all-workspaces",
+    "core:event:default"
+  ]
+}

@@ -1,7 +1,7 @@
-use async_trait::async_trait;
-use tokio::sync::mpsc;
 use anyhow::Result;
+use async_trait::async_trait;
 use familiar_core::event::{AgentCategory, AgentEvent};
+use tokio::sync::mpsc;
 
 #[async_trait]
 pub trait AgentHook: Send + Sync {

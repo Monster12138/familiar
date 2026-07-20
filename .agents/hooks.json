@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cargo run -p familiar-cli --quiet -- hook --source antigravity --event PreToolUse",
+            "timeout": 5,
+            "statusMessage": "Notifying Familiar..."
+          }
+        ]
+      }
+    ]
+  }
+}

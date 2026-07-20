@@ -1,5 +1,5 @@
-use rusqlite::Connection;
 use anyhow::Result;
+use rusqlite::Connection;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
@@ -11,22 +11,22 @@ pub struct Storage {
 impl Storage {
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let conn = Connection::open(path)?;
-        
+
         let storage = Self {
             conn: Arc::new(Mutex::new(conn)),
         };
-        
+
         storage.initialize_schema()?;
         Ok(storage)
     }
 
     pub fn in_memory() -> Result<Self> {
         let conn = Connection::open_in_memory()?;
-        
+
         let storage = Self {
             conn: Arc::new(Mutex::new(conn)),
         };
-        
+
         storage.initialize_schema()?;
         Ok(storage)
     }

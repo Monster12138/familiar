@@ -1,4 +1,8 @@
-use tauri::{App, tray::TrayIconBuilder, menu::{Menu, MenuItem}};
+use tauri::{
+    menu::{Menu, MenuItem},
+    tray::TrayIconBuilder,
+    App,
+};
 
 pub fn create_tray(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;

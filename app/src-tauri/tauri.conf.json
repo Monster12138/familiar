@@ -7,17 +7,22 @@
   },
   "app": {
     "withGlobalTauri": true,
+    "macOSPrivateApi": true,
     "windows": [
       {
+        "label": "main",
         "title": "Familiar",
-        "width": 800,
-        "height": 600,
-        "transparent": true
+        "width": 320,
+        "height": 240,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "visibleOnAllWorkspaces": true
       }
     ]
   },
   "bundle": {
     "active": true
   },
-  "identifier": "com.familiar.app"
+  "identifier": "com.samgl.familiar"
 }

@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use serde_json::Value;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum AgentSource {
@@ -23,25 +23,25 @@ pub enum AgentCategory {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AgentEventType {
     // Lifecycle
-    AgentStarted,
+    AgentStarted { instruction: Option<String> },
     AgentStopped,
-    
+
     // Core states
     Thinking,
     Processing { description: String },
-    
+
     // Coding specific
     ReadingFile { path: String },
     WritingFile { path: String },
     RunningCommand { cmd: String },
     SearchingCode { query: String },
     BrowsingWeb { url: String },
-    
+
     // Results
     TaskCompleted { summary: String },
     TaskFailed { error: String },
     WaitingForInput,
-    
+
     // Subagents
     SubagentStarted { agent_type: String },
     SubagentStopped { agent_type: String },

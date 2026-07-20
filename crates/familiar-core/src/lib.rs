@@ -1,9 +1,9 @@
+pub mod config;
 pub mod event;
 pub mod event_bus;
+pub mod logger;
+pub mod plugin;
 pub mod state;
 pub mod state_machine;
 pub mod stats;
 pub mod storage;
-pub mod config;
-pub mod plugin;
-pub mod logger;

@@ -1,7 +1,7 @@
+use crate::event::{AgentCategory, AgentSource};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::event::{AgentSource, AgentCategory};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AgentStatus {
@@ -52,6 +52,7 @@ pub struct AgentState {
     pub category: AgentCategory,
     pub status: AgentStatus,
     pub current_activity: Option<String>,
+    pub user_instruction: Option<String>,
     pub progress: Option<f32>,
     pub started_at: Option<DateTime<Utc>>,
     pub last_event_at: Option<DateTime<Utc>>,

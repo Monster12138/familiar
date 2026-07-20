@@ -1,5 +1,5 @@
-use axum::{Router, routing::get};
 use crate::ws::ws_handler;
+use axum::{routing::get, Router};
 
 pub fn create_router() -> Router {
     Router::new()
