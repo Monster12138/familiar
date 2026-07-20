@@ -192,16 +192,21 @@ impl AgentHook for AntigravityHook {
         let content = std::fs::read_to_string(&path)?;
         if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&content) {
             if let Some(obj) = json.as_object_mut() {
-                // If it's ours, remove it
+                let mut keys_to_remove = Vec::new();
+                
                 if let Some(v) = obj.get("on_pre_tool_use") {
                     if v.as_str().unwrap_or("").contains("familiar-cli") {
-                        obj.remove("on_pre_tool_use");
+                        keys_to_remove.push("on_pre_tool_use".to_string());
                     }
                 }
                 if let Some(v) = obj.get("on_post_tool_use") {
                     if v.as_str().unwrap_or("").contains("familiar-cli") {
-                        obj.remove("on_post_tool_use");
+                        keys_to_remove.push("on_post_tool_use".to_string());
                     }
+                }
+                
+                for k in keys_to_remove {
+                    obj.remove(&k);
                 }
             }
             let new_content = serde_json::to_string_pretty(&json)?;

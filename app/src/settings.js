@@ -187,6 +187,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Hooks Injection Logic ---
     const badgeAntigravity = document.getElementById('badge-antigravity');
     const btnInjectAntigravity = document.getElementById('btn-inject-antigravity');
+    const btnViewConfigAntigravity = document.getElementById('btn-view-config-antigravity');
     const btnUninstallAntigravity = document.getElementById('btn-uninstall-antigravity');
     const hookModal = document.getElementById('hook-modal');
     const btnModalCancel = document.getElementById('btn-modal-cancel');
@@ -231,6 +232,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 badgeAntigravity.textContent = isInj ? t('badge_injected', elLanguage.value) : t('badge_not_injected', elLanguage.value);
                 
                 btnInjectAntigravity.style.display = isInj ? 'none' : 'inline-block';
+                btnViewConfigAntigravity.style.display = isInj ? 'inline-block' : 'none';
                 btnUninstallAntigravity.style.display = isInj ? 'inline-block' : 'none';
             }
         } catch (e) {
@@ -255,6 +257,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             hookModal.style.display = 'flex';
         } catch (e) {
             alert("Failed to get payload: " + e);
+        }
+    });
+
+    btnViewConfigAntigravity.addEventListener('click', async () => {
+        const agentStatus = hooksStatusCache['antigravity'];
+        if (agentStatus && agentStatus.config_path) {
+            try {
+                await invoke('open_url', { url: agentStatus.config_path });
+            } catch (e) {
+                alert("Failed to open config file: " + e);
+            }
         }
     });
 
