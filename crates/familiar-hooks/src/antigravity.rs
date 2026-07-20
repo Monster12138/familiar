@@ -25,14 +25,30 @@ impl AntigravityHook {
             .unwrap_or_else(|_| uuid::Uuid::nil());
 
         match event_name {
-            "SessionStart" => Some(AgentEvent {
-                id: agent_id,
-                timestamp: chrono::Utc::now(),
-                source: AgentSource::Antigravity,
-                category: AgentCategory::Coding,
-                event_type: AgentEventType::AgentStarted { instruction: None },
-                metadata: None,
-            }),
+            "SessionStart" => {
+                let instruction = json["instruction"]
+                    .as_str()
+                    .or_else(|| json["task"].as_str())
+                    .or_else(|| json["prompt"].as_str())
+                    .map(|s| {
+                        let mut text = s.to_string();
+                        if let Some(start) = text.find("<USER_REQUEST>") {
+                            if let Some(end) = text.find("</USER_REQUEST>") {
+                                let start_idx = start + "<USER_REQUEST>".len();
+                                text = text[start_idx..end].trim().to_string();
+                            }
+                        }
+                        text
+                    });
+                Some(AgentEvent {
+                    id: agent_id,
+                    timestamp: chrono::Utc::now(),
+                    source: AgentSource::Antigravity,
+                    category: AgentCategory::Coding,
+                    event_type: AgentEventType::AgentStarted { instruction },
+                    metadata: None,
+                })
+            }
             "PreToolUse" => {
                 let name = json["toolCall"]["name"].as_str().unwrap_or("unknown");
                 Some(AgentEvent {
@@ -51,8 +67,8 @@ impl AntigravityHook {
                 timestamp: chrono::Utc::now(),
                 source: AgentSource::Antigravity,
                 category: AgentCategory::Coding,
-                event_type: AgentEventType::Processing {
-                    description: "Tool finished".into(),
+                event_type: AgentEventType::TaskCompleted {
+                    summary: "Tool finished".into(),
                 },
                 metadata: None,
             }),
@@ -77,12 +93,21 @@ impl AntigravityHook {
                         metadata: None,
                     })
                 } else if step_type == "USER_INPUT" {
+                    let mut instruction = json["content"].as_str().map(|s| s.to_string());
+                    if let Some(ref mut text) = instruction {
+                        if let Some(start) = text.find("<USER_REQUEST>") {
+                            if let Some(end) = text.find("</USER_REQUEST>") {
+                                let start_idx = start + "<USER_REQUEST>".len();
+                                *text = text[start_idx..end].trim().to_string();
+                            }
+                        }
+                    }
                     Some(AgentEvent {
                         id: agent_id,
                         timestamp: chrono::Utc::now(),
                         source: AgentSource::Antigravity,
                         category: AgentCategory::Coding,
-                        event_type: AgentEventType::AgentStarted { instruction: Some(json["content"].as_str().unwrap_or("").to_string()) },
+                        event_type: AgentEventType::AgentStarted { instruction },
                         metadata: None,
                     })
                 } else {
