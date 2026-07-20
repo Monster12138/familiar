@@ -25,6 +25,13 @@ pub fn save_config(app_handle: tauri::AppHandle, config: FamiliarConfig) -> Resu
         if std::path::Path::new(p).exists() {
             let res = config.save_to_file(std::path::Path::new(p)).map_err(|e| e.to_string());
             if res.is_ok() {
+                use tauri::Manager;
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    let scale = config.renderer.desktop_pet.scale as f64;
+                    let _ = window.set_size(tauri::LogicalSize::new(160.0 * scale, 160.0 * scale));
+                    let _ = window.set_always_on_top(config.renderer.desktop_pet.always_on_top);
+                }
+                
                 use tauri::Emitter;
                 let _ = app_handle.emit("config_changed", config);
             }

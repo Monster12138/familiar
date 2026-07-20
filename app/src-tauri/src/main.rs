@@ -93,6 +93,13 @@ fn main() {
             });
 
             let config = load_config();
+            
+            use tauri::Manager;
+            if let Some(window) = app.get_webview_window("main") {
+                let scale = config.renderer.desktop_pet.scale as f64;
+                let _ = window.set_size(tauri::LogicalSize::new(160.0 * scale, 160.0 * scale));
+                let _ = window.set_always_on_top(config.renderer.desktop_pet.always_on_top);
+            }
 
             #[cfg(unix)]
             {

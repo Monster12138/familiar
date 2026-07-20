@@ -140,21 +140,8 @@ async function applyConfigToWindow(config) {
     const petConf = config.renderer['desktop-pet'];
     const appWindow = getCurrentWebviewWindow();
     
-    if (petConf.always_on_top !== undefined) {
-        appWindow.setAlwaysOnTop(petConf.always_on_top);
-    }
-    
     if (petConf.opacity !== undefined) {
         document.body.style.opacity = petConf.opacity;
-    }
-    
-    if (petConf.scale) {
-        const baseWidth = 160;
-        const baseHeight = 160;
-        const width = Math.round(baseWidth * petConf.scale);
-        const height = Math.round(baseHeight * petConf.scale);
-        
-        appWindow.setSize(new LogicalSize(width, height)).catch(e => console.error("Failed to set window size", e));
     }
 }
 
