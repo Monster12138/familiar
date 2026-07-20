@@ -119,6 +119,44 @@ async function init() {
             );
         }
     });
+
+    // Listen for config changes from Rust Backend
+    await listen("config_changed", (event) => {
+        applyConfigToWindow(event.payload);
+    });
+
+    try {
+        const config = await invoke("get_config");
+        applyConfigToWindow(config);
+    } catch (e) {
+        console.error("Failed to load initial config", e);
+    }
+}
+
+async function applyConfigToWindow(config) {
+    if (!config || !config.renderer || !config.renderer['desktop-pet']) return;
+    
+    const petConf = config.renderer['desktop-pet'];
+    const appWindow = getCurrentWebviewWindow();
+    
+    if (petConf.always_on_top !== undefined) {
+        appWindow.setAlwaysOnTop(petConf.always_on_top);
+    }
+    
+    if (petConf.opacity !== undefined) {
+        document.body.style.opacity = petConf.opacity;
+    }
+    
+    if (petConf.scale) {
+        const baseWidth = 160;
+        const baseHeight = 160;
+        const width = Math.round(baseWidth * petConf.scale);
+        const height = Math.round(baseHeight * petConf.scale);
+        
+        // LogicalSize is imported from the dpi module, but since we didn't import it, 
+        // we can just use setSize with an object containing width and height in Tauri v2
+        appWindow.setSize({ width, height, type: "Logical" }).catch(e => console.error("Failed to set window size", e));
+    }
 }
 
 window.addEventListener("DOMContentLoaded", () => {

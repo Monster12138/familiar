@@ -77,7 +77,7 @@ fn main() {
                                         | NSWindowCollectionBehavior::NSWindowCollectionBehaviorFullScreenAuxiliary;
                                     ns_win.setCollectionBehavior_(behavior);
                                     
-                                    ns_win.setLevel_(26);
+                                    // ns_win.setLevel_(26); // We will manage always_on_top from JS API
                                 }
                             }
                         });

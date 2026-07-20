@@ -16,14 +16,19 @@ pub fn get_config() -> Result<FamiliarConfig, String> {
 }
 
 #[tauri::command]
-pub fn save_config(config: FamiliarConfig) -> Result<(), String> {
+pub fn save_config(app_handle: tauri::AppHandle, config: FamiliarConfig) -> Result<(), String> {
     let paths = [
         "config/default.toml",
         "../../config/default.toml",
     ];
     for p in paths {
         if std::path::Path::new(p).exists() {
-            return config.save_to_file(std::path::Path::new(p)).map_err(|e| e.to_string());
+            let res = config.save_to_file(std::path::Path::new(p)).map_err(|e| e.to_string());
+            if res.is_ok() {
+                use tauri::Emitter;
+                let _ = app_handle.emit("config_changed", config);
+            }
+            return res;
         }
     }
     Err("Config file not found".to_string())
