@@ -105,4 +105,9 @@ export class BubbleOverlay {
             this.bubble.style.opacity = '0';
         }, duration);
     }
+    
+    setScale(scale) {
+        this.bubble.style.transformOrigin = 'bottom left';
+        this.bubble.style.transform = `scale(${scale})`;
+    }
 }

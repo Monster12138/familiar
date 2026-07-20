@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const elPetScale = document.getElementById('setting-pet-scale');
     const elPetAlwaysTop = document.getElementById('setting-pet-always-top');
     const elPetOpacity = document.getElementById('setting-pet-opacity');
+    const elBubbleScale = document.getElementById('setting-bubble-scale');
     
     const elUdsPath = document.getElementById('setting-uds-path');
     const elTcpPort = document.getElementById('setting-tcp-port');
@@ -91,6 +92,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (petConf.scale) elPetScale.value = petConf.scale;
             if (petConf.always_on_top !== undefined) elPetAlwaysTop.checked = petConf.always_on_top;
             if (petConf.opacity !== undefined) elPetOpacity.value = petConf.opacity;
+            if (petConf.bubble_scale !== undefined) elBubbleScale.value = petConf.bubble_scale;
         }
 
         // Hooks / IPC
@@ -121,6 +123,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentConfig.renderer['desktop-pet'].scale = parseFloat(elPetScale.value);
         currentConfig.renderer['desktop-pet'].always_on_top = elPetAlwaysTop.checked;
         currentConfig.renderer['desktop-pet'].opacity = parseFloat(elPetOpacity.value);
+        currentConfig.renderer['desktop-pet'].bubble_scale = parseFloat(elBubbleScale.value);
 
         currentConfig.hooks.socket_path = elUdsPath.value;
         currentConfig.hooks.tcp_port = parseInt(elTcpPort.value, 10);

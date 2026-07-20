@@ -44,6 +44,7 @@ pub struct DesktopPetConfig {
     pub position: String,
     pub always_on_top: bool,
     pub opacity: f32,
+    pub bubble_scale: f32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -96,6 +97,7 @@ impl Default for FamiliarConfig {
                     position: "bottom-right".to_string(),
                     always_on_top: true,
                     opacity: 0.95,
+                    bubble_scale: 1.0,
                 },
                 menu_bar: MenuBarConfig {
                     show_active_count: true,

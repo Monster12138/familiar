@@ -143,6 +143,10 @@ async function applyConfigToWindow(config) {
     if (petConf.opacity !== undefined) {
         document.body.style.opacity = petConf.opacity;
     }
+    
+    if (petConf.bubble_scale !== undefined && bubbleOverlay) {
+        bubbleOverlay.setScale(petConf.bubble_scale);
+    }
 }
 
 window.addEventListener("DOMContentLoaded", () => {
