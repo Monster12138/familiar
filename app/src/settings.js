@@ -13,9 +13,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const elApiPort = document.getElementById('setting-api-port');
     
     const elPetScale = document.getElementById('setting-pet-scale');
+    const valPetScale = document.getElementById('val-pet-scale');
     const elPetAlwaysTop = document.getElementById('setting-pet-always-top');
     const elPetOpacity = document.getElementById('setting-pet-opacity');
+    const valPetOpacity = document.getElementById('val-pet-opacity');
     const elBubbleScale = document.getElementById('setting-bubble-scale');
+    const valBubbleScale = document.getElementById('val-bubble-scale');
     
     const elUdsPath = document.getElementById('setting-uds-path');
     const elTcpPort = document.getElementById('setting-tcp-port');
@@ -70,6 +73,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
+    // --- Range Input Sync Logic ---
+    function setupRangeSync(inputEl, valEl, fractionDigits) {
+        if (!inputEl || !valEl) return;
+        const updateVal = () => {
+            valEl.textContent = Number(inputEl.value).toFixed(fractionDigits);
+        };
+        inputEl.addEventListener('input', updateVal);
+        updateVal();
+    }
+    
+    setupRangeSync(elPetScale, valPetScale, 1);
+    setupRangeSync(elBubbleScale, valBubbleScale, 1);
+    setupRangeSync(elPetOpacity, valPetOpacity, 2);
 
     // --- Config Load/Save Logic ---
 
@@ -89,10 +105,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Renderer Desktop Pet
         if (currentConfig.renderer && currentConfig.renderer['desktop-pet']) {
             const petConf = currentConfig.renderer['desktop-pet'];
-            if (petConf.scale) elPetScale.value = petConf.scale;
+            if (petConf.scale) {
+                elPetScale.value = petConf.scale;
+                if (valPetScale) valPetScale.textContent = Number(petConf.scale).toFixed(1);
+            }
             if (petConf.always_on_top !== undefined) elPetAlwaysTop.checked = petConf.always_on_top;
-            if (petConf.opacity !== undefined) elPetOpacity.value = petConf.opacity;
-            if (petConf.bubble_scale !== undefined) elBubbleScale.value = petConf.bubble_scale;
+            if (petConf.opacity !== undefined) {
+                elPetOpacity.value = petConf.opacity;
+                if (valPetOpacity) valPetOpacity.textContent = Number(petConf.opacity).toFixed(2);
+            }
+            if (petConf.bubble_scale !== undefined) {
+                elBubbleScale.value = petConf.bubble_scale;
+                if (valBubbleScale) valBubbleScale.textContent = Number(petConf.bubble_scale).toFixed(1);
+            }
         }
 
         // Hooks / IPC

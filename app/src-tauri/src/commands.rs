@@ -9,10 +9,12 @@ pub fn get_config() -> Result<FamiliarConfig, String> {
     ];
     for p in paths {
         if std::path::Path::new(p).exists() {
-            return FamiliarConfig::load_from_file(p).map_err(|e| e.to_string());
+            if let Ok(c) = FamiliarConfig::load_from_file(p) {
+                return Ok(c);
+            }
         }
     }
-    Err("Config file not found".to_string())
+    Ok(FamiliarConfig::default())
 }
 
 #[tauri::command]

@@ -303,3 +303,39 @@ input:checked + .slider:before {
     opacity: 0;
     transition: opacity 0.3s;
 }
+
+/* Range Sliders */
+.custom-range {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.custom-range input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 120px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    outline: none;
+}
+
+.custom-range input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--text-main);
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.range-value {
+    font-size: 13px;
+    color: var(--accent-blue);
+    min-width: 30px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}

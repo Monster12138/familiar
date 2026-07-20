@@ -44,7 +44,12 @@ pub struct DesktopPetConfig {
     pub position: String,
     pub always_on_top: bool,
     pub opacity: f32,
+    #[serde(default = "default_bubble_scale")]
     pub bubble_scale: f32,
+}
+
+fn default_bubble_scale() -> f32 {
+    1.0
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
