@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Familiar</title>
+    <link rel="stylesheet" href="./index.css" />
     <style>
       body, html {
         margin: 0;
@@ -27,6 +28,54 @@
   </head>
   <body data-tauri-drag-region>
     <div id="pet-container" data-tauri-drag-region></div>
+
+    <!-- Context Menu -->
+    <div id="context-menu">
+      <div class="menu-item" id="menu-settings">⚙️ Settings</div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal-backdrop">
+      <div id="settings-modal">
+        <h2>Settings</h2>
+        
+        <div class="settings-section">
+          <h3>Hooks</h3>
+          <div class="setting-row">
+            <span>Antigravity</span>
+            <label class="switch">
+              <input type="checkbox" id="setting-hook-antigravity">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="setting-row">
+            <span>Claude-Code</span>
+            <label class="switch">
+              <input type="checkbox" id="setting-hook-claude">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>IPC Configuration</h3>
+          <div class="setting-row">
+            <span>UDS Path</span>
+            <input type="text" id="setting-ipc-uds" value="/tmp/familiar.sock">
+          </div>
+          <div class="setting-row">
+            <span>TCP Port</span>
+            <input type="number" id="setting-ipc-tcp" value="9528">
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn" id="btn-cancel-settings">Cancel</button>
+          <button class="btn btn-primary" id="btn-save-settings">Save</button>
+        </div>
+      </div>
+    </div>
+
     <script type="module" src="./main.js"></script>
   </body>
 </html>
