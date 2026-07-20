@@ -90,7 +90,7 @@ body {
 .sidebar-menu {
     flex: 1;
     overflow-y: auto;
-    padding: 0 16px 16px;
+    padding: 24px 16px 16px;
 }
 
 .menu-section {

@@ -27,7 +27,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const saveBtn = document.getElementById('save-btn');
     const statusMsg = document.getElementById('save-status');
-    const backBtn = document.getElementById('back-btn');
 
     let currentConfig = {};
 
@@ -183,10 +182,5 @@ document.addEventListener('DOMContentLoaded', async () => {
             saveBtn.textContent = t('btn_save', lang);
             saveBtn.disabled = false;
         }
-    });
-
-    // Close window on Back button
-    backBtn.addEventListener('click', () => {
-        getCurrentWebviewWindow().close();
     });
 });
