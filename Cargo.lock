@@ -1074,6 +1074,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
+ "dirs",
  "familiar-core",
  "serde_json",
  "tempfile",

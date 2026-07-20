@@ -200,6 +200,10 @@ fn main() {
             commands::save_config,
             commands::open_settings_window,
             commands::open_url,
+            commands::get_hooks_status,
+            commands::get_hook_payload,
+            commands::inject_hook,
+            commands::uninstall_hook,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

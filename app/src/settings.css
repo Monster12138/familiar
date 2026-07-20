@@ -339,3 +339,112 @@ input:checked + .slider:before {
     text-align: right;
     font-variant-numeric: tabular-nums;
 }
+
+/* --- Hooks UI & Modal --- */
+.hook-status-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+}
+.hook-status-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+}
+.hook-agent-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.hook-agent-name {
+    font-size: 13px;
+    font-weight: 500;
+}
+.badge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+}
+.badge-loading {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+}
+.badge-injected {
+    background-color: rgba(52, 199, 89, 0.15);
+    color: #34C759;
+}
+.badge-not-injected {
+    background-color: rgba(255, 59, 48, 0.1);
+    color: #FF3B30;
+}
+.hook-agent-actions {
+    display: flex;
+    gap: 8px;
+}
+.btn-sm {
+    padding: 4px 10px;
+    font-size: 12px;
+}
+.secondary-btn {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-main);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.secondary-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+.danger-btn {
+    background-color: rgba(255, 59, 48, 0.1);
+    color: #FF3B30;
+    border: 1px solid rgba(255, 59, 48, 0.3);
+    border-radius: 6px;
+    cursor: pointer;
+}
+.danger-btn:hover {
+    background-color: rgba(255, 59, 48, 0.2);
+}
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(2px);
+}
+.modal-content {
+    background-color: var(--bg-card);
+    width: 480px;
+    max-width: 90%;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    border: 1px solid var(--border-color);
+}
+.code-preview-box {
+    background-color: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 12px;
+    overflow-x: auto;
+    font-family: 'Menlo', 'Monaco', monospace;
+    font-size: 12px;
+    color: var(--text-main);
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+}
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}

@@ -182,5 +182,77 @@ document.addEventListener('DOMContentLoaded', async () => {
             saveBtn.textContent = t('btn_save', lang);
             saveBtn.disabled = false;
         }
+        }
     });
+
+    // --- Hooks Injection Logic ---
+    const badgeAntigravity = document.getElementById('badge-antigravity');
+    const btnInjectAntigravity = document.getElementById('btn-inject-antigravity');
+    const btnUninstallAntigravity = document.getElementById('btn-uninstall-antigravity');
+    const hookModal = document.getElementById('hook-modal');
+    const btnModalCancel = document.getElementById('btn-modal-cancel');
+    const btnModalConfirm = document.getElementById('btn-modal-confirm');
+    const hookPreviewCode = document.getElementById('hook-preview-code');
+    
+    let currentInjectingAgent = null;
+
+    async function fetchHooksStatus() {
+        try {
+            const status = await invoke('get_hooks_status');
+            if (status && status.antigravity) {
+                const isInj = status.antigravity.injected;
+                badgeAntigravity.className = isInj ? 'badge badge-injected' : 'badge badge-not-injected';
+                badgeAntigravity.textContent = isInj ? t('badge_injected', elLanguage.value) : t('badge_not_injected', elLanguage.value);
+                
+                btnInjectAntigravity.style.display = isInj ? 'none' : 'inline-block';
+                btnUninstallAntigravity.style.display = isInj ? 'inline-block' : 'none';
+            }
+        } catch (e) {
+            console.error("Failed to fetch hooks status", e);
+        }
+    }
+
+    btnInjectAntigravity.addEventListener('click', async () => {
+        try {
+            currentInjectingAgent = 'antigravity';
+            const payload = await invoke('get_hook_payload', { agent: currentInjectingAgent });
+            hookPreviewCode.textContent = JSON.stringify(payload, null, 2);
+            hookModal.style.display = 'flex';
+        } catch (e) {
+            alert("Failed to get payload: " + e);
+        }
+    });
+
+    btnUninstallAntigravity.addEventListener('click', async () => {
+        if (!confirm(t('confirm_uninstall', elLanguage.value) || "Are you sure you want to uninstall?")) return;
+        try {
+            await invoke('uninstall_hook', { agent: 'antigravity' });
+            await fetchHooksStatus();
+        } catch (e) {
+            alert("Uninstall failed: " + e);
+        }
+    });
+
+    btnModalCancel.addEventListener('click', () => {
+        hookModal.style.display = 'none';
+        currentInjectingAgent = null;
+    });
+
+    btnModalConfirm.addEventListener('click', async () => {
+        if (!currentInjectingAgent) return;
+        try {
+            btnModalConfirm.disabled = true;
+            await invoke('inject_hook', { agent: currentInjectingAgent });
+            hookModal.style.display = 'none';
+            await fetchHooksStatus();
+        } catch (e) {
+            alert("Inject failed: " + e);
+        } finally {
+            btnModalConfirm.disabled = false;
+            currentInjectingAgent = null;
+        }
+    });
+
+    // Initial load
+    fetchHooksStatus();
 });

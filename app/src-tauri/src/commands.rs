@@ -74,3 +74,46 @@ pub async fn open_url(url: String) -> Result<(), String> {
     let _ = open::that(url);
     Ok(())
 }
+
+use familiar_hooks::antigravity::AntigravityHook;
+use familiar_hooks::hook_trait::AgentHook;
+use serde_json::json;
+
+#[tauri::command]
+pub fn get_hooks_status() -> Result<serde_json::Value, String> {
+    let hook = AntigravityHook::new();
+    let status = json!({
+        "antigravity": {
+            "injected": hook.is_injected(),
+            "config_path": hook.config_path().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default()
+        }
+    });
+    Ok(status)
+}
+
+#[tauri::command]
+pub fn get_hook_payload(agent: &str) -> Result<serde_json::Value, String> {
+    if agent == "antigravity" {
+        let hook = AntigravityHook::new();
+        return Ok(hook.get_injection_payload().unwrap_or(json!({})));
+    }
+    Err("Unknown agent".into())
+}
+
+#[tauri::command]
+pub fn inject_hook(agent: &str) -> Result<(), String> {
+    if agent == "antigravity" {
+        let hook = AntigravityHook::new();
+        return hook.inject().map_err(|e| e.to_string());
+    }
+    Err("Unknown agent".into())
+}
+
+#[tauri::command]
+pub fn uninstall_hook(agent: &str) -> Result<(), String> {
+    if agent == "antigravity" {
+        let hook = AntigravityHook::new();
+        return hook.uninstall().map_err(|e| e.to_string());
+    }
+    Err("Unknown agent".into())
+}

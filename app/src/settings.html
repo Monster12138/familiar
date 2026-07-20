@@ -158,6 +158,27 @@
                                 <input type="number" id="setting-tcp-port" value="9528">
                             </div>
                         </div>
+                        <div class="divider"></div>
+                        <div class="setting-item">
+                            <div class="setting-info" style="width: 100%;">
+                                <div class="setting-title" data-i18n="lbl_hook_injection">Hooks 一键注入管理</div>
+                                <div class="setting-desc" data-i18n="desc_hook_injection" style="margin-bottom: 12px;">自动修改各 Agent 的配置文件，将运行状态实时同步到桌面宠物</div>
+                                
+                                <div class="hook-status-list" id="hook-status-list">
+                                    <div class="hook-status-item">
+                                        <div class="hook-agent-info">
+                                            <span class="hook-agent-name">Antigravity</span>
+                                            <span class="badge badge-loading" id="badge-antigravity" data-i18n="badge_loading">加载中...</span>
+                                        </div>
+                                        <div class="hook-agent-actions">
+                                            <button class="secondary-btn btn-sm" id="btn-inject-antigravity" style="display:none;" data-i18n="btn_inject">一键注入</button>
+                                            <button class="danger-btn btn-sm" id="btn-uninstall-antigravity" style="display:none;" data-i18n="btn_uninstall">卸载</button>
+                                        </div>
+                                    </div>
+                                    <!-- Claude Code and Codex omitted since paths are unknown -->
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -194,7 +215,23 @@
                 </div>
 
             </div>
+            </div>
         </main>
+    </div>
+
+    <!-- Injection Preview Modal -->
+    <div id="hook-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <h3 data-i18n="modal_title_preview">确认注入 Hooks 契约</h3>
+            <p data-i18n="modal_desc_preview" style="color:var(--text-muted);font-size:13px;margin: 8px 0 16px;">以下配置将会合并到 Agent 的配置文件中。我们将自动生成一个 <code>.bak</code> 备份以防万一。</p>
+            <div class="code-preview-box">
+                <pre><code id="hook-preview-code">{}</code></pre>
+            </div>
+            <div class="modal-actions">
+                <button class="secondary-btn" id="btn-modal-cancel" data-i18n="btn_cancel">取消</button>
+                <button class="primary-btn" id="btn-modal-confirm" data-i18n="btn_confirm_inject">确认注入</button>
+            </div>
+        </div>
     </div>
 
     <script type="module" src="./settings.js"></script>
