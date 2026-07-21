@@ -85,7 +85,7 @@ impl CliAgentHookAdapter {
                     .or_else(|| args["CommandLine"].as_str())
                     .unwrap_or("")
                     .to_string();
-                AgentEventType::RunningCommand { cmd }
+                AgentEventType::RunningCommand { cmd, instruction: None }
             }
             "Edit"
             | "Write"

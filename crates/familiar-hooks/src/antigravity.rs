@@ -20,7 +20,23 @@ impl AntigravityHook {
         Self {}
     }
 
+    fn extract_clean_text(s: &str) -> String {
+        let mut text = s.to_string();
+        if let Some(start) = text.find("<USER_REQUEST>") {
+            if let Some(end) = text.find("</USER_REQUEST>") {
+                let start_idx = start + "<USER_REQUEST>".len();
+                text = text[start_idx..end].trim().to_string();
+            }
+        }
+        text
+    }
+
     fn map_native_hook(&self, event_name: &str, json: &Value) -> Option<AgentEvent> {
+        let _ = std::fs::write(
+            format!("/tmp/familiar_hook_debug_{}.log", event_name),
+            serde_json::to_string_pretty(json).unwrap_or_default()
+        );
+
         let agent_id = uuid::Uuid::parse_str("11111111-1111-1111-1111-111111111111")
             .unwrap_or_else(|_| uuid::Uuid::nil());
 
@@ -30,16 +46,7 @@ impl AntigravityHook {
                     .as_str()
                     .or_else(|| json["task"].as_str())
                     .or_else(|| json["prompt"].as_str())
-                    .map(|s| {
-                        let mut text = s.to_string();
-                        if let Some(start) = text.find("<USER_REQUEST>") {
-                            if let Some(end) = text.find("</USER_REQUEST>") {
-                                let start_idx = start + "<USER_REQUEST>".len();
-                                text = text[start_idx..end].trim().to_string();
-                            }
-                        }
-                        text
-                    });
+                    .map(|s| Self::extract_clean_text(s));
                 Some(AgentEvent {
                     id: agent_id,
                     timestamp: chrono::Utc::now(),
@@ -51,6 +58,22 @@ impl AntigravityHook {
             }
             "PreToolUse" => {
                 let name = json["toolCall"]["name"].as_str().unwrap_or("unknown");
+                
+                let instruction = json["transcriptPath"].as_str().and_then(|path| {
+                    if let Ok(content) = std::fs::read_to_string(path) {
+                        for line in content.lines().rev() {
+                            if line.contains("\"type\":\"USER_INPUT\"") {
+                                if let Ok(val) = serde_json::from_str::<serde_json::Value>(line) {
+                                    if let Some(content_str) = val.get("content").and_then(|c| c.as_str()) {
+                                        return Some(Self::extract_clean_text(content_str));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    None
+                });
+
                 Some(AgentEvent {
                     id: agent_id,
                     timestamp: chrono::Utc::now(),
@@ -58,6 +81,7 @@ impl AntigravityHook {
                     category: AgentCategory::Coding,
                     event_type: AgentEventType::RunningCommand {
                         cmd: format!("Using tool {}", name),
+                        instruction,
                     },
                     metadata: None,
                 })
@@ -87,7 +111,7 @@ impl AntigravityHook {
                         timestamp: chrono::Utc::now(),
                         source: AgentSource::Antigravity,
                         category: AgentCategory::Coding,
-                        event_type: AgentEventType::RunningCommand { cmd: "Working...".into() },
+                        event_type: AgentEventType::RunningCommand { cmd: "Working...".into(), instruction: None },
                         metadata: None,
                     })
                 } else if step_type == "USER_INPUT" {

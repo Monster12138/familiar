@@ -33,7 +33,7 @@ pub enum AgentEventType {
     // Coding specific
     ReadingFile { path: String },
     WritingFile { path: String },
-    RunningCommand { cmd: String },
+    RunningCommand { cmd: String, instruction: Option<String> },
     SearchingCode { query: String },
     BrowsingWeb { url: String },
 

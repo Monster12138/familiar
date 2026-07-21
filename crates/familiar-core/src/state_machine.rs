@@ -100,9 +100,12 @@ impl StateMachine {
                     agent.current_activity = Some(format!("Writing {}", path));
                     state.mood = FamiliarMood::Busy;
                 }
-                AgentEventType::RunningCommand { cmd } => {
+                AgentEventType::RunningCommand { cmd, instruction } => {
                     agent.status = AgentStatus::Working;
                     agent.current_activity = Some(format!("Running `{}`", cmd));
+                    if let Some(inst) = instruction {
+                        agent.user_instruction = Some(inst.clone());
+                    }
                     state.mood = FamiliarMood::Busy;
                 }
                 AgentEventType::SearchingCode { query } => {
@@ -149,9 +152,12 @@ impl StateMachine {
 
                 // Apply initial state for this first event
                 match &event.event_type {
-                    AgentEventType::RunningCommand { cmd } => {
+                    AgentEventType::RunningCommand { cmd, instruction } => {
                         new_agent.status = AgentStatus::Working;
                         new_agent.current_activity = Some(format!("Running `{}`", cmd));
+                        if let Some(inst) = instruction {
+                            new_agent.user_instruction = Some(inst.clone());
+                        }
                     }
                     AgentEventType::AgentStarted { instruction } => {
                         new_agent.user_instruction = instruction.clone();
