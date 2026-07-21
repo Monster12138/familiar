@@ -27,6 +27,33 @@ impl StateMachine {
         let mut rx = self.event_bus.subscribe();
         let state_ref = self.render_state.clone();
 
+        // Background timer to auto-complete tasks if no events for 10 seconds
+        let state_ref_timer = self.render_state.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
+            loop {
+                interval.tick().await;
+                let mut state = state_ref_timer.write().await;
+                let now = chrono::Utc::now();
+                
+                let mut should_celebrate = false;
+                for agent in &mut state.agents {
+                    if agent.status == AgentStatus::Thinking || agent.status == AgentStatus::Working {
+                        if let Some(last) = agent.last_event_at {
+                            if now.signed_duration_since(last).num_seconds() > 10 {
+                                agent.status = AgentStatus::Completed;
+                                agent.current_activity = Some("Task finished".into());
+                                should_celebrate = true;
+                            }
+                        }
+                    }
+                }
+                if should_celebrate {
+                    state.mood = FamiliarMood::Celebrating;
+                }
+            }
+        });
+
         tokio::spawn(async move {
             while let Ok(event) = rx.recv().await {
                 let mut state = state_ref.write().await;
@@ -56,30 +83,37 @@ impl StateMachine {
                 AgentEventType::Thinking => {
                     agent.status = AgentStatus::Thinking;
                     agent.current_activity = Some("Thinking...".to_string());
+                    state.mood = FamiliarMood::Thinking;
                 }
                 AgentEventType::Processing { description } => {
                     agent.status = AgentStatus::Working;
                     agent.current_activity = Some(description.clone());
+                    state.mood = FamiliarMood::Busy;
                 }
                 AgentEventType::ReadingFile { path } => {
                     agent.status = AgentStatus::Working;
                     agent.current_activity = Some(format!("Reading {}", path));
+                    state.mood = FamiliarMood::Busy;
                 }
                 AgentEventType::WritingFile { path } => {
                     agent.status = AgentStatus::Working;
                     agent.current_activity = Some(format!("Writing {}", path));
+                    state.mood = FamiliarMood::Busy;
                 }
                 AgentEventType::RunningCommand { cmd } => {
                     agent.status = AgentStatus::Working;
                     agent.current_activity = Some(format!("Running `{}`", cmd));
+                    state.mood = FamiliarMood::Busy;
                 }
                 AgentEventType::SearchingCode { query } => {
                     agent.status = AgentStatus::Working;
                     agent.current_activity = Some(format!("Searching `{}`", query));
+                    state.mood = FamiliarMood::Busy;
                 }
                 AgentEventType::BrowsingWeb { url } => {
                     agent.status = AgentStatus::Working;
                     agent.current_activity = Some(format!("Browsing {}", url));
+                    state.mood = FamiliarMood::Busy;
                 }
                 AgentEventType::TaskCompleted { summary } => {
                     agent.status = AgentStatus::Completed;

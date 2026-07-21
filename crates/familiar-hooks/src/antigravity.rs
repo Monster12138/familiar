@@ -67,9 +67,7 @@ impl AntigravityHook {
                 timestamp: chrono::Utc::now(),
                 source: AgentSource::Antigravity,
                 category: AgentCategory::Coding,
-                event_type: AgentEventType::TaskCompleted {
-                    summary: "Tool finished".into(),
-                },
+                event_type: AgentEventType::Thinking,
                 metadata: None,
             }),
             "Stop" | "SessionEnd" => Some(AgentEvent {
@@ -149,7 +147,7 @@ impl AgentHook for AntigravityHook {
     }
 
     fn get_injection_payload(&self) -> Option<serde_json::Value> {
-        let bin_path = "familiar-cli"; // Assumes it's in PATH, or could be absolute
+        let bin_path = "/Users/sam.gl/workspace/rust/familiar/target/debug/familiar-cli";
         Some(serde_json::json!({
             "on_pre_tool_use": format!("{} hook --source antigravity --event PreToolUse", bin_path),
             "on_post_tool_use": format!("{} hook --source antigravity --event PostToolUse", bin_path)
