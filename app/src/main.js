@@ -87,6 +87,12 @@ async function init() {
         const state = event.payload;
         if (!state) return;
 
+        // Clear any pending idle fallback
+        if (window.idleFallbackTimer) {
+            clearTimeout(window.idleFallbackTimer);
+            window.idleFallbackTimer = null;
+        }
+
         // Map mood to animation
         switch (state.mood) {
             case "Busy":
@@ -98,6 +104,10 @@ async function init() {
             case "Happy":
             case "Celebrating":
                 renderer.playAnimation("happy");
+                // Automatically revert to idle after celebration
+                window.idleFallbackTimer = setTimeout(() => {
+                    renderer.playAnimation("idle");
+                }, 4000);
                 break;
             case "Alarmed":
                 renderer.playAnimation("alarmed");
@@ -112,12 +122,15 @@ async function init() {
         // Show a bubble for the latest active agent activity
         const activeAgent = state.agents.find(a => ["Thinking", "Working", "Completed", "WaitingInput"].includes(a.status));
         if (activeAgent && (activeAgent.current_activity || activeAgent.user_instruction)) {
-            const isCompleted = ["Completed", "WaitingInput"].includes(activeAgent.status);
-            const duration = isCompleted ? 3000 : 2000; // Keep checkmark visible a bit longer
+            let statusType = 'working';
+            if (activeAgent.status === 'Completed') statusType = 'completed';
+            else if (activeAgent.status === 'WaitingInput') statusType = 'idle';
+
+            const duration = statusType === 'completed' ? 3000 : 2000;
             renderer.showBubble(
                 activeAgent.user_instruction || t("status_waiting", currentLang),
                 activeAgent.current_activity || "",
-                isCompleted,
+                statusType,
                 duration
             );
         }

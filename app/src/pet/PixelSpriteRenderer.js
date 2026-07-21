@@ -176,9 +176,9 @@ export class PixelSpriteRenderer extends SpriteRenderer {
         );
     }
 
-    showBubble(userInstruction, currentActivity, isCompleted, duration) {
+    showBubble(userInstruction, currentActivity, statusType, duration) {
         // Simple implementation: Dispatch custom event for BubbleOverlay to handle
-        window.dispatchEvent(new CustomEvent('pet-bubble', { detail: { userInstruction, currentActivity, isCompleted, duration } }));
+        window.dispatchEvent(new CustomEvent('pet-bubble', { detail: { userInstruction, currentActivity, statusType, duration } }));
     }
 
     destroy() {

@@ -82,7 +82,7 @@ export class BubbleOverlay {
         this.activityContainer.appendChild(this.activityEl);
 
         window.addEventListener('pet-bubble', (e) => {
-            this.show(e.detail.userInstruction, e.detail.currentActivity, e.detail.isCompleted, e.detail.duration);
+            this.show(e.detail.userInstruction, e.detail.currentActivity, e.detail.statusType, e.detail.duration);
         });
     }
 
@@ -94,14 +94,20 @@ export class BubbleOverlay {
         return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
     }
 
-    show(userInstruction, currentActivity, isCompleted, duration = 3000) {
+    getIdleIcon() {
+        return `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="color: #9ca3af;"><circle cx="5" cy="12" r="2.5"></circle><circle cx="12" cy="12" r="2.5"></circle><circle cx="19" cy="12" r="2.5"></circle></svg>`;
+    }
+
+    show(userInstruction, currentActivity, statusType, duration = 3000) {
         this.userInstructionEl.innerText = userInstruction;
         this.activityEl.innerText = currentActivity;
         
-        if (isCompleted) {
+        if (statusType === 'completed') {
             this.iconEl.innerHTML = this.getCheckmarkIcon();
-        } else {
+        } else if (statusType === 'working') {
             this.iconEl.innerHTML = this.getSpinnerIcon();
+        } else {
+            this.iconEl.innerHTML = this.getIdleIcon();
         }
 
         this.bubble.style.opacity = '1';
