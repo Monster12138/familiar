@@ -37,8 +37,10 @@ impl AntigravityHook {
             serde_json::to_string_pretty(json).unwrap_or_default()
         );
 
-        let agent_id = uuid::Uuid::parse_str("11111111-1111-1111-1111-111111111111")
-            .unwrap_or_else(|_| uuid::Uuid::nil());
+        let agent_id = json.get("conversationId")
+            .and_then(|v| v.as_str())
+            .and_then(|s| uuid::Uuid::parse_str(s).ok())
+            .unwrap_or_else(|| uuid::Uuid::nil());
 
         match event_name {
             "SessionStart" => {
@@ -94,12 +96,20 @@ impl AntigravityHook {
                 event_type: AgentEventType::Thinking,
                 metadata: None,
             }),
+            "PreInvocation" | "PostInvocation" => Some(AgentEvent {
+                id: agent_id,
+                timestamp: chrono::Utc::now(),
+                source: AgentSource::Antigravity,
+                category: AgentCategory::Coding,
+                event_type: AgentEventType::Thinking,
+                metadata: None,
+            }),
             "Stop" | "SessionEnd" => Some(AgentEvent {
                 id: agent_id,
                 timestamp: chrono::Utc::now(),
                 source: AgentSource::Antigravity,
                 category: AgentCategory::Coding,
-                event_type: AgentEventType::WaitingForInput,
+                event_type: AgentEventType::TaskCompleted { summary: "Task finished".to_string() },
                 metadata: None,
             }),
             // Fallback for legacy transcript mocking
@@ -156,8 +166,98 @@ impl AgentHook for AntigravityHook {
         AgentCategory::Coding
     }
 
-    async fn start(&self, _sender: mpsc::Sender<AgentEvent>) -> Result<()> {
-        // File-tailing sidecar is deprecated in favor of UDS IPC via hooks.json
+    async fn start(&self, sender: mpsc::Sender<AgentEvent>) -> Result<()> {
+        tokio::spawn(async move {
+            let brain_dir = dirs::home_dir().unwrap().join(".gemini/antigravity/brain");
+            let mut file_cursors: std::collections::HashMap<std::path::PathBuf, usize> = std::collections::HashMap::new();
+
+            loop {
+                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+                let mut active_dirs = Vec::new();
+                let now = std::time::SystemTime::now();
+                
+                // Find all directories modified in the last 15 seconds
+                if let Ok(entries) = std::fs::read_dir(&brain_dir) {
+                    for entry in entries.flatten() {
+                        if let Ok(meta) = entry.metadata() {
+                            if meta.is_dir() {
+                                if let Ok(time) = meta.modified() {
+                                    if let Ok(duration) = now.duration_since(time) {
+                                        if duration.as_secs() < 15 {
+                                            active_dirs.push(entry.path());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                for dir in active_dirs {
+                    let transcript = dir.join(".system_generated/logs/transcript_full.jsonl");
+                    if transcript.exists() {
+                        if let Ok(content) = std::fs::read_to_string(&transcript) {
+                            let lines: Vec<&str> = content.lines().collect();
+                            let current_count = lines.len();
+                            
+                            // If it's a newly discovered conversation in this session, don't replay history
+                            // Just set the cursor to the end, minus 2 lines to catch the very message that triggered this
+                            let cursor = file_cursors.entry(transcript.clone()).or_insert_with(|| {
+                                if current_count > 2 { current_count - 2 } else { 0 }
+                            });
+
+                            let agent_id = dir.file_name()
+                                .and_then(|os_str| os_str.to_str())
+                                .and_then(|s| uuid::Uuid::parse_str(s).ok())
+                                .unwrap_or_else(|| uuid::Uuid::nil());
+
+                            if current_count > *cursor {
+                                for line in &lines[*cursor..] {
+                                    if line.contains("\"type\":\"USER_INPUT\"") {
+                                        if let Ok(json) = serde_json::from_str::<Value>(line) {
+                                            if let Some(content_str) = json.get("content").and_then(|c| c.as_str()) {
+                                                let instruction = Self::extract_clean_text(content_str);
+                                                let _ = sender.send(AgentEvent {
+                                                    id: agent_id,
+                                                    timestamp: chrono::Utc::now(),
+                                                    source: AgentSource::Antigravity,
+                                                    category: AgentCategory::Coding,
+                                                    event_type: AgentEventType::AgentStarted {
+                                                        instruction: Some(instruction),
+                                                    },
+                                                    metadata: None,
+                                                }).await;
+                                                let _ = sender.send(AgentEvent {
+                                                    id: agent_id,
+                                                    timestamp: chrono::Utc::now(),
+                                                    source: AgentSource::Antigravity,
+                                                    category: AgentCategory::Coding,
+                                                    event_type: AgentEventType::Thinking,
+                                                    metadata: None,
+                                                }).await;
+                                            }
+                                        }
+                                    } else if line.contains("\"type\":\"PLANNER_RESPONSE\"") && line.contains("\"status\":\"DONE\"") {
+                                        let _ = sender.send(AgentEvent {
+                                            id: agent_id,
+                                            timestamp: chrono::Utc::now(),
+                                            source: AgentSource::Antigravity,
+                                            category: AgentCategory::Coding,
+                                            event_type: AgentEventType::TaskCompleted {
+                                                summary: "Finished thinking".into(),
+                                            },
+                                            metadata: None,
+                                        }).await;
+                                    }
+                                }
+                                *cursor = current_count;
+                            }
+                        }
+                    }
+                }
+            }
+        });
         Ok(())
     }
 
@@ -173,8 +273,25 @@ impl AgentHook for AntigravityHook {
     fn get_injection_payload(&self) -> Option<serde_json::Value> {
         let bin_path = "/Users/sam.gl/workspace/rust/familiar/target/debug/familiar-cli";
         Some(serde_json::json!({
-            "on_pre_tool_use": format!("{} hook --source antigravity --event PreToolUse", bin_path),
-            "on_post_tool_use": format!("{} hook --source antigravity --event PostToolUse", bin_path)
+            "familiar": {
+                "PreInvocation": [{
+                    "command": format!("{} hook --source antigravity --event PreInvocation", bin_path)
+                }],
+                "PostInvocation": [{
+                    "command": format!("{} hook --source antigravity --event PostInvocation", bin_path)
+                }],
+                "Stop": [{
+                    "command": format!("{} hook --source antigravity --event Stop", bin_path)
+                }],
+                "PreToolUse": [{
+                    "command": format!("{} hook --source antigravity --event PreToolUse", bin_path),
+                    "matcher": "*"
+                }],
+                "PostToolUse": [{
+                    "command": format!("{} hook --source antigravity --event PostToolUse", bin_path),
+                    "matcher": "*"
+                }]
+            }
         }))
     }
 
@@ -190,9 +307,7 @@ impl AgentHook for AntigravityHook {
 
         let content = std::fs::read_to_string(&path).unwrap_or_default();
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-            let pre = json["on_pre_tool_use"].as_str().unwrap_or("");
-            let post = json["on_post_tool_use"].as_str().unwrap_or("");
-            pre.contains("familiar-cli") || post.contains("familiar-cli")
+            json.get("familiar").is_some()
         } else {
             false
         }
@@ -245,22 +360,7 @@ impl AgentHook for AntigravityHook {
         let content = std::fs::read_to_string(&path)?;
         if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&content) {
             if let Some(obj) = json.as_object_mut() {
-                let mut keys_to_remove = Vec::new();
-                
-                if let Some(v) = obj.get("on_pre_tool_use") {
-                    if v.as_str().unwrap_or("").contains("familiar-cli") {
-                        keys_to_remove.push("on_pre_tool_use".to_string());
-                    }
-                }
-                if let Some(v) = obj.get("on_post_tool_use") {
-                    if v.as_str().unwrap_or("").contains("familiar-cli") {
-                        keys_to_remove.push("on_post_tool_use".to_string());
-                    }
-                }
-                
-                for k in keys_to_remove {
-                    obj.remove(&k);
-                }
+                obj.remove("familiar");
             }
             let new_content = serde_json::to_string_pretty(&json)?;
             std::fs::write(&path, new_content)?;
@@ -304,22 +404,7 @@ impl AgentHook for AntigravityHook {
         
         if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&before_content) {
             if let Some(obj) = json.as_object_mut() {
-                let mut keys_to_remove = Vec::new();
-                
-                if let Some(v) = obj.get("on_pre_tool_use") {
-                    if v.as_str().unwrap_or("").contains("familiar-cli") {
-                        keys_to_remove.push("on_pre_tool_use".to_string());
-                    }
-                }
-                if let Some(v) = obj.get("on_post_tool_use") {
-                    if v.as_str().unwrap_or("").contains("familiar-cli") {
-                        keys_to_remove.push("on_post_tool_use".to_string());
-                    }
-                }
-                
-                for k in keys_to_remove {
-                    obj.remove(&k);
-                }
+                obj.remove("familiar");
             }
             after_content = serde_json::to_string_pretty(&json)?;
         }

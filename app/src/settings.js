@@ -19,9 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const elPetAlwaysTop = document.getElementById('setting-pet-always-top');
     const elPetOpacity = document.getElementById('setting-pet-opacity');
     const valPetOpacity = document.getElementById('val-pet-opacity');
-    const elBubbleScale = document.getElementById('setting-bubble-scale');
-    const valBubbleScale = document.getElementById('val-bubble-scale');
-    
+
     const elUdsPath = document.getElementById('setting-uds-path');
     const elTcpPort = document.getElementById('setting-tcp-port');
 
@@ -85,7 +83,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     
     setupRangeSync(elPetScale, valPetScale, 1);
-    setupRangeSync(elBubbleScale, valBubbleScale, 1);
     setupRangeSync(elPetOpacity, valPetOpacity, 2);
 
     // --- Config Load/Save Logic ---
@@ -113,7 +110,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Renderer Desktop Pet
         if (currentConfig.renderer && currentConfig.renderer['desktop-pet']) {
             const petConf = currentConfig.renderer['desktop-pet'];
-            if (petConf.scale) {
+            if (petConf.scale !== undefined) {
                 elPetScale.value = petConf.scale;
                 if (valPetScale) valPetScale.textContent = Number(petConf.scale).toFixed(1);
             }
@@ -121,10 +118,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (petConf.opacity !== undefined) {
                 elPetOpacity.value = petConf.opacity;
                 if (valPetOpacity) valPetOpacity.textContent = Number(petConf.opacity).toFixed(2);
-            }
-            if (petConf.bubble_scale !== undefined) {
-                elBubbleScale.value = petConf.bubble_scale;
-                if (valBubbleScale) valBubbleScale.textContent = Number(petConf.bubble_scale).toFixed(1);
             }
         }
 
@@ -186,7 +179,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentConfig.renderer['desktop-pet'].scale = parseFloat(elPetScale.value);
         currentConfig.renderer['desktop-pet'].always_on_top = elPetAlwaysTop.checked;
         currentConfig.renderer['desktop-pet'].opacity = parseFloat(elPetOpacity.value);
-        currentConfig.renderer['desktop-pet'].bubble_scale = parseFloat(elBubbleScale.value);
 
         currentConfig.hooks.socket_path = elUdsPath.value;
         currentConfig.hooks.tcp_port = parseInt(elTcpPort.value, 10);
@@ -382,6 +374,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     btnConfigViewerClose.addEventListener('click', () => {
+        configViewerModal.style.display = 'none';
+    });
+
+    btnUninstallCancel.addEventListener('click', () => {
         uninstallModal.style.display = 'none';
         currentUninstallingAgent = null;
     });

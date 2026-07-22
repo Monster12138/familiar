@@ -22,8 +22,7 @@ export const translations = {
         'group_pet': '桌宠外观与行为',
         'lbl_pet_scale': '桌宠缩放比例',
         'desc_pet_scale': '调整桌面宠物的显示大小 (1.0 - 5.0)',
-        'lbl_bubble_scale': '气泡缩放比例',
-        'desc_bubble_scale': '调整信息气泡的显示大小 (0.5 - 3.0)',
+
         'lbl_always_top': '总是在最前',
         'desc_always_top': '让桌宠悬浮在所有系统窗口之上，避免被遮挡',
         'lbl_opacity': '桌宠不透明度',
@@ -86,8 +85,7 @@ export const translations = {
         'group_pet': 'Appearance & Behavior',
         'lbl_pet_scale': 'Pet Scale',
         'desc_pet_scale': 'Adjust the display size of the desktop pet (1.0 - 5.0)',
-        'lbl_bubble_scale': 'Bubble Scale',
-        'desc_bubble_scale': 'Adjust the display size of the info bubble (0.5 - 3.0)',
+
         'lbl_always_top': 'Always on Top',
         'desc_always_top': 'Keep the pet floating above all system windows',
         'lbl_opacity': 'Pet Opacity',

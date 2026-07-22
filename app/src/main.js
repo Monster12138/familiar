@@ -4,11 +4,9 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { LogicalSize } from "@tauri-apps/api/dpi";
 
 import { PixelSpriteRenderer } from "./pet/PixelSpriteRenderer.js";
-import { BubbleOverlay } from "./pet/BubbleOverlay.js";
 import { applyTranslations, t } from "./i18n.js";
 
 let renderer = null;
-let bubbleOverlay = null;
 let currentLang = 'en-US';
 
 async function fetchManifest(spriteName) {
@@ -60,17 +58,10 @@ function setupContextMenu() {
 async function init() {
     const container = document.getElementById("pet-container");
     
-    // Enable dragging on the whole window when clicking the pet area
-    const appWindow = getCurrentWebviewWindow();
-    document.body.addEventListener('mousedown', (e) => {
-        if (e.buttons === 1) { // Left click
-            appWindow.startDragging();
-        }
-    });
+    // Dragging is now handled specifically by PixelSpriteRenderer, BubbleOverlay, and stats.js
 
     setupContextMenu();
 
-    bubbleOverlay = new BubbleOverlay();
     renderer = new PixelSpriteRenderer();
     renderer.init(container);
 
@@ -95,11 +86,9 @@ async function init() {
 
         // Map mood to animation
         switch (state.mood) {
+            case "Thinking":
             case "Busy":
                 renderer.playAnimation("working");
-                break;
-            case "Thinking":
-                renderer.playAnimation("thinking");
                 break;
             case "Happy":
             case "Celebrating":
@@ -118,22 +107,6 @@ async function init() {
             default:
                 renderer.playAnimation("idle");
         }
-
-        // Show a bubble for the latest active agent activity
-        const activeAgent = state.agents.find(a => ["Thinking", "Working", "Completed", "WaitingInput"].includes(a.status));
-        if (activeAgent && (activeAgent.current_activity || activeAgent.user_instruction)) {
-            let statusType = 'working';
-            if (activeAgent.status === 'Completed') statusType = 'completed';
-            else if (activeAgent.status === 'WaitingInput') statusType = 'idle';
-
-            const duration = statusType === 'completed' ? 3000 : 2000;
-            renderer.showBubble(
-                activeAgent.user_instruction || t("status_waiting", currentLang),
-                activeAgent.current_activity || "",
-                statusType,
-                duration
-            );
-        }
     });
 
     // Listen for config changes from Rust Backend
@@ -146,6 +119,23 @@ async function init() {
         applyConfigToWindow(config);
     } catch (e) {
         console.error("Failed to load initial config", e);
+    }
+
+    // Unified window architecture - no need to sync aux windows
+}
+
+function updateWindowSize() {
+    const container = document.getElementById('unified-container');
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const width = Math.ceil(rect.width);
+    const height = Math.ceil(rect.height);
+    
+    try {
+        const appWindow = getCurrentWebviewWindow();
+        appWindow.setSize(new LogicalSize(width, height)).catch(console.error);
+    } catch (e) {
+        console.error("Failed to resize window dynamically:", e);
     }
 }
 
@@ -160,14 +150,29 @@ async function applyConfigToWindow(config) {
     if (!config.renderer || !config.renderer['desktop-pet']) return;
     
     const petConf = config.renderer['desktop-pet'];
-    const appWindow = getCurrentWebviewWindow();
     
     if (petConf.opacity !== undefined) {
         document.body.style.opacity = petConf.opacity;
     }
     
-    if (petConf.bubble_scale !== undefined && bubbleOverlay) {
-        bubbleOverlay.setScale(petConf.bubble_scale);
+    if (petConf.scale !== undefined && renderer) {
+        window.petScale = petConf.scale;
+        
+        const container = document.getElementById('unified-container');
+        if (container) {
+            container.style.transform = `scale(${window.petScale})`;
+            
+            // Force an immediate update because CSS transform doesn't trigger ResizeObserver
+            updateWindowSize();
+            
+            // Dynamically fit the Tauri window to the exact bounding box of the container
+            if (!window.containerObserver) {
+                window.containerObserver = new ResizeObserver(() => {
+                    updateWindowSize();
+                });
+                window.containerObserver.observe(container);
+            }
+        }
     }
 }
 

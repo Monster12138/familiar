@@ -20,45 +20,36 @@ export class PixelSpriteRenderer extends SpriteRenderer {
 
     init(container) {
         this.canvas = document.createElement('canvas');
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
-        this.canvas.style.position = 'absolute';
-        this.canvas.style.top = '0';
-        this.canvas.style.left = '0';
-        this.canvas.style.width = '100%';
-        this.canvas.style.height = '100%';
-        this.canvas.style.pointerEvents = 'none'; // allow clicks to pass through transparent pixels
+        this.canvas.style.display = 'block';
+        this.canvas.style.imageRendering = 'pixelated';
         
         this.ctx = this.canvas.getContext('2d');
         // Ensure crisp pixels
         this.ctx.imageSmoothingEnabled = false;
 
-        // Create a precise hitbox for dragging so the transparent areas don't block clicks
-        this.dragHitbox = document.createElement('div');
-        this.dragHitbox.style.position = 'absolute';
-        this.dragHitbox.style.width = '120px';
-        this.dragHitbox.style.height = '140px';
-        this.dragHitbox.style.left = '50%';
-        this.dragHitbox.style.bottom = '10px';
-        this.dragHitbox.style.transform = 'translateX(-50%)';
-        this.dragHitbox.style.cursor = 'grab';
-        this.dragHitbox.style.pointerEvents = 'auto';
-
-        // Manually trigger Tauri window drag when clicking on the hitbox
-        this.dragHitbox.addEventListener('mousedown', (e) => {
-            if (e.button === 0) { // Left click only
-                getCurrentWebviewWindow().startDragging();
+        // Pixel-perfect drag using canvas alpha channel
+        this.canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 0) {
+                // Get pixel data at the click coordinates
+                const rect = this.canvas.getBoundingClientRect();
+                const scaleX = this.canvas.width / rect.width;
+                const scaleY = this.canvas.height / rect.height;
+                const x = (e.clientX - rect.left) * scaleX;
+                const y = (e.clientY - rect.top) * scaleY;
+                
+                const pixel = this.ctx.getImageData(x, y, 1, 1).data;
+                if (pixel[3] > 0) { // If alpha > 0 (not transparent)
+                    import("@tauri-apps/api/webviewWindow").then(({ getCurrentWebviewWindow }) => {
+                        getCurrentWebviewWindow().startDragging();
+                    });
+                }
             }
         });
-        
+
+        // Add canvas to DOM
         container.appendChild(this.canvas);
-        container.appendChild(this.dragHitbox);
         
-        window.addEventListener('resize', () => {
-            this.canvas.width = window.innerWidth;
-            this.canvas.height = window.innerHeight;
-            this.ctx.imageSmoothingEnabled = false;
-        });
+        // No window resize listener needed, unified container handles scale
     }
 
     async loadSpritePack(manifest) {
@@ -71,8 +62,26 @@ export class PixelSpriteRenderer extends SpriteRenderer {
                 this.frameWidth = this.spriteImage.width / cols;
                 this.frameHeight = this.spriteImage.height / rows;
                 
-                // If it's the generated fake-transparent image, we could key it out here
-                this._removeBackground();
+                this.canvas.width = this.frameWidth;
+                this.canvas.height = this.frameHeight;
+                
+                // Normalize the pet size to a base CSS box of 128x128, preserving aspect ratio.
+                // This prevents massive AI-generated sprites from becoming gigantic.
+                const baseRenderSize = 128;
+                const aspectRatio = this.frameWidth / this.frameHeight;
+                let cssWidth, cssHeight;
+                if (aspectRatio > 1) {
+                    cssWidth = baseRenderSize;
+                    cssHeight = baseRenderSize / aspectRatio;
+                } else {
+                    cssHeight = baseRenderSize;
+                    cssWidth = baseRenderSize * aspectRatio;
+                }
+                
+                this.canvas.style.width = `${cssWidth}px`;
+                this.canvas.style.height = `${cssHeight}px`;
+                
+                this.ctx.imageSmoothingEnabled = false;
                 resolve();
             };
             this.spriteImage.onerror = reject;
@@ -81,31 +90,9 @@ export class PixelSpriteRenderer extends SpriteRenderer {
         });
     }
     
-    _removeBackground() {
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = this.spriteImage.width;
-        tempCanvas.height = this.spriteImage.height;
-        const tCtx = tempCanvas.getContext('2d');
-        tCtx.drawImage(this.spriteImage, 0, 0);
-        
-        const imgData = tCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-        const data = imgData.data;
-        for (let i = 0; i < data.length; i += 4) {
-            const r = data[i], g = data[i+1], b = data[i+2];
-            // Green screen chroma keying
-            if (g > 150 && r < 100 && b < 100) {
-                data[i+3] = 0; // Transparent
-            } else {
-                // Keep the cat pixels as they are (do not force to black, to preserve white eyes and grays)
-                data[i+3] = 255;
-            }
-        }
-        tCtx.putImageData(imgData, 0, 0);
-        
-        const newImg = new Image();
-        newImg.src = tempCanvas.toDataURL();
-        this.spriteImage = newImg;
-    }
+    // resizeWindowToFrame removed because window size is managed by main.js
+    
+
 
     playAnimation(name) {
         if (!this.manifest.animations[name]) {
@@ -159,26 +146,14 @@ export class PixelSpriteRenderer extends SpriteRenderer {
         const sx = col * this.frameWidth;
         const sy = row * this.frameHeight;
         
-        // The window size is now 320x240, but the sprite aspect ratio is 320x180.
-        // We maintain the aspect ratio and anchor the cat to the bottom of the window
-        // to give the speech bubble 60px of safe space at the top.
-        const spriteAspectRatio = 320 / 180;
         const dw = this.canvas.width;
-        const dh = dw / spriteAspectRatio;
-        
-        const dx = 0;
-        const dy = this.canvas.height - dh;
+        const dh = this.canvas.height;
         
         this.ctx.drawImage(
             this.spriteImage,
             sx, sy, this.frameWidth, this.frameHeight,
-            dx, dy, dw, dh
+            0, 0, dw, dh
         );
-    }
-
-    showBubble(userInstruction, currentActivity, statusType, duration) {
-        // Simple implementation: Dispatch custom event for BubbleOverlay to handle
-        window.dispatchEvent(new CustomEvent('pet-bubble', { detail: { userInstruction, currentActivity, statusType, duration } }));
     }
 
     destroy() {

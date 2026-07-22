@@ -27,29 +27,43 @@ impl StateMachine {
         let mut rx = self.event_bus.subscribe();
         let state_ref = self.render_state.clone();
 
-        // Background timer to auto-complete tasks if no events for 10 seconds
-        let state_ref_timer = self.render_state.clone();
+        // Background timer to clean up completed agents after 4 seconds to let the celebration animation play out
+        let state_ref_cleanup = self.render_state.clone();
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
             loop {
                 interval.tick().await;
-                let mut state = state_ref_timer.write().await;
+                let mut state = state_ref_cleanup.write().await;
                 let now = chrono::Utc::now();
+                let initial_len = state.agents.len();
                 
-                let mut should_celebrate = false;
-                for agent in &mut state.agents {
-                    if agent.status == AgentStatus::Thinking || agent.status == AgentStatus::Working {
+                // Then handle cleanup of completed agents
+                state.agents.retain(|agent| {
+                    if agent.status == AgentStatus::Completed {
                         if let Some(last) = agent.last_event_at {
-                            if now.signed_duration_since(last).num_seconds() > 10 {
-                                agent.status = AgentStatus::Completed;
-                                agent.current_activity = Some("Task finished".into());
-                                should_celebrate = true;
+                            if now.signed_duration_since(last).num_seconds() > 4 {
+                                return false; // Remove if completed for > 4 seconds
                             }
                         }
                     }
-                }
-                if should_celebrate {
-                    state.mood = FamiliarMood::Celebrating;
+                    true
+                });
+
+                if state.agents.len() != initial_len {
+                    // Update global mood if agents were removed
+                    if state.agents.is_empty() {
+                        state.mood = FamiliarMood::Sleepy;
+                    } else if state.agents.iter().any(|a| a.status == AgentStatus::Working) {
+                        state.mood = FamiliarMood::Busy;
+                    } else if state.agents.iter().any(|a| a.status == AgentStatus::Thinking) {
+                        state.mood = FamiliarMood::Thinking;
+                    } else if state.agents.iter().any(|a| a.status == AgentStatus::Completed) {
+                        state.mood = FamiliarMood::Celebrating;
+                    } else if state.agents.iter().any(|a| a.status == AgentStatus::WaitingInput) {
+                        state.mood = FamiliarMood::Watching;
+                    } else {
+                        state.mood = FamiliarMood::Idle;
+                    }
                 }
             }
         });
@@ -182,21 +196,19 @@ impl StateMachine {
                 .push(agent.clone());
         }
 
-        // Update mood if not explicitly overridden by this event
+        // Aggregate global mood based on all active sessions
         if state.active_agent_count == 0 {
             state.mood = FamiliarMood::Sleepy;
-        } else if state
-            .agents
-            .iter()
-            .any(|a| a.status == AgentStatus::Thinking)
-        {
-            state.mood = FamiliarMood::Thinking;
-        } else if state
-            .agents
-            .iter()
-            .any(|a| a.status == AgentStatus::Working)
-        {
+        } else if state.agents.iter().any(|a| a.status == AgentStatus::Working) {
             state.mood = FamiliarMood::Busy;
+        } else if state.agents.iter().any(|a| a.status == AgentStatus::Thinking) {
+            state.mood = FamiliarMood::Thinking;
+        } else if state.agents.iter().any(|a| a.status == AgentStatus::Completed) {
+            state.mood = FamiliarMood::Celebrating;
+        } else if state.agents.iter().any(|a| a.status == AgentStatus::WaitingInput) {
+            state.mood = FamiliarMood::Watching;
+        } else {
+            state.mood = FamiliarMood::Idle;
         }
 
         tracing::info!(
@@ -205,5 +217,67 @@ impl StateMachine {
             mood = ?state.mood,
             "State updated from event"
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::event::{AgentEvent, AgentEventType, AgentSource, AgentCategory};
+    use crate::event_bus::EventBus;
+    use uuid::Uuid;
+
+    #[tokio::test]
+    async fn test_state_machine_receives_stop_signal() {
+        let bus = EventBus::new(100, 1000);
+        let machine = StateMachine::new(bus.clone());
+        machine.start_processing().await;
+
+        let agent_id = Uuid::new_v4();
+
+        // 1. Send SessionStart to create the agent
+        bus.publish(AgentEvent {
+            id: agent_id,
+            timestamp: chrono::Utc::now(),
+            source: AgentSource::Antigravity,
+            category: AgentCategory::Coding,
+            event_type: AgentEventType::AgentStarted { instruction: Some("Do a task".into()) },
+            metadata: None,
+        }).await.unwrap();
+        
+        // 2. Send Thinking to transition it
+        bus.publish(AgentEvent {
+            id: agent_id,
+            timestamp: chrono::Utc::now(),
+            source: AgentSource::Antigravity,
+            category: AgentCategory::Coding,
+            event_type: AgentEventType::Thinking,
+            metadata: None,
+        }).await.unwrap();
+
+        // Let the processing loop tick
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        
+        let state = machine.get_state().await;
+        assert_eq!(state.agents.len(), 1);
+        assert_eq!(state.agents[0].status, AgentStatus::Thinking);
+
+        // 2. Send Stop signal (TaskCompleted)
+        bus.publish(AgentEvent {
+            id: agent_id,
+            timestamp: chrono::Utc::now(),
+            source: AgentSource::Antigravity,
+            category: AgentCategory::Coding,
+            event_type: AgentEventType::TaskCompleted { summary: "Task finished".to_string() },
+            metadata: None,
+        }).await.unwrap();
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        let state = machine.get_state().await;
+        // Should have transitioned to Completed
+        assert_eq!(state.agents.len(), 1);
+        assert_eq!(state.agents[0].status, AgentStatus::Completed);
+        assert_eq!(state.mood, FamiliarMood::Celebrating);
     }
 }

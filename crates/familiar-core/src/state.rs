@@ -22,6 +22,7 @@ pub enum FamiliarMood {
     Alarmed,
     Celebrating,
     Watching,
+    Idle,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

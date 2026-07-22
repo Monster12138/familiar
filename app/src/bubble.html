@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Familiar Bubble</title>
+    <link rel="stylesheet" href="./index.css" />
+    <style>
+      body, html {
+        margin: 0;
+        padding: 0;
+        /* Dynamic resizing means viewport might be smaller, but we let it be 100% of the window */
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        background-color: transparent !important;
+        pointer-events: none;
+      }
+      #bubble-container {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        align-items: center;
+        padding: 10px;
+        gap: 10px;
+        width: 100%;
+        box-sizing: border-box;
+        height: max-content;
+      }
+      .bubble {
+        pointer-events: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="bubble-container"></div>
+    <script type="module" src="./bubble.js"></script>
+  </body>
+</html>

@@ -2,88 +2,9 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 export class BubbleOverlay {
     constructor() {
-        this.bubble = document.createElement('div');
-        this.bubble.style.position = 'fixed';
-        // Anchor to the bottom, perfectly tracking the cat's scaled sprite height
-        this.bubble.style.bottom = 'calc(100vw / 1.777 - 10px)';
-        this.bubble.style.left = '10px';
-        this.bubble.style.padding = '8px 12px'; // slightly smaller padding to save space
-        this.bubble.style.background = 'rgba(255, 255, 255, 0.95)';
-        this.bubble.style.border = '2px solid #333';
-        this.bubble.style.borderRadius = '16px 16px 0px 16px'; // Chat bubble tail points to bottom right
-        this.bubble.style.fontFamily = 'system-ui, sans-serif';
-        this.bubble.style.fontSize = '12px'; // slightly smaller font to fit 320px width better
-        this.bubble.style.fontWeight = '500';
-        this.bubble.style.color = '#333';
-        this.bubble.style.opacity = '0';
-        this.bubble.style.transition = 'opacity 0.3s ease-in-out';
-        this.bubble.style.pointerEvents = 'auto';
-        this.bubble.style.whiteSpace = 'normal';
-        this.bubble.style.width = 'fit-content';
-        this.bubble.style.maxWidth = '280px'; // Fits safely inside 320px window width
-        this.bubble.style.overflow = 'hidden';
-        this.bubble.style.display = '-webkit-box';
-        this.bubble.style.webkitBoxOrient = 'vertical';
-        this.bubble.style.webkitLineClamp = '2'; // Limit to 2 lines
-        this.bubble.style.wordBreak = 'break-word';
-        this.bubble.style.boxShadow = '2px 2px 0px rgba(0,0,0,0.1)';
-        this.bubble.style.zIndex = '1000';
-        this.bubble.style.cursor = 'grab';
-        
-        document.body.appendChild(this.bubble);
-        this.timeoutId = null;
-
-        this.bubble.addEventListener('mousedown', (e) => {
-            if (e.button === 0) {
-                getCurrentWebviewWindow().startDragging();
-            }
-        });
-
-        // Create inner elements
-        this.innerContainer = document.createElement('div');
-        this.innerContainer.style.display = 'flex';
-        this.innerContainer.style.flexDirection = 'column';
-        this.innerContainer.style.gap = '4px';
-        this.innerContainer.style.width = '100%';
-        this.bubble.appendChild(this.innerContainer);
-
-        this.userInstructionEl = document.createElement('div');
-        this.userInstructionEl.style.color = '#666';
-        this.userInstructionEl.style.fontSize = '10px';
-        this.userInstructionEl.style.fontStyle = 'italic';
-        this.userInstructionEl.style.display = '-webkit-box';
-        this.userInstructionEl.style.webkitBoxOrient = 'vertical';
-        this.userInstructionEl.style.webkitLineClamp = '2';
-        this.userInstructionEl.style.overflow = 'hidden';
-        this.userInstructionEl.style.wordBreak = 'break-word';
-        this.innerContainer.appendChild(this.userInstructionEl);
-
-        this.activityContainer = document.createElement('div');
-        this.activityContainer.style.display = 'flex';
-        this.activityContainer.style.alignItems = 'center';
-        this.activityContainer.style.gap = '6px';
-        this.innerContainer.appendChild(this.activityContainer);
-
-        this.iconEl = document.createElement('div');
-        this.iconEl.style.display = 'flex';
-        this.iconEl.style.alignItems = 'center';
-        this.iconEl.style.justifyContent = 'center';
-        this.activityContainer.appendChild(this.iconEl);
-
-        this.activityEl = document.createElement('div');
-        this.activityEl.style.color = '#333';
-        this.activityEl.style.fontSize = '12px';
-        this.activityEl.style.fontWeight = '600';
-        this.activityEl.style.display = '-webkit-box';
-        this.activityEl.style.webkitBoxOrient = 'vertical';
-        this.activityEl.style.webkitLineClamp = '2';
-        this.activityEl.style.overflow = 'hidden';
-        this.activityEl.style.wordBreak = 'break-word';
-        this.activityContainer.appendChild(this.activityEl);
-
-        window.addEventListener('pet-bubble', (e) => {
-            this.show(e.detail.userInstruction, e.detail.currentActivity, e.detail.statusType, e.detail.duration);
-        });
+        this.container = document.getElementById('bubble-container');
+        this.container.style.pointerEvents = 'none';
+        this.bubbles = new Map(); // sessionId -> { element, timeoutId }
     }
 
     getSpinnerIcon() {
@@ -98,31 +19,130 @@ export class BubbleOverlay {
         return `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="color: #9ca3af;"><circle cx="5" cy="12" r="2.5"></circle><circle cx="12" cy="12" r="2.5"></circle><circle cx="19" cy="12" r="2.5"></circle></svg>`;
     }
 
-    show(userInstruction, currentActivity, statusType, duration = 3000) {
-        this.userInstructionEl.innerText = userInstruction;
-        this.activityEl.innerText = currentActivity;
+    createBubbleElement() {
+        const bubble = document.createElement('div');
+        bubble.style.padding = '8px 12px';
+        bubble.style.background = 'rgba(255, 255, 255, 0.95)';
+        bubble.style.border = '2px solid #333';
+        bubble.style.borderRadius = '16px 16px 16px 16px';
+        bubble.style.fontFamily = 'system-ui, sans-serif';
+        bubble.style.fontSize = '12px';
+        bubble.style.fontWeight = '500';
+        bubble.style.color = '#333';
+        bubble.style.opacity = '0';
+        bubble.style.transition = 'opacity 0.3s ease-in-out';
+        bubble.style.pointerEvents = 'auto';
+        bubble.style.width = '128px';
+        bubble.style.boxSizing = 'border-box';
+        bubble.style.boxShadow = '2px 2px 0px rgba(0,0,0,0.1)';
+        bubble.style.cursor = 'grab';
         
-        if (statusType === 'completed') {
-            this.iconEl.innerHTML = this.getCheckmarkIcon();
-        } else if (statusType === 'working') {
-            this.iconEl.innerHTML = this.getSpinnerIcon();
-        } else {
-            this.iconEl.innerHTML = this.getIdleIcon();
+        bubble.addEventListener('mousedown', (e) => {
+            if (e.button === 0) {
+                import("@tauri-apps/api/core").then(({ invoke }) => {
+                    invoke('drag_main_window').catch(console.error);
+                });
+            }
+        });
+
+        const innerContainer = document.createElement('div');
+        innerContainer.style.display = 'flex';
+        innerContainer.style.flexDirection = 'column';
+        innerContainer.style.gap = '4px';
+        bubble.appendChild(innerContainer);
+
+        const userInstructionEl = document.createElement('div');
+        userInstructionEl.style.color = '#666';
+        userInstructionEl.style.fontSize = '10px';
+        userInstructionEl.style.fontStyle = 'italic';
+        userInstructionEl.style.whiteSpace = 'nowrap';
+        userInstructionEl.style.overflow = 'hidden';
+        userInstructionEl.style.textOverflow = 'ellipsis';
+        userInstructionEl.style.width = '100%';
+        userInstructionEl.style.display = 'block';
+        innerContainer.appendChild(userInstructionEl);
+
+        const activityContainer = document.createElement('div');
+        activityContainer.style.display = 'flex';
+        activityContainer.style.alignItems = 'center';
+        activityContainer.style.gap = '6px';
+        activityContainer.style.maxWidth = '100%';
+        activityContainer.style.overflow = 'hidden';
+        innerContainer.appendChild(activityContainer);
+
+        const iconEl = document.createElement('div');
+        iconEl.style.display = 'flex';
+        iconEl.style.alignItems = 'center';
+        iconEl.style.justifyContent = 'center';
+        iconEl.style.flexShrink = '0';
+        activityContainer.appendChild(iconEl);
+
+        const activityEl = document.createElement('div');
+        activityEl.style.color = '#333';
+        activityEl.style.fontSize = '12px';
+        activityEl.style.fontWeight = '600';
+        activityEl.style.whiteSpace = 'nowrap';
+        activityEl.style.overflow = 'hidden';
+        activityEl.style.textOverflow = 'ellipsis';
+        activityEl.style.width = '100%';
+        activityEl.style.display = 'block';
+        activityContainer.appendChild(activityEl);
+
+        return { bubble, userInstructionEl, iconEl, activityEl };
+    }
+
+    render(agents, currentLang, translateFn) {
+        // Only show up to 3 most recently active agents to prevent covering the whole screen
+        const activeAgents = agents.slice(-3);
+        const activeIds = new Set(activeAgents.map(a => a.id));
+
+        // Remove stale bubbles
+        for (const [id, data] of this.bubbles.entries()) {
+            if (!activeIds.has(id)) {
+                data.element.bubble.style.opacity = '0';
+                setTimeout(() => {
+                    if (this.container.contains(data.element.bubble)) {
+                        this.container.removeChild(data.element.bubble);
+                    }
+                }, 300);
+                if (data.timeoutId) clearTimeout(data.timeoutId);
+                this.bubbles.delete(id);
+            }
         }
 
-        this.bubble.style.opacity = '1';
+        // Add or update bubbles
+        activeAgents.forEach((agent, index) => {
+            let data = this.bubbles.get(agent.id);
+            if (!data) {
+                data = { element: this.createBubbleElement(), timeoutId: null };
+                this.container.appendChild(data.element.bubble);
+                this.bubbles.set(agent.id, data);
+                // Trigger reflow for opacity transition
+                void data.element.bubble.offsetWidth; 
+            }
+
+            // Adjust bottom-right rounding based on position to simulate a tail for the bottom-most bubble
+            data.element.bubble.style.borderRadius = index === 0 ? '16px 16px 0px 16px' : '16px';
+
+            const ui = data.element;
+            ui.userInstructionEl.innerText = agent.user_instruction || translateFn("status_waiting", currentLang);
+            ui.activityEl.innerText = agent.current_activity || "";
+
+            let statusType = 'working';
+            if (agent.status === 'Completed') statusType = 'completed';
+            else if (agent.status === 'WaitingInput' || agent.status === 'Idle') statusType = 'idle';
+
+            if (statusType === 'completed') {
+                ui.iconEl.innerHTML = this.getCheckmarkIcon();
+            } else if (statusType === 'working') {
+                ui.iconEl.innerHTML = this.getSpinnerIcon();
+            } else {
+                ui.iconEl.innerHTML = this.getIdleIcon();
+            }
+
+            ui.bubble.style.opacity = '1';
+        });
         
-        if (this.timeoutId) {
-            clearTimeout(this.timeoutId);
-        }
-        
-        this.timeoutId = setTimeout(() => {
-            this.bubble.style.opacity = '0';
-        }, duration);
-    }
-    
-    setScale(scale) {
-        this.bubble.style.transformOrigin = 'bottom left';
-        this.bubble.style.transform = `scale(${scale})`;
+        // Unified window handles its own size, no need to resize here
     }
 }

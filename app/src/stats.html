@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Familiar Stats</title>
+    <link rel="stylesheet" href="./index.css" />
+    <link rel="stylesheet" href="./stats.css" />
+    <style>
+      body, html {
+        margin: 0;
+        padding: 0;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        background-color: transparent !important;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stats-container">
+      <div class="stat-row">
+        <div class="stat-label">CPU</div>
+        <div class="stat-bar-bg">
+          <div class="stat-bar-fill" id="bar-cpu"></div>
+        </div>
+        <div class="stat-val" id="val-cpu">0%</div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label">RAM</div>
+        <div class="stat-bar-bg">
+          <div class="stat-bar-fill" id="bar-ram"></div>
+        </div>
+        <div class="stat-val" id="val-ram">0%</div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label">DSK</div>
+        <div class="stat-bar-bg">
+          <div class="stat-bar-fill" id="bar-disk"></div>
+        </div>
+        <div class="stat-val" id="val-disk">0%</div>
+      </div>
+    </div>
+    <script type="module" src="./stats.js"></script>
+  </body>
+</html>

@@ -109,27 +109,17 @@
                 <section class="settings-group" id="section-pet">
                     <h2 data-i18n="group_pet">桌宠外观与行为</h2>
                     <div class="settings-card">
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <div class="setting-title" data-i18n="lbl_pet_scale">桌宠缩放比例</div>
-                                <div class="setting-desc" data-i18n="desc_pet_scale">调整桌面宠物的显示大小 (1.0 - 5.0)</div>
+                            <div class="setting-item horizontal">
+                                <div class="setting-info">
+                                    <div class="setting-title" data-i18n="lbl_pet_scale">桌宠缩放比例</div>
+                                    <div class="setting-desc" data-i18n="desc_pet_scale">调整桌面宠物的显示大小 (1.0 - 5.0)</div>
+                                </div>
+                                <div class="setting-control range-control">
+                                    <input type="range" id="setting-pet-scale" min="1" max="5" step="0.1" value="2.0">
+                                    <span class="range-value" id="val-pet-scale">2.0</span>
+                                </div>
                             </div>
-                            <div class="custom-range">
-                                <input type="range" id="setting-pet-scale" min="1" max="5" step="0.1" value="2.0">
-                                <span class="range-value" id="val-pet-scale">2.0</span>
-                            </div>
-                        </div>
-                        <div class="divider"></div>
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <div class="setting-title" data-i18n="lbl_bubble_scale">气泡缩放比例</div>
-                                <div class="setting-desc" data-i18n="desc_bubble_scale">调整信息气泡的显示大小 (0.5 - 3.0)</div>
-                            </div>
-                            <div class="custom-range">
-                                <input type="range" id="setting-bubble-scale" min="0.5" max="3" step="0.1" value="1.0">
-                                <span class="range-value" id="val-bubble-scale">1.0</span>
-                            </div>
-                        </div>
+
                         <div class="divider"></div>
                         <div class="setting-item">
                             <div class="setting-info">
