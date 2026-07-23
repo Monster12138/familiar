@@ -44,6 +44,16 @@ pub struct DesktopPetConfig {
     pub position: String,
     pub always_on_top: bool,
     pub opacity: f32,
+    #[serde(default = "default_true")]
+    pub show_task_bubble: bool,
+    #[serde(default = "default_true")]
+    pub show_pet: bool,
+    #[serde(default = "default_true")]
+    pub show_dashboard: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -96,7 +106,9 @@ impl Default for FamiliarConfig {
                     position: "bottom-right".to_string(),
                     always_on_top: true,
                     opacity: 0.95,
-
+                    show_task_bubble: true,
+                    show_pet: true,
+                    show_dashboard: true,
                 },
                 menu_bar: MenuBarConfig {
                     show_active_count: true,

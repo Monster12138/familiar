@@ -161,18 +161,35 @@ async function applyConfigToWindow(config) {
         const container = document.getElementById('unified-container');
         if (container) {
             container.style.transform = `scale(${window.petScale})`;
-            
-            // Force an immediate update because CSS transform doesn't trigger ResizeObserver
-            updateWindowSize();
-            
-            // Dynamically fit the Tauri window to the exact bounding box of the container
-            if (!window.containerObserver) {
-                window.containerObserver = new ResizeObserver(() => {
-                    updateWindowSize();
-                });
-                window.containerObserver.observe(container);
-            }
         }
+    }
+    
+    // Apply display toggles
+    const bubbleContainer = document.getElementById('bubble-container');
+    if (bubbleContainer) {
+        bubbleContainer.style.display = (petConf.show_task_bubble !== false) ? 'flex' : 'none';
+    }
+    
+    const petContainerUI = document.getElementById('pet-container');
+    if (petContainerUI) {
+        petContainerUI.style.display = (petConf.show_pet !== false) ? 'flex' : 'none';
+    }
+    
+    const statsContainer = document.getElementById('stats-container');
+    if (statsContainer) {
+        statsContainer.style.display = (petConf.show_dashboard !== false) ? 'block' : 'none';
+    }
+    
+    // Force window size update after changing display states
+    updateWindowSize();
+    
+    // Setup observer if not already done
+    const unifiedContainer = document.getElementById('unified-container');
+    if (unifiedContainer && !window.containerObserver) {
+        window.containerObserver = new ResizeObserver(() => {
+            updateWindowSize();
+        });
+        window.containerObserver.observe(unifiedContainer);
     }
 }
 

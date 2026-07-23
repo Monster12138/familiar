@@ -19,6 +19,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const elPetAlwaysTop = document.getElementById('setting-pet-always-top');
     const elPetOpacity = document.getElementById('setting-pet-opacity');
     const valPetOpacity = document.getElementById('val-pet-opacity');
+    const elShowBubble = document.getElementById('setting-show-bubble');
+    const elShowPet = document.getElementById('setting-show-pet');
+    const elShowStats = document.getElementById('setting-show-stats');
 
     const elUdsPath = document.getElementById('setting-uds-path');
     const elTcpPort = document.getElementById('setting-tcp-port');
@@ -119,6 +122,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 elPetOpacity.value = petConf.opacity;
                 if (valPetOpacity) valPetOpacity.textContent = Number(petConf.opacity).toFixed(2);
             }
+            if (petConf.show_task_bubble !== undefined) elShowBubble.checked = petConf.show_task_bubble;
+            if (petConf.show_pet !== undefined) elShowPet.checked = petConf.show_pet;
+            if (petConf.show_dashboard !== undefined) elShowStats.checked = petConf.show_dashboard;
         }
 
         // Hooks / IPC
@@ -179,6 +185,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentConfig.renderer['desktop-pet'].scale = parseFloat(elPetScale.value);
         currentConfig.renderer['desktop-pet'].always_on_top = elPetAlwaysTop.checked;
         currentConfig.renderer['desktop-pet'].opacity = parseFloat(elPetOpacity.value);
+        currentConfig.renderer['desktop-pet'].show_task_bubble = elShowBubble.checked;
+        currentConfig.renderer['desktop-pet'].show_pet = elShowPet.checked;
+        currentConfig.renderer['desktop-pet'].show_dashboard = elShowStats.checked;
 
         currentConfig.hooks.socket_path = elUdsPath.value;
         currentConfig.hooks.tcp_port = parseInt(elTcpPort.value, 10);

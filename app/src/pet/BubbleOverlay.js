@@ -125,8 +125,8 @@ export class BubbleOverlay {
             data.element.bubble.style.borderRadius = index === 0 ? '16px 16px 0px 16px' : '16px';
 
             const ui = data.element;
-            ui.userInstructionEl.innerText = agent.user_instruction || translateFn("status_waiting", currentLang);
-            ui.activityEl.innerText = agent.current_activity || "";
+            ui.userInstructionEl.textContent = (agent.user_instruction || translateFn("status_waiting", currentLang)).replace(/\r?\n/g, ' ');
+            ui.activityEl.textContent = (agent.current_activity || "").replace(/\r?\n/g, ' ');
 
             let statusType = 'working';
             if (agent.status === 'Completed') statusType = 'completed';
