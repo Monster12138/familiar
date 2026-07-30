@@ -20,6 +20,20 @@ impl AntigravityHook {
         Self {}
     }
 
+    fn get_bin_path() -> String {
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(parent) = exe.parent() {
+                let cli_bin = parent.join("familiar-cli");
+                if cli_bin.exists() {
+                    return cli_bin.to_string_lossy().to_string();
+                }
+            }
+        }
+        dirs::home_dir()
+            .map(|h| h.join(".cargo/bin/familiar-cli").to_string_lossy().to_string())
+            .unwrap_or_else(|| "familiar-cli".to_string())
+    }
+
     fn extract_clean_text(s: &str) -> String {
         let mut text = s.to_string();
         if let Some(start) = text.find("<USER_REQUEST>") {
@@ -59,8 +73,24 @@ impl AntigravityHook {
                 })
             }
             "PreToolUse" => {
-                let name = json["toolCall"]["name"].as_str().unwrap_or("unknown");
+                let name = json["toolCall"]["name"]
+                    .as_str()
+                    .or_else(|| json["tool_name"].as_str())
+                    .or_else(|| json["tool"].as_str())
+                    .unwrap_or("unknown");
                 
+                let cmd_str = if name == "run_command" || name == "Bash" {
+                    json["toolCall"]["args"]["CommandLine"]
+                        .as_str()
+                        .or_else(|| json["toolCall"]["args"]["command"].as_str())
+                        .or_else(|| json["tool_arguments"]["CommandLine"].as_str())
+                        .or_else(|| json["tool_arguments"]["command"].as_str())
+                        .unwrap_or(name)
+                        .to_string()
+                } else {
+                    format!("Using tool {}", name)
+                };
+
                 let instruction = json["transcriptPath"].as_str().and_then(|path| {
                     if let Ok(content) = std::fs::read_to_string(path) {
                         for line in content.lines().rev() {
@@ -82,7 +112,7 @@ impl AntigravityHook {
                     source: AgentSource::Antigravity,
                     category: AgentCategory::Coding,
                     event_type: AgentEventType::RunningCommand {
-                        cmd: format!("Using tool {}", name),
+                        cmd: cmd_str,
                         instruction,
                     },
                     metadata: None,
@@ -267,29 +297,38 @@ impl AgentHook for AntigravityHook {
 
     fn config_path(&self) -> Option<std::path::PathBuf> {
         let home = dirs::home_dir()?;
-        Some(home.join(".gemini").join("antigravity").join("hooks.json"))
+        Some(home.join(".gemini").join("config").join("hooks.json"))
     }
 
     fn get_injection_payload(&self) -> Option<serde_json::Value> {
-        let bin_path = "/Users/sam.gl/workspace/rust/familiar/target/debug/familiar-cli";
+        let bin_path = Self::get_bin_path();
         Some(serde_json::json!({
             "familiar": {
                 "PreInvocation": [{
+                    "type": "command",
                     "command": format!("{} hook --source antigravity --event PreInvocation", bin_path)
                 }],
                 "PostInvocation": [{
+                    "type": "command",
                     "command": format!("{} hook --source antigravity --event PostInvocation", bin_path)
                 }],
                 "Stop": [{
+                    "type": "command",
                     "command": format!("{} hook --source antigravity --event Stop", bin_path)
                 }],
                 "PreToolUse": [{
-                    "command": format!("{} hook --source antigravity --event PreToolUse", bin_path),
-                    "matcher": "*"
+                    "matcher": "*",
+                    "hooks": [{
+                        "type": "command",
+                        "command": format!("{} hook --source antigravity --event PreToolUse", bin_path)
+                    }]
                 }],
                 "PostToolUse": [{
-                    "command": format!("{} hook --source antigravity --event PostToolUse", bin_path),
-                    "matcher": "*"
+                    "matcher": "*",
+                    "hooks": [{
+                        "type": "command",
+                        "command": format!("{} hook --source antigravity --event PostToolUse", bin_path)
+                    }]
                 }]
             }
         }))

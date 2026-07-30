@@ -19,6 +19,18 @@ export class BubbleOverlay {
         return `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="color: #9ca3af;"><circle cx="5" cy="12" r="2.5"></circle><circle cx="12" cy="12" r="2.5"></circle><circle cx="19" cy="12" r="2.5"></circle></svg>`;
     }
 
+    getSourceBadge(source) {
+        const srcStr = typeof source === 'string' ? source : (source?.Custom || 'Agent');
+        if (srcStr === 'Codex') {
+            return `<span style="display:inline-flex; align-items:center; background:#10a37f; color:#ffffff; font-size:9px; font-weight:700; padding:1px 4px; border-radius:4px; line-height:1.2;">Codex</span>`;
+        } else if (srcStr === 'ClaudeCode' || srcStr === 'Claude') {
+            return `<span style="display:inline-flex; align-items:center; background:#d97706; color:#ffffff; font-size:9px; font-weight:700; padding:1px 4px; border-radius:4px; line-height:1.2;">Claude</span>`;
+        } else if (srcStr === 'Antigravity' || srcStr === 'Agy') {
+            return `<span style="display:inline-flex; align-items:center; background:#4f46e5; color:#ffffff; font-size:9px; font-weight:700; padding:1px 4px; border-radius:4px; line-height:1.2;">AGY</span>`;
+        }
+        return `<span style="display:inline-flex; align-items:center; background:#6b7280; color:#ffffff; font-size:9px; font-weight:700; padding:1px 4px; border-radius:4px; line-height:1.2;">${srcStr}</span>`;
+    }
+
     createBubbleElement() {
         const bubble = document.createElement('div');
         bubble.style.padding = '8px 12px';
@@ -32,7 +44,7 @@ export class BubbleOverlay {
         bubble.style.opacity = '0';
         bubble.style.transition = 'opacity 0.3s ease-in-out';
         bubble.style.pointerEvents = 'auto';
-        bubble.style.width = '128px';
+        bubble.style.width = '100%';
         bubble.style.boxSizing = 'border-box';
         bubble.style.boxShadow = '2px 2px 0px rgba(0,0,0,0.1)';
         bubble.style.cursor = 'grab';
@@ -51,6 +63,17 @@ export class BubbleOverlay {
         innerContainer.style.gap = '4px';
         bubble.appendChild(innerContainer);
 
+        const headerEl = document.createElement('div');
+        headerEl.style.display = 'flex';
+        headerEl.style.alignItems = 'center';
+        headerEl.style.gap = '4px';
+        headerEl.style.width = '100%';
+        innerContainer.appendChild(headerEl);
+
+        const sourceBadgeEl = document.createElement('div');
+        sourceBadgeEl.style.flexShrink = '0';
+        headerEl.appendChild(sourceBadgeEl);
+
         const userInstructionEl = document.createElement('div');
         userInstructionEl.style.color = '#666';
         userInstructionEl.style.fontSize = '10px';
@@ -60,7 +83,7 @@ export class BubbleOverlay {
         userInstructionEl.style.textOverflow = 'ellipsis';
         userInstructionEl.style.width = '100%';
         userInstructionEl.style.display = 'block';
-        innerContainer.appendChild(userInstructionEl);
+        headerEl.appendChild(userInstructionEl);
 
         const activityContainer = document.createElement('div');
         activityContainer.style.display = 'flex';
@@ -88,7 +111,7 @@ export class BubbleOverlay {
         activityEl.style.display = 'block';
         activityContainer.appendChild(activityEl);
 
-        return { bubble, userInstructionEl, iconEl, activityEl };
+        return { bubble, sourceBadgeEl, userInstructionEl, iconEl, activityEl };
     }
 
     render(agents, currentLang, translateFn) {
@@ -125,6 +148,7 @@ export class BubbleOverlay {
             data.element.bubble.style.borderRadius = index === 0 ? '16px 16px 0px 16px' : '16px';
 
             const ui = data.element;
+            ui.sourceBadgeEl.innerHTML = this.getSourceBadge(agent.source);
             ui.userInstructionEl.textContent = (agent.user_instruction || translateFn("status_waiting", currentLang)).replace(/\r?\n/g, ' ');
             ui.activityEl.textContent = (agent.current_activity || "").replace(/\r?\n/g, ' ');
 

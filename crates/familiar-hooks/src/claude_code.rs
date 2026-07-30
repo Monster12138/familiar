@@ -18,6 +18,24 @@ impl ClaudeCodeHook {
     pub fn new() -> Self {
         Self {}
     }
+    fn get_bin_path() -> String {
+        if let Ok(exe) = std::env::current_exe() {
+            if exe.file_name().and_then(|s| s.to_str()) == Some("familiar-cli") {
+                return exe.to_string_lossy().to_string();
+            }
+            if let Some(parent) = exe.parent() {
+                let cli = parent.join("familiar-cli");
+                if cli.exists() {
+                    return cli.to_string_lossy().to_string();
+                }
+            }
+        }
+        let fallback = std::path::PathBuf::from("/Users/sam.gl/workspace/rust/familiar/target/debug/familiar-cli");
+        if fallback.exists() {
+            return fallback.to_string_lossy().to_string();
+        }
+        "familiar-cli".to_string()
+    }
 }
 
 #[async_trait]
@@ -44,7 +62,7 @@ impl AgentHook for ClaudeCodeHook {
     }
 
     fn get_injection_payload(&self) -> Option<serde_json::Value> {
-        let bin_path = "familiar-cli";
+        let bin_path = Self::get_bin_path();
         Some(serde_json::json!({
             "on_pre_tool_use": format!("{} hook --source claude-code --event PreToolUse", bin_path),
             "on_post_tool_use": format!("{} hook --source claude-code --event PostToolUse", bin_path)

@@ -18,6 +18,40 @@ impl CodexHook {
     pub fn new() -> Self {
         Self {}
     }
+
+    fn merge_hooks(existing: &mut serde_json::Value, payload: &serde_json::Value) {
+        if let (Some(existing_obj), Some(payload_obj)) = (existing.as_object_mut(), payload.as_object()) {
+            for (k, v) in payload_obj {
+                if !existing_obj.contains_key(k) {
+                    existing_obj.insert(k.clone(), v.clone());
+                } else if let (Some(existing_arr), Some(payload_arr)) = (existing_obj.get_mut(k).and_then(|v| v.as_array_mut()), v.as_array()) {
+                    for item in payload_arr {
+                        if !existing_arr.contains(item) {
+                            existing_arr.push(item.clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    fn get_bin_path() -> String {
+        if let Ok(exe) = std::env::current_exe() {
+            if exe.file_name().and_then(|s| s.to_str()) == Some("familiar-cli") {
+                return exe.to_string_lossy().to_string();
+            }
+            if let Some(parent) = exe.parent() {
+                let cli = parent.join("familiar-cli");
+                if cli.exists() {
+                    return cli.to_string_lossy().to_string();
+                }
+            }
+        }
+        let fallback = std::path::PathBuf::from("/Users/sam.gl/workspace/rust/familiar/target/debug/familiar-cli");
+        if fallback.exists() {
+            return fallback.to_string_lossy().to_string();
+        }
+        "familiar-cli".to_string()
+    }
 }
 
 #[async_trait]
@@ -40,14 +74,20 @@ impl AgentHook for CodexHook {
 
     fn config_path(&self) -> Option<std::path::PathBuf> {
         let home = dirs::home_dir()?;
-        Some(home.join(".codex").join("config.json"))
+        Some(home.join(".codex").join("hooks.json"))
     }
 
     fn get_injection_payload(&self) -> Option<serde_json::Value> {
-        let bin_path = "familiar-cli";
+        let bin_path = Self::get_bin_path();
         Some(serde_json::json!({
-            "on_pre_tool_use": format!("{} hook --source codex --event PreToolUse", bin_path),
-            "on_post_tool_use": format!("{} hook --source codex --event PostToolUse", bin_path)
+            "hooks": {
+                "SessionStart": [{ "hooks": [{ "type": "command", "command": format!("{} hook --source codex --event SessionStart", bin_path) }] }],
+                "SessionEnd": [{ "hooks": [{ "type": "command", "command": format!("{} hook --source codex --event SessionEnd", bin_path) }] }],
+                "PreToolUse": [{ "hooks": [{ "type": "command", "command": format!("{} hook --source codex --event PreToolUse", bin_path) }] }],
+                "PostToolUse": [{ "hooks": [{ "type": "command", "command": format!("{} hook --source codex --event PostToolUse", bin_path) }] }],
+                "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": format!("{} hook --source codex --event UserPromptSubmit", bin_path) }] }],
+                "Stop": [{ "hooks": [{ "type": "command", "command": format!("{} hook --source codex --event Stop", bin_path) }] }]
+            }
         }))
     }
 
@@ -63,12 +103,24 @@ impl AgentHook for CodexHook {
 
         let content = std::fs::read_to_string(&path).unwrap_or_default();
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-            let pre = json["on_pre_tool_use"].as_str().unwrap_or("");
-            let post = json["on_post_tool_use"].as_str().unwrap_or("");
-            pre.contains("familiar-cli") || post.contains("familiar-cli")
-        } else {
-            false
+            let hooks_obj = json.get("hooks").and_then(|v| v.as_object());
+            if let Some(hooks) = hooks_obj {
+                if let Some(pre_tool) = hooks.get("PreToolUse").and_then(|v| v.as_array()) {
+                    for item in pre_tool {
+                        if let Some(inner_hooks) = item.get("hooks").and_then(|v| v.as_array()) {
+                            for inner_hook in inner_hooks {
+                                if let Some(cmd) = inner_hook.get("command").and_then(|v| v.as_str()) {
+                                    if cmd.contains("familiar-cli") {
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
+        false
     }
 
     fn inject(&self) -> Result<()> {
@@ -90,9 +142,16 @@ impl AgentHook for CodexHook {
             }
         }
 
-        if let (Some(obj), Some(payload_obj)) = (config_json.as_object_mut(), payload.as_object()) {
-            for (k, v) in payload_obj {
-                obj.insert(k.clone(), v.clone());
+        if !config_json.is_object() {
+            config_json = serde_json::json!({});
+        }
+
+        if let Some(payload_hooks) = payload.get("hooks") {
+            if !config_json.as_object().unwrap().contains_key("hooks") {
+                config_json.as_object_mut().unwrap().insert("hooks".to_string(), serde_json::json!({}));
+            }
+            if let Some(config_hooks) = config_json.get_mut("hooks") {
+                Self::merge_hooks(config_hooks, payload_hooks);
             }
         }
 
@@ -112,22 +171,44 @@ impl AgentHook for CodexHook {
 
         let content = std::fs::read_to_string(&path)?;
         if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&content) {
-            if let Some(obj) = json.as_object_mut() {
-                let mut keys_to_remove = Vec::new();
+            if let Some(hooks_obj) = json.get_mut("hooks").and_then(|v| v.as_object_mut()) {
+                for (_, event_array) in hooks_obj.iter_mut() {
+                    if let Some(arr) = event_array.as_array_mut() {
+                        for item in arr.iter_mut() {
+                            if let Some(inner_hooks) = item.get_mut("hooks").and_then(|v| v.as_array_mut()) {
+                                inner_hooks.retain(|hook| {
+                                    if let Some(cmd) = hook.get("command").and_then(|v| v.as_str()) {
+                                        !cmd.contains("familiar-cli")
+                                    } else {
+                                        true
+                                    }
+                                });
+                            }
+                        }
+                        arr.retain(|item| {
+                            if let Some(inner_hooks) = item.get("hooks").and_then(|v| v.as_array()) {
+                                !inner_hooks.is_empty()
+                            } else {
+                                true
+                            }
+                        });
+                    }
+                }
                 
-                if let Some(v) = obj.get("on_pre_tool_use") {
-                    if v.as_str().unwrap_or("").contains("familiar-cli") {
-                        keys_to_remove.push("on_pre_tool_use".to_string());
-                    }
+                let empty_keys: Vec<String> = hooks_obj.iter()
+                    .filter(|(_, v)| v.as_array().map_or(false, |arr| arr.is_empty()))
+                    .map(|(k, _)| k.clone())
+                    .collect();
+                for k in empty_keys {
+                    hooks_obj.remove(&k);
                 }
-                if let Some(v) = obj.get("on_post_tool_use") {
-                    if v.as_str().unwrap_or("").contains("familiar-cli") {
-                        keys_to_remove.push("on_post_tool_use".to_string());
-                    }
-                }
+            }
 
-                for k in keys_to_remove {
-                    obj.remove(&k);
+            if let Some(obj) = json.as_object_mut() {
+                if let Some(hooks) = obj.get("hooks") {
+                    if hooks.as_object().map_or(false, |o| o.is_empty()) {
+                        obj.remove("hooks");
+                    }
                 }
             }
 
@@ -152,9 +233,16 @@ impl AgentHook for CodexHook {
             }
         }
 
-        if let (Some(obj), Some(payload_obj)) = (config_json.as_object_mut(), payload.as_object()) {
-            for (k, v) in payload_obj {
-                obj.insert(k.clone(), v.clone());
+        if !config_json.is_object() {
+            config_json = serde_json::json!({});
+        }
+
+        if let Some(payload_hooks) = payload.get("hooks") {
+            if !config_json.as_object().unwrap().contains_key("hooks") {
+                config_json.as_object_mut().unwrap().insert("hooks".to_string(), serde_json::json!({}));
+            }
+            if let Some(config_hooks) = config_json.get_mut("hooks") {
+                Self::merge_hooks(config_hooks, payload_hooks);
             }
         }
 
@@ -176,21 +264,44 @@ impl AgentHook for CodexHook {
         };
 
         if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&content) {
-            if let Some(obj) = json.as_object_mut() {
-                let mut keys_to_remove = Vec::new();
-                if let Some(v) = obj.get("on_pre_tool_use") {
-                    if v.as_str().unwrap_or("").contains("familiar-cli") {
-                        keys_to_remove.push("on_pre_tool_use".to_string());
+            if let Some(hooks_obj) = json.get_mut("hooks").and_then(|v| v.as_object_mut()) {
+                for (_, event_array) in hooks_obj.iter_mut() {
+                    if let Some(arr) = event_array.as_array_mut() {
+                        for item in arr.iter_mut() {
+                            if let Some(inner_hooks) = item.get_mut("hooks").and_then(|v| v.as_array_mut()) {
+                                inner_hooks.retain(|hook| {
+                                    if let Some(cmd) = hook.get("command").and_then(|v| v.as_str()) {
+                                        !cmd.contains("familiar-cli")
+                                    } else {
+                                        true
+                                    }
+                                });
+                            }
+                        }
+                        arr.retain(|item| {
+                            if let Some(inner_hooks) = item.get("hooks").and_then(|v| v.as_array()) {
+                                !inner_hooks.is_empty()
+                            } else {
+                                true
+                            }
+                        });
                     }
                 }
-                if let Some(v) = obj.get("on_post_tool_use") {
-                    if v.as_str().unwrap_or("").contains("familiar-cli") {
-                        keys_to_remove.push("on_post_tool_use".to_string());
-                    }
+                
+                let empty_keys: Vec<String> = hooks_obj.iter()
+                    .filter(|(_, v)| v.as_array().map_or(false, |arr| arr.is_empty()))
+                    .map(|(k, _)| k.clone())
+                    .collect();
+                for k in empty_keys {
+                    hooks_obj.remove(&k);
                 }
+            }
 
-                for k in keys_to_remove {
-                    obj.remove(&k);
+            if let Some(obj) = json.as_object_mut() {
+                if let Some(hooks) = obj.get("hooks") {
+                    if hooks.as_object().map_or(false, |o| o.is_empty()) {
+                        obj.remove("hooks");
+                    }
                 }
             }
 

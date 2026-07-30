@@ -13,11 +13,13 @@
         "label": "main",
         "title": "Familiar",
         "width": 320,
-        "height": 240,
+        "height": 500,
         "transparent": true,
         "decorations": false,
-        "alwaysOnTop": true,
-        "visibleOnAllWorkspaces": true
+        "alwaysOnTop": false,
+        "visibleOnAllWorkspaces": true,
+        "skipTaskbar": true,
+        "acceptFirstMouse": true
       }
     ]
   },

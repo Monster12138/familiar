@@ -12,5 +12,8 @@
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/cli": "^2.11.4",
     "vite": "^5.0.0"
+  },
+  "dependencies": {
+    "jimp": "^1.6.1"
   }
 }

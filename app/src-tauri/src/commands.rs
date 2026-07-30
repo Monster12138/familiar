@@ -1,4 +1,53 @@
 use familiar_core::config::FamiliarConfig;
+use sysinfo::{System, Disks};
+use std::sync::Mutex as StdMutex;
+
+#[derive(Clone, serde::Serialize)]
+pub struct SystemStats {
+    pub cpu_usage: f32,
+    pub memory_used: u64,
+    pub memory_total: u64,
+    pub disk_used: u64,
+    pub disk_total: u64,
+}
+
+#[tauri::command]
+pub fn get_system_stats(sys_state: tauri::State<'_, StdMutex<System>>) -> SystemStats {
+    let mut sys = sys_state.lock().unwrap();
+    // Refresh only needed components
+    sys.refresh_cpu_all();
+    sys.refresh_memory();
+    
+    // Slight sleep to allow CPU calculation if needed, but normally we just rely on periodic frontend polling
+    // sysinfo needs two data points to calculate CPU usage. Polling every 2s gives a good delta.
+    
+    let cpu_usage = sys.global_cpu_usage();
+    let memory_used = sys.used_memory();
+    let memory_total = sys.total_memory();
+    
+    // Disks
+    let disks = Disks::new_with_refreshed_list();
+    let mut max_disk_total = 0;
+    let mut max_disk_used = 0;
+    
+    for disk in disks.list() {
+        if disk.total_space() > max_disk_total {
+            max_disk_total = disk.total_space();
+            max_disk_used = disk.total_space() - disk.available_space();
+        }
+    }
+    
+    let disk_total = max_disk_total;
+    let disk_used = max_disk_used;
+    
+    SystemStats {
+        cpu_usage,
+        memory_used,
+        memory_total,
+        disk_used,
+        disk_total,
+    }
+}
 
 #[tauri::command]
 pub fn get_config() -> Result<FamiliarConfig, String> {
@@ -29,8 +78,6 @@ pub fn save_config(app_handle: tauri::AppHandle, config: FamiliarConfig) -> Resu
             if res.is_ok() {
                 use tauri::Manager;
                 if let Some(window) = app_handle.get_webview_window("main") {
-                    let scale = config.renderer.desktop_pet.scale as f64;
-                    let _ = window.set_size(tauri::LogicalSize::new(160.0 * scale, 160.0 * scale));
                     let _ = window.set_always_on_top(config.renderer.desktop_pet.always_on_top);
                 }
                 
@@ -51,10 +98,15 @@ pub fn greet(name: &str) -> String {
 #[tauri::command]
 pub async fn open_settings_window(app_handle: tauri::AppHandle) -> Result<(), String> {
     use tauri::Manager;
-    if let Some(_window) = app_handle.get_webview_window("settings") {
+    if let Some(window) = app_handle.get_webview_window("settings") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        // Hack to force window to front on macOS when app is in background
+        let _ = window.set_always_on_top(true);
+        let _ = window.set_always_on_top(false);
+        let _ = window.set_focus();
         return Ok(());
     }
-
     let _ = tauri::WebviewWindowBuilder::new(
         &app_handle,
         "settings",

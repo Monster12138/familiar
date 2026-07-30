@@ -40,12 +40,12 @@ async fn test_hook_to_state_machine_flow() {
 
     // 6. Parse and publish the event
     let event = antigravity_hook
-        .parse(&agy_payload)
+        .parse("PreToolUse", &agy_payload)
         .expect("Failed to parse payload");
 
     // Assert parsing logic worked correctly
     match event.event_type {
-        AgentEventType::RunningCommand { ref cmd } => {
+        AgentEventType::RunningCommand { ref cmd, .. } => {
             assert_eq!(cmd, "cargo test");
         }
         _ => panic!("Expected RunningCommand event"),

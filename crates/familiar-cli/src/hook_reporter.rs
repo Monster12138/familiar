@@ -32,32 +32,58 @@ pub async fn run(source_name: &str, event_name: &str) -> Result<()> {
     let mut payload_bytes = serde_json::to_vec(&payload)?;
     payload_bytes.push(b'\n');
 
-    // 3. Send to familiar daemon (assuming it listens on a local port or socket)
-    #[cfg(unix)]
+    // 3. Send to familiar daemon (Try Unix Socket first, fallback to TCP loopback 127.0.0.1:9528)
     let res = async {
-        let mut stream = tokio::net::UnixStream::connect("/tmp/familiar.sock").await?;
-        stream.write_all(&payload_bytes).await?;
-        Ok::<(), anyhow::Error>(())
-    }.await;
-
-    #[cfg(windows)]
-    let res = async {
+        #[cfg(unix)]
+        {
+            if let Ok(mut stream) = tokio::net::UnixStream::connect("/tmp/familiar.sock").await {
+                stream.write_all(&payload_bytes).await?;
+                return Ok::<(), anyhow::Error>(());
+            }
+        }
         let mut stream = tokio::net::TcpStream::connect("127.0.0.1:9528").await?;
         stream.write_all(&payload_bytes).await?;
         Ok::<(), anyhow::Error>(())
     }.await;
 
-    match res {
-        Ok(_) => {
-            // Must output valid JSON contract for AGY PreToolUse
-            println!(r#"{{"decision": "allow", "reason": "Familiar notified"}}"#);
-            Ok(())
+    let output_json = get_hook_response_json(event_name, res.is_err());
+    println!("{}", output_json);
+    Ok(())
+}
+
+fn get_hook_response_json(event_name: &str, offline: bool) -> String {
+    match event_name {
+        "PreToolUse" | "PermissionRequest" => {
+            let reason = if offline { "Familiar offline" } else { "Familiar notified" };
+            serde_json::json!({
+                "decision": "allow",
+                "reason": reason
+            })
+            .to_string()
         }
-        Err(e) => {
-            tracing::debug!("Failed to notify familiar daemon: {}", e);
-            // Even if daemon is down, allow the tool
-            println!(r#"{{"decision": "allow", "reason": "Familiar offline"}}"#);
-            Ok(())
+        "PostToolUse" => {
+            serde_json::json!({}).to_string()
+        }
+        "PreInvocation" => {
+            serde_json::json!({
+                "injectSteps": []
+            })
+            .to_string()
+        }
+        "PostInvocation" => {
+            serde_json::json!({
+                "injectSteps": []
+            })
+            .to_string()
+        }
+        "Stop" | "SessionEnd" | "SubagentStop" => {
+            serde_json::json!({
+                "decision": "allow"
+            })
+            .to_string()
+        }
+        _ => {
+            serde_json::json!({}).to_string()
         }
     }
 }

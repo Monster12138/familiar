@@ -13,6 +13,8 @@ serde_json = { workspace = true }
 anyhow = { workspace = true }
 axum = { workspace = true }
 familiar-hooks = { path = "../../crates/familiar-hooks" }
+sysinfo = { workspace = true }
+tracing = { workspace = true }
 open = "5.4.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]

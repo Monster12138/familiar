@@ -166,6 +166,27 @@ impl StateMachine {
 
                 // Apply initial state for this first event
                 match &event.event_type {
+                    AgentEventType::AgentStarted { instruction } => {
+                        new_agent.user_instruction = instruction.clone();
+                        new_agent.status = AgentStatus::Working;
+                        new_agent.current_activity = Some("Started session".to_string());
+                    }
+                    AgentEventType::Thinking => {
+                        new_agent.status = AgentStatus::Thinking;
+                        new_agent.current_activity = Some("Thinking...".to_string());
+                    }
+                    AgentEventType::Processing { description } => {
+                        new_agent.status = AgentStatus::Working;
+                        new_agent.current_activity = Some(description.clone());
+                    }
+                    AgentEventType::ReadingFile { path } => {
+                        new_agent.status = AgentStatus::Working;
+                        new_agent.current_activity = Some(format!("Reading {}", path));
+                    }
+                    AgentEventType::WritingFile { path } => {
+                        new_agent.status = AgentStatus::Working;
+                        new_agent.current_activity = Some(format!("Writing {}", path));
+                    }
                     AgentEventType::RunningCommand { cmd, instruction } => {
                         new_agent.status = AgentStatus::Working;
                         new_agent.current_activity = Some(format!("Running `{}`", cmd));
@@ -173,10 +194,26 @@ impl StateMachine {
                             new_agent.user_instruction = Some(inst.clone());
                         }
                     }
-                    AgentEventType::AgentStarted { instruction } => {
-                        new_agent.user_instruction = instruction.clone();
+                    AgentEventType::SearchingCode { query } => {
+                        new_agent.status = AgentStatus::Working;
+                        new_agent.current_activity = Some(format!("Searching `{}`", query));
                     }
-                    // (We can extend this to match all others, but for test purpose let's keep it simple or just leave it idle)
+                    AgentEventType::BrowsingWeb { url } => {
+                        new_agent.status = AgentStatus::Working;
+                        new_agent.current_activity = Some(format!("Browsing {}", url));
+                    }
+                    AgentEventType::TaskCompleted { summary } => {
+                        new_agent.status = AgentStatus::Completed;
+                        new_agent.current_activity = Some(summary.clone());
+                    }
+                    AgentEventType::TaskFailed { error } => {
+                        new_agent.status = AgentStatus::Failed;
+                        new_agent.current_activity = Some(error.clone());
+                    }
+                    AgentEventType::WaitingForInput => {
+                        new_agent.status = AgentStatus::WaitingInput;
+                        new_agent.current_activity = Some("Waiting for user input...".to_string());
+                    }
                     _ => {}
                 }
 
