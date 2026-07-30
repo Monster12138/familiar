@@ -25,11 +25,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const elUdsPath = document.getElementById('setting-uds-path');
     const elTcpPort = document.getElementById('setting-tcp-port');
+    const elCelebrationSecs = document.getElementById('setting-celebration-secs');
+    const valCelebrationSecs = document.getElementById('val-celebration-secs');
 
     const saveBtn = document.getElementById('save-btn');
     const statusMsg = document.getElementById('save-status');
+    const autoSaveIndicator = document.getElementById('auto-save-indicator');
+    const autoSaveText = document.getElementById('auto-save-text');
 
     let currentConfig = {};
+    let autoSaveTimer = null;
 
     // --- Tab Navigation Logic ---
     menuItems.forEach(item => {
@@ -87,6 +92,79 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     setupRangeSync(elPetScale, valPetScale, 1);
     setupRangeSync(elPetOpacity, valPetOpacity, 2);
+    // celebration secs uses integer display with 's' suffix
+    if (elCelebrationSecs && valCelebrationSecs) {
+        const updateCelebVal = () => { valCelebrationSecs.textContent = elCelebrationSecs.value + 's'; };
+        elCelebrationSecs.addEventListener('input', updateCelebVal);
+        updateCelebVal();
+    }
+
+    // --- Auto-Save Logic ---
+
+    function showAutoSaveState(state) {
+        // state: 'saving' | 'saved' | 'error'
+        if (!autoSaveIndicator || !autoSaveText) return;
+        autoSaveIndicator.className = 'auto-save-indicator auto-save-' + state;
+        autoSaveIndicator.style.opacity = '1';
+        if (state === 'saving') {
+            autoSaveText.setAttribute('data-i18n', 'msg_auto_saving');
+            autoSaveText.textContent = t('msg_auto_saving', elLanguage.value);
+        } else if (state === 'saved') {
+            autoSaveText.setAttribute('data-i18n', 'msg_auto_saved');
+            autoSaveText.textContent = t('msg_auto_saved', elLanguage.value);
+            setTimeout(() => {
+                autoSaveIndicator.style.opacity = '0';
+            }, 2500);
+        } else if (state === 'error') {
+            autoSaveText.setAttribute('data-i18n', 'msg_auto_save_error');
+            autoSaveText.textContent = t('msg_auto_save_error', elLanguage.value);
+            setTimeout(() => {
+                autoSaveIndicator.style.opacity = '0';
+            }, 3000);
+        }
+    }
+
+    async function performSave() {
+        const lang = elLanguage.value;
+
+        if (!currentConfig.general) currentConfig.general = {};
+        if (!currentConfig.api) currentConfig.api = {};
+        if (!currentConfig.renderer) currentConfig.renderer = {};
+        if (!currentConfig.renderer['desktop-pet']) currentConfig.renderer['desktop-pet'] = {};
+        if (!currentConfig.hooks) currentConfig.hooks = {};
+
+        currentConfig.general.language = elLanguage.value;
+        currentConfig.general.auto_start = elAutostart.checked;
+        currentConfig.api.port = parseInt(elApiPort.value, 10);
+
+        currentConfig.renderer['desktop-pet'].scale = parseFloat(elPetScale.value);
+        currentConfig.renderer['desktop-pet'].always_on_top = elPetAlwaysTop.checked;
+        currentConfig.renderer['desktop-pet'].opacity = parseFloat(elPetOpacity.value);
+        currentConfig.renderer['desktop-pet'].show_task_bubble = elShowBubble.checked;
+        currentConfig.renderer['desktop-pet'].show_pet = elShowPet.checked;
+        currentConfig.renderer['desktop-pet'].show_dashboard = elShowStats.checked;
+        currentConfig.renderer['desktop-pet'].celebration_secs = parseInt(elCelebrationSecs.value, 10);
+
+        currentConfig.hooks.socket_path = elUdsPath.value;
+        currentConfig.hooks.tcp_port = parseInt(elTcpPort.value, 10);
+
+        try {
+            await invoke('save_config', { config: currentConfig });
+            return true;
+        } catch (e) {
+            console.error('Save failed:', e);
+            return false;
+        }
+    }
+
+    function scheduleAutoSave() {
+        if (autoSaveTimer) clearTimeout(autoSaveTimer);
+        showAutoSaveState('saving');
+        autoSaveTimer = setTimeout(async () => {
+            const ok = await performSave();
+            showAutoSaveState(ok ? 'saved' : 'error');
+        }, 500);
+    }
 
     // --- Config Load/Save Logic ---
 
@@ -125,6 +203,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (petConf.show_task_bubble !== undefined) elShowBubble.checked = petConf.show_task_bubble;
             if (petConf.show_pet !== undefined) elShowPet.checked = petConf.show_pet;
             if (petConf.show_dashboard !== undefined) elShowStats.checked = petConf.show_dashboard;
+            if (petConf.celebration_secs !== undefined && elCelebrationSecs) {
+                elCelebrationSecs.value = petConf.celebration_secs;
+                if (valCelebrationSecs) valCelebrationSecs.textContent = petConf.celebration_secs + 's';
+            }
         }
 
         // Hooks / IPC
@@ -161,52 +243,42 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    // Language setting update UI
+    // Language setting update UI + auto save
     elLanguage.addEventListener('change', () => {
         applyTranslations(elLanguage.value);
+        scheduleAutoSave();
     });
 
-    // Save config
+    // Bind all controls for auto-save
+    const autoSaveControls = [
+        elAutostart, elPetAlwaysTop, elShowBubble, elShowPet, elShowStats
+    ];
+    autoSaveControls.forEach(el => {
+        if (el) el.addEventListener('change', scheduleAutoSave);
+    });
+
+    const autoSaveInputs = [
+        elApiPort, elPetScale, elPetOpacity, elUdsPath, elTcpPort, elCelebrationSecs
+    ];
+    autoSaveInputs.forEach(el => {
+        if (el) el.addEventListener('change', scheduleAutoSave);
+    });
+
+    // Manual save button (fires immediately, cancels any pending auto-save)
     saveBtn.addEventListener('click', async () => {
+        if (autoSaveTimer) { clearTimeout(autoSaveTimer); autoSaveTimer = null; }
         const lang = elLanguage.value;
-        saveBtn.textContent = t('msg_saving', lang);
         saveBtn.disabled = true;
-
-        if (!currentConfig.general) currentConfig.general = {};
-        if (!currentConfig.api) currentConfig.api = {};
-        if (!currentConfig.renderer) currentConfig.renderer = {};
-        if (!currentConfig.renderer['desktop-pet']) currentConfig.renderer['desktop-pet'] = {};
-        if (!currentConfig.hooks) currentConfig.hooks = {};
-
-        currentConfig.general.language = elLanguage.value;
-        currentConfig.general.auto_start = elAutostart.checked;
-        currentConfig.api.port = parseInt(elApiPort.value, 10);
-
-        currentConfig.renderer['desktop-pet'].scale = parseFloat(elPetScale.value);
-        currentConfig.renderer['desktop-pet'].always_on_top = elPetAlwaysTop.checked;
-        currentConfig.renderer['desktop-pet'].opacity = parseFloat(elPetOpacity.value);
-        currentConfig.renderer['desktop-pet'].show_task_bubble = elShowBubble.checked;
-        currentConfig.renderer['desktop-pet'].show_pet = elShowPet.checked;
-        currentConfig.renderer['desktop-pet'].show_dashboard = elShowStats.checked;
-
-        currentConfig.hooks.socket_path = elUdsPath.value;
-        currentConfig.hooks.tcp_port = parseInt(elTcpPort.value, 10);
-
-        try {
-            await invoke('save_config', { config: currentConfig });
-            statusMsg.textContent = t('msg_saved', lang);
-            statusMsg.style.opacity = '1';
-            setTimeout(() => {
-                statusMsg.style.opacity = '0';
-            }, 3000);
-        } catch (e) {
-            statusMsg.textContent = t('msg_failed', lang) + e;
+        showAutoSaveState('saving');
+        const ok = await performSave();
+        showAutoSaveState(ok ? 'saved' : 'error');
+        if (!ok) {
+            statusMsg.textContent = t('msg_failed', lang);
             statusMsg.style.color = '#FF3B30';
             statusMsg.style.opacity = '1';
-        } finally {
-            saveBtn.textContent = t('btn_save', lang);
-            saveBtn.disabled = false;
+            setTimeout(() => { statusMsg.style.opacity = '0'; }, 3000);
         }
+        saveBtn.disabled = false;
     });
 
     // --- Hooks Injection Logic ---

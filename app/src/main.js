@@ -8,6 +8,7 @@ import { applyTranslations, t } from "./i18n.js";
 
 let renderer = null;
 let currentLang = 'en-US';
+window.celebrationMs = 4000; // default, updated from config
 
 async function fetchManifest(spriteName) {
     const res = await fetch(`/sprites/${spriteName}/manifest.json`);
@@ -96,7 +97,7 @@ async function init() {
                 // Automatically revert to idle after celebration
                 window.idleFallbackTimer = setTimeout(() => {
                     renderer.playAnimation("idle");
-                }, 4000);
+                }, window.celebrationMs);
                 break;
             case "Alarmed":
                 renderer.playAnimation("alarmed");
@@ -178,6 +179,10 @@ async function applyConfigToWindow(config) {
     const statsContainer = document.getElementById('stats-container');
     if (statsContainer) {
         statsContainer.style.display = (petConf.show_dashboard !== false) ? 'block' : 'none';
+    }
+
+    if (petConf.celebration_secs !== undefined) {
+        window.celebrationMs = petConf.celebration_secs * 1000;
     }
     
     // Force window size update after changing display states

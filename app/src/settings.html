@@ -41,6 +41,12 @@
         <main class="main-content">
             <header class="content-header">
                 <h1 id="content-title" data-i18n="title_general">常规配置</h1>
+                <div id="auto-save-indicator" class="auto-save-indicator" style="opacity:0;">
+                    <svg id="auto-save-icon-saving" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="auto-save-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                    <svg id="auto-save-icon-saved" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    <svg id="auto-save-icon-error" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                    <span id="auto-save-text">已保存</span>
+                </div>
             </header>
 
             <div class="content-scroll" id="content-scroll">
@@ -175,6 +181,17 @@
                                 <span class="slider"></span>
                             </label>
                         </div>
+                        <div class="divider"></div>
+                        <div class="setting-item horizontal">
+                            <div class="setting-info">
+                                <div class="setting-title" data-i18n="lbl_celebration_secs">庆祝动作时长</div>
+                                <div class="setting-desc" data-i18n="desc_celebration_secs">任务完成后庆祝动画持续的秒数 (1 - 15)</div>
+                            </div>
+                            <div class="setting-control range-control">
+                                <input type="range" id="setting-celebration-secs" min="1" max="15" step="1" value="4">
+                                <span class="range-value" id="val-celebration-secs">4s</span>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -253,7 +270,7 @@
                 </section>
                 
                 <div class="action-bar" style="margin-bottom: 60px;">
-                    <button id="save-btn" class="primary-btn" data-i18n="btn_save">保存并应用</button>
+                    <button id="save-btn" class="secondary-btn" data-i18n="btn_save">立即保存</button>
                     <span id="save-status" class="status-msg"></span>
                 </div>
 

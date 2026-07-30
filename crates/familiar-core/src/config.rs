@@ -50,10 +50,16 @@ pub struct DesktopPetConfig {
     pub show_pet: bool,
     #[serde(default = "default_true")]
     pub show_dashboard: bool,
+    #[serde(default = "default_celebration_secs")]
+    pub celebration_secs: u32,
 }
 
 fn default_true() -> bool {
     true
+}
+
+fn default_celebration_secs() -> u32 {
+    4
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -109,6 +115,7 @@ impl Default for FamiliarConfig {
                     show_task_bubble: true,
                     show_pet: true,
                     show_dashboard: true,
+                    celebration_secs: 4,
                 },
                 menu_bar: MenuBarConfig {
                     show_active_count: true,

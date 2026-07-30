@@ -60,7 +60,7 @@ async fn main() -> Result<()> {
 
             // Setup core
             let event_bus = EventBus::new(100, 100);
-            let state_machine = StateMachine::new(event_bus.clone());
+            let state_machine = StateMachine::new(event_bus.clone(), 4);
             state_machine.start_processing().await;
 
             let state = AppState {

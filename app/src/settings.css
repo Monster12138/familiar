@@ -144,11 +144,63 @@ body {
 
 .content-header {
     padding: 24px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
 }
 
 .content-header h1 {
     font-size: 24px;
     font-weight: 600;
+}
+
+/* Auto-save indicator */
+.auto-save-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 10px;
+    border-radius: 20px;
+    transition: opacity 0.4s ease;
+    flex-shrink: 0;
+}
+
+/* hide all icons by default */
+.auto-save-indicator svg { display: none; }
+
+/* saving state */
+.auto-save-saving {
+    background: rgba(255, 204, 0, 0.12);
+    color: #FFCC00;
+    border: 1px solid rgba(255, 204, 0, 0.25);
+}
+.auto-save-saving #auto-save-icon-saving { display: block; }
+
+/* saved state */
+.auto-save-saved {
+    background: rgba(52, 199, 89, 0.12);
+    color: #34C759;
+    border: 1px solid rgba(52, 199, 89, 0.25);
+}
+.auto-save-saved #auto-save-icon-saved { display: block; }
+
+/* error state */
+.auto-save-error {
+    background: rgba(255, 59, 48, 0.12);
+    color: #FF3B30;
+    border: 1px solid rgba(255, 59, 48, 0.25);
+}
+.auto-save-error #auto-save-icon-error { display: block; }
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+.auto-save-spin {
+    animation: spin 0.9s linear infinite;
 }
 
 .content-scroll {

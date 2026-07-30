@@ -50,8 +50,10 @@ fn main() {
     let _guard = init_logger("/tmp", "familiar_tauri.log").unwrap();
 
     let event_bus = EventBus::new(100, 100);
-    let state_machine = StateMachine::new(event_bus.clone());
+    let config = load_config();
+    let state_machine = StateMachine::new(event_bus.clone(), config.renderer.desktop_pet.celebration_secs);
     let event_bus_for_server = event_bus.clone();
+    let config_for_setup = config.clone();
 
     let mut sys = System::new_all();
     sys.refresh_all();
@@ -93,7 +95,7 @@ fn main() {
                 sm.start_processing().await;
             });
 
-            let config = load_config();
+            let config = config_for_setup;
             
             use tauri::Manager;
             if let Some(window) = app.get_webview_window("main") {

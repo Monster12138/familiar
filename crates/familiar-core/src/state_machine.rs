@@ -9,13 +9,15 @@ use crate::state::{AgentState, AgentStatus, FamiliarMood, RenderState};
 pub struct StateMachine {
     render_state: Arc<RwLock<RenderState>>,
     event_bus: EventBus,
+    celebration_secs: i64,
 }
 
 impl StateMachine {
-    pub fn new(event_bus: EventBus) -> Self {
+    pub fn new(event_bus: EventBus, celebration_secs: u32) -> Self {
         Self {
             render_state: Arc::new(RwLock::new(RenderState::default())),
             event_bus,
+            celebration_secs: celebration_secs as i64,
         }
     }
 
@@ -27,8 +29,9 @@ impl StateMachine {
         let mut rx = self.event_bus.subscribe();
         let state_ref = self.render_state.clone();
 
-        // Background timer to clean up completed agents after 4 seconds to let the celebration animation play out
+        // Background timer to clean up completed agents after celebration_secs to let the celebration animation play out
         let state_ref_cleanup = self.render_state.clone();
+        let celebration_secs = self.celebration_secs;
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
             loop {
@@ -41,8 +44,8 @@ impl StateMachine {
                 state.agents.retain(|agent| {
                     if agent.status == AgentStatus::Completed {
                         if let Some(last) = agent.last_event_at {
-                            if now.signed_duration_since(last).num_seconds() > 4 {
-                                return false; // Remove if completed for > 4 seconds
+                            if now.signed_duration_since(last).num_seconds() > celebration_secs {
+                                return false; // Remove if completed for > celebration_secs seconds
                             }
                         }
                     }
