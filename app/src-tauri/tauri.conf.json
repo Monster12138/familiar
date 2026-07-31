@@ -29,5 +29,6 @@
       "../../target/release/familiar-cli": "bin/familiar-cli"
     }
   },
-  "identifier": "com.samgl.familiar"
+  "identifier": "com.samgl.familiar",
+  "productName": "familiar"
 }
