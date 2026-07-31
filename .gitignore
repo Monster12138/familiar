@@ -6,4 +6,3 @@
 **/*.rs.bk
 .DS_Store
 *.log
-/app/src-tauri/bin

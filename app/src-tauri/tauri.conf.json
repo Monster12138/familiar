@@ -1,6 +1,6 @@
 {
   "build": {
-    "beforeBuildCommand": "cargo build --release -p familiar-cli && mkdir -p src-tauri/bin && cp ../target/release/familiar-cli src-tauri/bin/ && npm run build",
+    "beforeBuildCommand": "cargo build --release -p familiar-cli && npm run build",
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:5173",
     "frontendDist": "../dist"
@@ -25,9 +25,9 @@
   },
   "bundle": {
     "active": true,
-    "resources": [
-      "bin/familiar-cli"
-    ]
+    "resources": {
+      "../../target/release/familiar-cli": "bin/familiar-cli"
+    }
   },
   "identifier": "com.samgl.familiar"
 }
