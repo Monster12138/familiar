@@ -20,11 +20,16 @@ impl CodexHook {
     }
 
     fn merge_hooks(existing: &mut serde_json::Value, payload: &serde_json::Value) {
-        if let (Some(existing_obj), Some(payload_obj)) = (existing.as_object_mut(), payload.as_object()) {
+        if let (Some(existing_obj), Some(payload_obj)) =
+            (existing.as_object_mut(), payload.as_object())
+        {
             for (k, v) in payload_obj {
                 if !existing_obj.contains_key(k) {
                     existing_obj.insert(k.clone(), v.clone());
-                } else if let (Some(existing_arr), Some(payload_arr)) = (existing_obj.get_mut(k).and_then(|v| v.as_array_mut()), v.as_array()) {
+                } else if let (Some(existing_arr), Some(payload_arr)) = (
+                    existing_obj.get_mut(k).and_then(|v| v.as_array_mut()),
+                    v.as_array(),
+                ) {
                     for item in payload_arr {
                         if !existing_arr.contains(item) {
                             existing_arr.push(item.clone());
@@ -44,9 +49,28 @@ impl CodexHook {
                 if cli.exists() {
                     return cli.to_string_lossy().to_string();
                 }
+                if let Some(grandparent) = parent.parent() {
+                    let bin_cli = grandparent
+                        .join("Resources")
+                        .join("bin")
+                        .join("familiar-cli");
+                    if bin_cli.exists() {
+                        return bin_cli.to_string_lossy().to_string();
+                    }
+                    let res_cli = grandparent.join("Resources").join("familiar-cli");
+                    if res_cli.exists() {
+                        return res_cli.to_string_lossy().to_string();
+                    }
+                }
+                let res_cli = parent.join("Resources").join("familiar-cli");
+                if res_cli.exists() {
+                    return res_cli.to_string_lossy().to_string();
+                }
             }
         }
-        let fallback = std::path::PathBuf::from("/Users/sam.gl/workspace/rust/familiar/target/debug/familiar-cli");
+        let fallback = std::path::PathBuf::from(
+            "/Users/sam.gl/workspace/rust/familiar/target/debug/familiar-cli",
+        );
         if fallback.exists() {
             return fallback.to_string_lossy().to_string();
         }
@@ -96,7 +120,7 @@ impl AgentHook for CodexHook {
             Some(p) => p,
             None => return false,
         };
-        
+
         if !path.exists() {
             return false;
         }
@@ -109,7 +133,9 @@ impl AgentHook for CodexHook {
                     for item in pre_tool {
                         if let Some(inner_hooks) = item.get("hooks").and_then(|v| v.as_array()) {
                             for inner_hook in inner_hooks {
-                                if let Some(cmd) = inner_hook.get("command").and_then(|v| v.as_str()) {
+                                if let Some(cmd) =
+                                    inner_hook.get("command").and_then(|v| v.as_str())
+                                {
                                     if cmd.contains("familiar-cli") {
                                         return true;
                                     }
@@ -124,8 +150,12 @@ impl AgentHook for CodexHook {
     }
 
     fn inject(&self) -> Result<()> {
-        let path = self.config_path().ok_or_else(|| anyhow::anyhow!("Could not get config path"))?;
-        let payload = self.get_injection_payload().ok_or_else(|| anyhow::anyhow!("No payload defined"))?;
+        let path = self
+            .config_path()
+            .ok_or_else(|| anyhow::anyhow!("Could not get config path"))?;
+        let payload = self
+            .get_injection_payload()
+            .ok_or_else(|| anyhow::anyhow!("No payload defined"))?;
 
         let mut config_json = serde_json::json!({});
 
@@ -148,7 +178,10 @@ impl AgentHook for CodexHook {
 
         if let Some(payload_hooks) = payload.get("hooks") {
             if !config_json.as_object().unwrap().contains_key("hooks") {
-                config_json.as_object_mut().unwrap().insert("hooks".to_string(), serde_json::json!({}));
+                config_json
+                    .as_object_mut()
+                    .unwrap()
+                    .insert("hooks".to_string(), serde_json::json!({}));
             }
             if let Some(config_hooks) = config_json.get_mut("hooks") {
                 Self::merge_hooks(config_hooks, payload_hooks);
@@ -161,12 +194,15 @@ impl AgentHook for CodexHook {
     }
 
     fn uninstall(&self) -> Result<()> {
-        let path = self.config_path().ok_or_else(|| anyhow::anyhow!("Could not get config path"))?;
+        let path = self
+            .config_path()
+            .ok_or_else(|| anyhow::anyhow!("Could not get config path"))?;
         if !path.exists() {
             return Ok(());
         }
 
-        let bak_path = path.with_extension(format!("bak.uninstall.{}", chrono::Utc::now().timestamp()));
+        let bak_path =
+            path.with_extension(format!("bak.uninstall.{}", chrono::Utc::now().timestamp()));
         std::fs::copy(&path, &bak_path)?;
 
         let content = std::fs::read_to_string(&path)?;
@@ -175,9 +211,12 @@ impl AgentHook for CodexHook {
                 for (_, event_array) in hooks_obj.iter_mut() {
                     if let Some(arr) = event_array.as_array_mut() {
                         for item in arr.iter_mut() {
-                            if let Some(inner_hooks) = item.get_mut("hooks").and_then(|v| v.as_array_mut()) {
+                            if let Some(inner_hooks) =
+                                item.get_mut("hooks").and_then(|v| v.as_array_mut())
+                            {
                                 inner_hooks.retain(|hook| {
-                                    if let Some(cmd) = hook.get("command").and_then(|v| v.as_str()) {
+                                    if let Some(cmd) = hook.get("command").and_then(|v| v.as_str())
+                                    {
                                         !cmd.contains("familiar-cli")
                                     } else {
                                         true
@@ -186,7 +225,8 @@ impl AgentHook for CodexHook {
                             }
                         }
                         arr.retain(|item| {
-                            if let Some(inner_hooks) = item.get("hooks").and_then(|v| v.as_array()) {
+                            if let Some(inner_hooks) = item.get("hooks").and_then(|v| v.as_array())
+                            {
                                 !inner_hooks.is_empty()
                             } else {
                                 true
@@ -194,8 +234,9 @@ impl AgentHook for CodexHook {
                         });
                     }
                 }
-                
-                let empty_keys: Vec<String> = hooks_obj.iter()
+
+                let empty_keys: Vec<String> = hooks_obj
+                    .iter()
                     .filter(|(_, v)| v.as_array().map_or(false, |arr| arr.is_empty()))
                     .map(|(k, _)| k.clone())
                     .collect();
@@ -219,9 +260,13 @@ impl AgentHook for CodexHook {
     }
 
     fn preview_inject(&self) -> Result<(String, String)> {
-        let path = self.config_path().ok_or_else(|| anyhow::anyhow!("Could not get config path"))?;
-        let payload = self.get_injection_payload().ok_or_else(|| anyhow::anyhow!("No payload defined"))?;
-        
+        let path = self
+            .config_path()
+            .ok_or_else(|| anyhow::anyhow!("Could not get config path"))?;
+        let payload = self
+            .get_injection_payload()
+            .ok_or_else(|| anyhow::anyhow!("No payload defined"))?;
+
         let mut config_json = serde_json::json!({});
         let mut before_content = String::new();
 
@@ -239,7 +284,10 @@ impl AgentHook for CodexHook {
 
         if let Some(payload_hooks) = payload.get("hooks") {
             if !config_json.as_object().unwrap().contains_key("hooks") {
-                config_json.as_object_mut().unwrap().insert("hooks".to_string(), serde_json::json!({}));
+                config_json
+                    .as_object_mut()
+                    .unwrap()
+                    .insert("hooks".to_string(), serde_json::json!({}));
             }
             if let Some(config_hooks) = config_json.get_mut("hooks") {
                 Self::merge_hooks(config_hooks, payload_hooks);
@@ -251,26 +299,32 @@ impl AgentHook for CodexHook {
     }
 
     fn preview_uninstall(&self) -> Result<(String, String)> {
-        let path = self.config_path().ok_or_else(|| anyhow::anyhow!("Could not get config path"))?;
+        let path = self
+            .config_path()
+            .ok_or_else(|| anyhow::anyhow!("Could not get config path"))?;
         if !path.exists() {
             return Ok((String::new(), String::new()));
         }
 
         let content = std::fs::read_to_string(&path)?;
-        let before_content = if let Ok(existing) = serde_json::from_str::<serde_json::Value>(&content) {
-            serde_json::to_string_pretty(&existing)?
-        } else {
-            String::new()
-        };
+        let before_content =
+            if let Ok(existing) = serde_json::from_str::<serde_json::Value>(&content) {
+                serde_json::to_string_pretty(&existing)?
+            } else {
+                String::new()
+            };
 
         if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&content) {
             if let Some(hooks_obj) = json.get_mut("hooks").and_then(|v| v.as_object_mut()) {
                 for (_, event_array) in hooks_obj.iter_mut() {
                     if let Some(arr) = event_array.as_array_mut() {
                         for item in arr.iter_mut() {
-                            if let Some(inner_hooks) = item.get_mut("hooks").and_then(|v| v.as_array_mut()) {
+                            if let Some(inner_hooks) =
+                                item.get_mut("hooks").and_then(|v| v.as_array_mut())
+                            {
                                 inner_hooks.retain(|hook| {
-                                    if let Some(cmd) = hook.get("command").and_then(|v| v.as_str()) {
+                                    if let Some(cmd) = hook.get("command").and_then(|v| v.as_str())
+                                    {
                                         !cmd.contains("familiar-cli")
                                     } else {
                                         true
@@ -279,7 +333,8 @@ impl AgentHook for CodexHook {
                             }
                         }
                         arr.retain(|item| {
-                            if let Some(inner_hooks) = item.get("hooks").and_then(|v| v.as_array()) {
+                            if let Some(inner_hooks) = item.get("hooks").and_then(|v| v.as_array())
+                            {
                                 !inner_hooks.is_empty()
                             } else {
                                 true
@@ -287,8 +342,9 @@ impl AgentHook for CodexHook {
                         });
                     }
                 }
-                
-                let empty_keys: Vec<String> = hooks_obj.iter()
+
+                let empty_keys: Vec<String> = hooks_obj
+                    .iter()
                     .filter(|(_, v)| v.as_array().map_or(false, |arr| arr.is_empty()))
                     .map(|(k, _)| k.clone())
                     .collect();

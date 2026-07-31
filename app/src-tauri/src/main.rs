@@ -23,15 +23,7 @@ use familiar_hooks::adapter::CliAgentHookAdapter;
 use familiar_hooks::antigravity::AntigravityHook;
 
 fn load_config() -> FamiliarConfig {
-    let paths = ["config/default.toml", "../../config/default.toml"];
-    for p in paths {
-        if std::path::Path::new(p).exists() {
-            if let Ok(c) = FamiliarConfig::load_from_file(p) {
-                return c;
-            }
-        }
-    }
-    FamiliarConfig::default()
+    crate::commands::load_config_from_paths()
 }
 
 // single window architecture
@@ -332,6 +324,7 @@ fn main() {
             commands::get_config_content,
             commands::preview_inject_hook,
             commands::preview_uninstall_hook,
+            commands::quit_app,
             drag_main_window,
         ])
         .run(tauri::generate_context!())

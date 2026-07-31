@@ -59,49 +59,82 @@ pub fn get_system_stats(sys_state: tauri::State<'_, StdMutex<System>>) -> System
     }
 }
 
-#[tauri::command]
-pub fn get_config() -> Result<FamiliarConfig, String> {
-    // Attempt to load from standard workspace relative paths
-    let paths = ["config/default.toml", "../../config/default.toml"];
-    for p in paths {
-        if std::path::Path::new(p).exists() {
-            if let Ok(c) = FamiliarConfig::load_from_file(p) {
-                return Ok(c);
+pub fn get_config_search_paths() -> Vec<std::path::PathBuf> {
+    let mut paths = Vec::new();
+    if let Some(home) = dirs::home_dir() {
+        paths.push(home.join(".config").join("familiar").join("config.toml"));
+    }
+    paths.push(std::path::PathBuf::from("config/default.toml"));
+    paths.push(std::path::PathBuf::from("../../config/default.toml"));
+    paths
+}
+
+pub fn load_config_from_paths() -> FamiliarConfig {
+    for p in get_config_search_paths() {
+        if p.exists() {
+            if let Ok(c) = FamiliarConfig::load_from_file(&p) {
+                return c;
             }
         }
     }
-    Ok(FamiliarConfig::default())
+    FamiliarConfig::default()
+}
+
+#[tauri::command]
+pub fn get_config() -> Result<FamiliarConfig, String> {
+    Ok(load_config_from_paths())
+}
+
+fn apply_and_emit_config(
+    app_handle: &tauri::AppHandle,
+    config: &FamiliarConfig,
+) -> Result<(), String> {
+    use tauri::Manager;
+    if let Some(window) = app_handle.get_webview_window("main") {
+        crate::desktop_pet_window::apply_settings(&window, &config.renderer.desktop_pet)?;
+    }
+
+    use tauri::Emitter;
+    let _ = app_handle.emit("config_changed", config);
+    Ok(())
 }
 
 #[tauri::command]
 pub fn save_config(app_handle: tauri::AppHandle, config: FamiliarConfig) -> Result<(), String> {
-    let paths = ["config/default.toml", "../../config/default.toml"];
-    for p in paths {
-        if std::path::Path::new(p).exists() {
-            let res = config
-                .save_to_file(std::path::Path::new(p))
-                .map_err(|e| e.to_string());
+    let search_paths = get_config_search_paths();
+    for p in &search_paths {
+        if p.exists() {
+            let res = config.save_to_file(p).map_err(|e| e.to_string());
             if res.is_ok() {
-                use tauri::Manager;
-                if let Some(window) = app_handle.get_webview_window("main") {
-                    crate::desktop_pet_window::apply_settings(
-                        &window,
-                        &config.renderer.desktop_pet,
-                    )?;
-                }
-
-                use tauri::Emitter;
-                let _ = app_handle.emit("config_changed", config);
+                apply_and_emit_config(&app_handle, &config)?;
             }
             return res;
         }
     }
-    Err("Config file not found".to_string())
+
+    // Save to user configuration directory (~/.config/familiar/config.toml) if no existing file was found
+    if let Some(user_path) = search_paths.first() {
+        if let Some(parent) = user_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let res = config.save_to_file(user_path).map_err(|e| e.to_string());
+        if res.is_ok() {
+            apply_and_emit_config(&app_handle, &config)?;
+        }
+        return res;
+    }
+
+    Err("Config file path resolution error".to_string())
 }
 
 #[tauri::command]
 pub fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
+}
+
+#[tauri::command]
+pub fn quit_app(app_handle: tauri::AppHandle) {
+    app_handle.exit(0);
 }
 
 #[tauri::command]

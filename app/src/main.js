@@ -45,6 +45,8 @@ function setupContextMenu() {
         }
     });
 
+    const menuQuit = document.getElementById("menu-quit");
+
     // Settings Modal Open
     menuSettings.addEventListener("click", async () => {
         contextMenu.style.display = "none";
@@ -54,6 +56,18 @@ function setupContextMenu() {
             console.error("Failed to open settings window:", e);
         }
     });
+
+    // Quit Application
+    if (menuQuit) {
+        menuQuit.addEventListener("click", async () => {
+            contextMenu.style.display = "none";
+            try {
+                await invoke("quit_app");
+            } catch (e) {
+                console.error("Failed to quit app:", e);
+            }
+        });
+    }
 }
 
 async function init() {

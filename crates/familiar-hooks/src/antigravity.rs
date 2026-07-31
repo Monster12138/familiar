@@ -22,15 +22,39 @@ impl AntigravityHook {
 
     fn get_bin_path() -> String {
         if let Ok(exe) = std::env::current_exe() {
+            if exe.file_name().and_then(|s| s.to_str()) == Some("familiar-cli") {
+                return exe.to_string_lossy().to_string();
+            }
             if let Some(parent) = exe.parent() {
                 let cli_bin = parent.join("familiar-cli");
                 if cli_bin.exists() {
                     return cli_bin.to_string_lossy().to_string();
                 }
+                if let Some(grandparent) = parent.parent() {
+                    let bin_cli = grandparent
+                        .join("Resources")
+                        .join("bin")
+                        .join("familiar-cli");
+                    if bin_cli.exists() {
+                        return bin_cli.to_string_lossy().to_string();
+                    }
+                    let res_cli = grandparent.join("Resources").join("familiar-cli");
+                    if res_cli.exists() {
+                        return res_cli.to_string_lossy().to_string();
+                    }
+                }
+                let res_cli = parent.join("Resources").join("familiar-cli");
+                if res_cli.exists() {
+                    return res_cli.to_string_lossy().to_string();
+                }
             }
         }
         dirs::home_dir()
-            .map(|h| h.join(".cargo/bin/familiar-cli").to_string_lossy().to_string())
+            .map(|h| {
+                h.join(".cargo/bin/familiar-cli")
+                    .to_string_lossy()
+                    .to_string()
+            })
             .unwrap_or_else(|| "familiar-cli".to_string())
     }
 
@@ -48,10 +72,11 @@ impl AntigravityHook {
     fn map_native_hook(&self, event_name: &str, json: &Value) -> Option<AgentEvent> {
         let _ = std::fs::write(
             format!("/tmp/familiar_hook_debug_{}.log", event_name),
-            serde_json::to_string_pretty(json).unwrap_or_default()
+            serde_json::to_string_pretty(json).unwrap_or_default(),
         );
 
-        let agent_id = json.get("conversationId")
+        let agent_id = json
+            .get("conversationId")
             .and_then(|v| v.as_str())
             .and_then(|s| uuid::Uuid::parse_str(s).ok())
             .unwrap_or_else(|| uuid::Uuid::nil());
@@ -78,7 +103,7 @@ impl AntigravityHook {
                     .or_else(|| json["tool_name"].as_str())
                     .or_else(|| json["tool"].as_str())
                     .unwrap_or("unknown");
-                
+
                 let cmd_str = if name == "run_command" || name == "Bash" {
                     json["toolCall"]["args"]["CommandLine"]
                         .as_str()
@@ -96,7 +121,9 @@ impl AntigravityHook {
                         for line in content.lines().rev() {
                             if line.contains("\"type\":\"USER_INPUT\"") {
                                 if let Ok(val) = serde_json::from_str::<serde_json::Value>(line) {
-                                    if let Some(content_str) = val.get("content").and_then(|c| c.as_str()) {
+                                    if let Some(content_str) =
+                                        val.get("content").and_then(|c| c.as_str())
+                                    {
                                         return Some(Self::extract_clean_text(content_str));
                                     }
                                 }
@@ -139,7 +166,9 @@ impl AntigravityHook {
                 timestamp: chrono::Utc::now(),
                 source: AgentSource::Antigravity,
                 category: AgentCategory::Coding,
-                event_type: AgentEventType::TaskCompleted { summary: "Task finished".to_string() },
+                event_type: AgentEventType::TaskCompleted {
+                    summary: "Task finished".to_string(),
+                },
                 metadata: None,
             }),
             // Fallback for legacy transcript mocking
@@ -151,7 +180,10 @@ impl AntigravityHook {
                         timestamp: chrono::Utc::now(),
                         source: AgentSource::Antigravity,
                         category: AgentCategory::Coding,
-                        event_type: AgentEventType::RunningCommand { cmd: "Working...".into(), instruction: None },
+                        event_type: AgentEventType::RunningCommand {
+                            cmd: "Working...".into(),
+                            instruction: None,
+                        },
                         metadata: None,
                     })
                 } else if step_type == "USER_INPUT" {
@@ -199,14 +231,15 @@ impl AgentHook for AntigravityHook {
     async fn start(&self, sender: mpsc::Sender<AgentEvent>) -> Result<()> {
         tokio::spawn(async move {
             let brain_dir = dirs::home_dir().unwrap().join(".gemini/antigravity/brain");
-            let mut file_cursors: std::collections::HashMap<std::path::PathBuf, usize> = std::collections::HashMap::new();
+            let mut file_cursors: std::collections::HashMap<std::path::PathBuf, usize> =
+                std::collections::HashMap::new();
 
             loop {
                 tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
 
                 let mut active_dirs = Vec::new();
                 let now = std::time::SystemTime::now();
-                
+
                 // Find all directories modified in the last 15 seconds
                 if let Ok(entries) = std::fs::read_dir(&brain_dir) {
                     for entry in entries.flatten() {
@@ -230,14 +263,20 @@ impl AgentHook for AntigravityHook {
                         if let Ok(content) = std::fs::read_to_string(&transcript) {
                             let lines: Vec<&str> = content.lines().collect();
                             let current_count = lines.len();
-                            
+
                             // If it's a newly discovered conversation in this session, don't replay history
                             // Just set the cursor to the end, minus 2 lines to catch the very message that triggered this
-                            let cursor = file_cursors.entry(transcript.clone()).or_insert_with(|| {
-                                if current_count > 2 { current_count - 2 } else { 0 }
-                            });
+                            let cursor =
+                                file_cursors.entry(transcript.clone()).or_insert_with(|| {
+                                    if current_count > 2 {
+                                        current_count - 2
+                                    } else {
+                                        0
+                                    }
+                                });
 
-                            let agent_id = dir.file_name()
+                            let agent_id = dir
+                                .file_name()
                                 .and_then(|os_str| os_str.to_str())
                                 .and_then(|s| uuid::Uuid::parse_str(s).ok())
                                 .unwrap_or_else(|| uuid::Uuid::nil());
@@ -246,39 +285,50 @@ impl AgentHook for AntigravityHook {
                                 for line in &lines[*cursor..] {
                                     if line.contains("\"type\":\"USER_INPUT\"") {
                                         if let Ok(json) = serde_json::from_str::<Value>(line) {
-                                            if let Some(content_str) = json.get("content").and_then(|c| c.as_str()) {
-                                                let instruction = Self::extract_clean_text(content_str);
-                                                let _ = sender.send(AgentEvent {
-                                                    id: agent_id,
-                                                    timestamp: chrono::Utc::now(),
-                                                    source: AgentSource::Antigravity,
-                                                    category: AgentCategory::Coding,
-                                                    event_type: AgentEventType::AgentStarted {
-                                                        instruction: Some(instruction),
-                                                    },
-                                                    metadata: None,
-                                                }).await;
-                                                let _ = sender.send(AgentEvent {
-                                                    id: agent_id,
-                                                    timestamp: chrono::Utc::now(),
-                                                    source: AgentSource::Antigravity,
-                                                    category: AgentCategory::Coding,
-                                                    event_type: AgentEventType::Thinking,
-                                                    metadata: None,
-                                                }).await;
+                                            if let Some(content_str) =
+                                                json.get("content").and_then(|c| c.as_str())
+                                            {
+                                                let instruction =
+                                                    Self::extract_clean_text(content_str);
+                                                let _ = sender
+                                                    .send(AgentEvent {
+                                                        id: agent_id,
+                                                        timestamp: chrono::Utc::now(),
+                                                        source: AgentSource::Antigravity,
+                                                        category: AgentCategory::Coding,
+                                                        event_type: AgentEventType::AgentStarted {
+                                                            instruction: Some(instruction),
+                                                        },
+                                                        metadata: None,
+                                                    })
+                                                    .await;
+                                                let _ = sender
+                                                    .send(AgentEvent {
+                                                        id: agent_id,
+                                                        timestamp: chrono::Utc::now(),
+                                                        source: AgentSource::Antigravity,
+                                                        category: AgentCategory::Coding,
+                                                        event_type: AgentEventType::Thinking,
+                                                        metadata: None,
+                                                    })
+                                                    .await;
                                             }
                                         }
-                                    } else if line.contains("\"type\":\"PLANNER_RESPONSE\"") && line.contains("\"status\":\"DONE\"") {
-                                        let _ = sender.send(AgentEvent {
-                                            id: agent_id,
-                                            timestamp: chrono::Utc::now(),
-                                            source: AgentSource::Antigravity,
-                                            category: AgentCategory::Coding,
-                                            event_type: AgentEventType::TaskCompleted {
-                                                summary: "Finished thinking".into(),
-                                            },
-                                            metadata: None,
-                                        }).await;
+                                    } else if line.contains("\"type\":\"PLANNER_RESPONSE\"")
+                                        && line.contains("\"status\":\"DONE\"")
+                                    {
+                                        let _ = sender
+                                            .send(AgentEvent {
+                                                id: agent_id,
+                                                timestamp: chrono::Utc::now(),
+                                                source: AgentSource::Antigravity,
+                                                category: AgentCategory::Coding,
+                                                event_type: AgentEventType::TaskCompleted {
+                                                    summary: "Finished thinking".into(),
+                                                },
+                                                metadata: None,
+                                            })
+                                            .await;
                                     }
                                 }
                                 *cursor = current_count;
@@ -339,7 +389,7 @@ impl AgentHook for AntigravityHook {
             Some(p) => p,
             None => return false,
         };
-        
+
         if !path.exists() {
             return false;
         }
@@ -353,8 +403,12 @@ impl AgentHook for AntigravityHook {
     }
 
     fn inject(&self) -> Result<()> {
-        let path = self.config_path().ok_or_else(|| anyhow::anyhow!("Could not get config path"))?;
-        let payload = self.get_injection_payload().ok_or_else(|| anyhow::anyhow!("No payload defined"))?;
+        let path = self
+            .config_path()
+            .ok_or_else(|| anyhow::anyhow!("Could not get config path"))?;
+        let payload = self
+            .get_injection_payload()
+            .ok_or_else(|| anyhow::anyhow!("No payload defined"))?;
 
         let mut config_json = serde_json::json!({});
 
@@ -387,13 +441,16 @@ impl AgentHook for AntigravityHook {
     }
 
     fn uninstall(&self) -> Result<()> {
-        let path = self.config_path().ok_or_else(|| anyhow::anyhow!("Could not get config path"))?;
+        let path = self
+            .config_path()
+            .ok_or_else(|| anyhow::anyhow!("Could not get config path"))?;
         if !path.exists() {
             return Ok(());
         }
 
         // Backup before uninstall
-        let bak_path = path.with_extension(format!("bak.uninstall.{}", chrono::Utc::now().timestamp()));
+        let bak_path =
+            path.with_extension(format!("bak.uninstall.{}", chrono::Utc::now().timestamp()));
         std::fs::copy(&path, &bak_path)?;
 
         let content = std::fs::read_to_string(&path)?;
@@ -409,45 +466,51 @@ impl AgentHook for AntigravityHook {
     }
 
     fn preview_inject(&self) -> Result<(String, String)> {
-        let path = self.config_path().ok_or_else(|| anyhow::anyhow!("Could not get config path"))?;
-        let payload = self.get_injection_payload().ok_or_else(|| anyhow::anyhow!("No payload defined"))?;
-        
+        let path = self
+            .config_path()
+            .ok_or_else(|| anyhow::anyhow!("Could not get config path"))?;
+        let payload = self
+            .get_injection_payload()
+            .ok_or_else(|| anyhow::anyhow!("No payload defined"))?;
+
         let mut config_json = serde_json::json!({});
         let mut before_content = String::new();
-        
+
         if path.exists() {
             before_content = std::fs::read_to_string(&path).unwrap_or_default();
             if let Ok(existing) = serde_json::from_str::<serde_json::Value>(&before_content) {
                 config_json = existing;
             }
         }
-        
+
         if let (Some(obj), Some(payload_obj)) = (config_json.as_object_mut(), payload.as_object()) {
             for (k, v) in payload_obj {
                 obj.insert(k.clone(), v.clone());
             }
         }
-        
+
         let after_content = serde_json::to_string_pretty(&config_json)?;
         Ok((before_content, after_content))
     }
 
     fn preview_uninstall(&self) -> Result<(String, String)> {
-        let path = self.config_path().ok_or_else(|| anyhow::anyhow!("Could not get config path"))?;
+        let path = self
+            .config_path()
+            .ok_or_else(|| anyhow::anyhow!("Could not get config path"))?;
         if !path.exists() {
             return Ok((String::new(), String::new()));
         }
-        
+
         let before_content = std::fs::read_to_string(&path)?;
         let mut after_content = before_content.clone();
-        
+
         if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&before_content) {
             if let Some(obj) = json.as_object_mut() {
                 obj.remove("familiar");
             }
             after_content = serde_json::to_string_pretty(&json)?;
         }
-        
+
         Ok((before_content, after_content))
     }
 }
