@@ -1,5 +1,5 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use std::fs;
 use std::path::Path;
 
@@ -40,6 +40,7 @@ pub struct RendererConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DesktopPetConfig {
     pub sprite: String,
+    #[serde(serialize_with = "serialize_one_decimal")]
     pub scale: f32,
     pub position: String,
     pub always_on_top: bool,
@@ -58,6 +59,14 @@ pub struct DesktopPetConfig {
 
 fn default_true() -> bool {
     true
+}
+
+fn serialize_one_decimal<S>(value: &f32, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let rounded = (f64::from(*value) * 10.0).round() / 10.0;
+    serializer.serialize_f64(rounded)
 }
 
 fn default_celebration_secs() -> u32 {

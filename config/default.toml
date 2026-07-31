@@ -19,7 +19,7 @@ enabled = [
 
 [renderer.desktop-pet]
 sprite = "pixel-cat"
-scale = 1.600000023841858
+scale = 1.3
 position = "bottom-right"
 always_on_top = true
 show_on_all_desktops = true

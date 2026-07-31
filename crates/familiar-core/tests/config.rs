@@ -15,3 +15,16 @@ fn legacy_config_defaults_to_showing_on_all_desktops() {
 
     assert!(config.renderer.desktop_pet.show_on_all_desktops);
 }
+
+#[test]
+fn scale_serializes_with_one_decimal_place() {
+    let mut config = FamiliarConfig::default();
+    config.renderer.desktop_pet.scale = 1.3_f32;
+
+    let serialized = toml::to_string_pretty(&config).expect("serialize config");
+
+    assert!(
+        serialized.lines().any(|line| line == "scale = 1.3"),
+        "unexpected serialized scale:\n{serialized}"
+    );
+}
