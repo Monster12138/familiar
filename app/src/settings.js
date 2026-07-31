@@ -4,6 +4,11 @@ const { invoke } = window.__TAURI__.core;
 const { getCurrentWebviewWindow } = window.__TAURI__.webviewWindow;
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Disable default context menu (developer tools / inspect element)
+    document.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+    });
+
     // Nav elements
     const menuItems = document.querySelectorAll('.menu-item');
     const contentTitle = document.getElementById('content-title');
