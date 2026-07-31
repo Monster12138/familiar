@@ -75,16 +75,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             const isVisible = !hiddenSessions.includes(agent.id);
             const card = document.createElement('div');
             card.className = 'session-card-item';
+            if (!isVisible) {
+                card.style.opacity = '0.75';
+            }
 
             const info = document.createElement('div');
             info.className = 'session-card-info';
+
+            const statusLabelText = isVisible
+                ? agent.status
+                : `${agent.status} (${t('lbl_session_hidden', elLanguage ? elLanguage.value : 'zh-CN')})`;
 
             const headerRow = document.createElement('div');
             headerRow.className = 'session-header-row';
             headerRow.innerHTML = `
                 ${getSourceBadgeHtml(agent.source)}
                 <span class="session-id-text" title="${agent.id}">${agent.id.slice(0, 16)}...</span>
-                <span class="session-status-badge">${agent.status}</span>
+                <span class="session-status-badge" style="${!isVisible ? 'color: var(--text-muted);' : ''}">${statusLabelText}</span>
             `;
 
             const instructionEl = document.createElement('div');
@@ -110,10 +117,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (checkbox.checked) {
                     currentConfig.sessions.hidden_sessions = currentConfig.sessions.hidden_sessions.filter(id => id !== agent.id);
+                    card.style.opacity = '1.0';
                 } else {
                     if (!currentConfig.sessions.hidden_sessions.includes(agent.id)) {
                         currentConfig.sessions.hidden_sessions.push(agent.id);
                     }
+                    card.style.opacity = '0.75';
                 }
                 scheduleAutoSave();
             });
@@ -320,12 +329,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Listen for state changes to update active sessions dynamically
-        if (window.__TAURI__?.event?.listen) {
-            window.__TAURI__.event.listen('state_changed', (event) => {
-                if (event.payload && Array.isArray(event.payload.agents)) {
-                    renderSessionList(event.payload.agents);
-                }
-            });
+        try {
+            const appWin = getCurrentWebviewWindow();
+            if (appWin && appWin.listen) {
+                appWin.listen('state_changed', (event) => {
+                    if (event.payload && Array.isArray(event.payload.agents)) {
+                        renderSessionList(event.payload.agents);
+                    }
+                });
+            }
+        } catch (e) {
+            console.error("Failed to listen on webview window", e);
         }
 
     } catch (e) {
