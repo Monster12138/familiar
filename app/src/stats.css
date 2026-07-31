@@ -4,7 +4,7 @@
     outline: none !important;
     border-radius: 12px;
     padding: 10px;
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 8px;
     font-family: 'Courier New', Courier, monospace;

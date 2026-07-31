@@ -139,12 +139,21 @@ async function init() {
     // Unified window architecture - no need to sync aux windows
 }
 
+let lastWidth = 0;
+let lastHeight = 0;
+
 function updateWindowSize() {
     const container = document.getElementById('unified-container');
     if (!container) return;
     const rect = container.getBoundingClientRect();
     const width = Math.ceil(rect.width);
     const height = Math.ceil(rect.height);
+
+    if (width === 0 || height === 0) return;
+    if (width === lastWidth && height === lastHeight) return;
+
+    lastWidth = width;
+    lastHeight = height;
     
     try {
         const appWindow = getCurrentWebviewWindow();
@@ -162,13 +171,14 @@ async function applyConfigToWindow(config) {
         applyTranslations(currentLang);
     }
 
-    if (!config.renderer || !config.renderer['desktop-pet']) return;
+    if (!config.renderer || !config.renderer['desktop-pet']) {
+        document.body.style.opacity = '1';
+        return;
+    }
     
     const petConf = config.renderer['desktop-pet'];
     
-    if (petConf.opacity !== undefined) {
-        document.body.style.opacity = petConf.opacity;
-    }
+    document.body.style.opacity = petConf.opacity !== undefined ? petConf.opacity : 1;
     
     if (petConf.scale !== undefined && renderer) {
         window.petScale = petConf.scale;
