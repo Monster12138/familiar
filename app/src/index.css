@@ -3,37 +3,57 @@
   display: none;
   position: absolute;
   z-index: 1000;
-  background: rgba(30, 30, 30, 0.6);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(30, 30, 30, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
-  padding: 4px 0;
-  min-width: 150px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  color: white;
+  padding: 4px;
+  min-width: 140px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  color: rgba(255, 255, 255, 0.9);
   pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 #context-menu .menu-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
+  padding: 6px 10px;
+  border-radius: 5px;
   cursor: pointer;
-  font-size: 14px;
-  transition: background 0.2s;
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.9);
+  transition: background-color 0.15s ease, color 0.15s ease;
   -webkit-app-region: no-drag;
 }
 
 #context-menu .menu-icon {
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
-  opacity: 0.85;
+  stroke: currentColor;
+  opacity: 0.8;
+  transition: opacity 0.15s ease;
 }
 
 #context-menu .menu-item:hover {
+  background: #007aff;
+  color: #ffffff;
+}
+
+#context-menu .menu-item:hover .menu-icon {
+  opacity: 1;
+}
+
+#context-menu .menu-divider {
+  height: 1px;
   background: rgba(255, 255, 255, 0.1);
+  margin: 4px 2px;
 }
 
 /* Settings Modal */
