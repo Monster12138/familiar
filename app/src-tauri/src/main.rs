@@ -5,6 +5,7 @@
 )]
 
 mod commands;
+mod desktop_pet_window;
 mod tray;
 
 use serde_json::Value;
@@ -58,35 +59,15 @@ fn main() {
     let mut sys = System::new_all();
     sys.refresh_all();
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(target_os = "macos")]
+    let builder = builder.plugin(tauri_nspanel::init());
+
+    builder
         .manage(StdMutex::new(sys))
         .setup(move |app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-
-            #[cfg(target_os = "macos")]
-            {
-                use tauri::Manager;
-                if let Some(window) = app.get_webview_window("main") {
-                    tauri::async_runtime::spawn(async move {
-                        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-                        let window_clone = window.clone();
-                        let _ = window.run_on_main_thread(move || {
-                            use cocoa::appkit::{NSWindow, NSWindowCollectionBehavior};
-                            use cocoa::base::id;
-                            if let Ok(ns_win_ptr) = window_clone.ns_window() {
-                                let ns_win = ns_win_ptr as id;
-                                unsafe {
-                                    let behavior = NSWindowCollectionBehavior::NSWindowCollectionBehaviorCanJoinAllSpaces
-                                        | NSWindowCollectionBehavior::NSWindowCollectionBehaviorStationary
-                                        | NSWindowCollectionBehavior::NSWindowCollectionBehaviorFullScreenAuxiliary;
-                                    ns_win.setCollectionBehavior_(behavior);
-                                }
-                            }
-                        });
-                    });
-                }
-            }
 
             tray::create_tray(app)?;
 
@@ -99,7 +80,14 @@ fn main() {
             
             use tauri::Manager;
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.set_always_on_top(config.renderer.desktop_pet.always_on_top);
+                if let Err(error) = desktop_pet_window::initialize(&window) {
+                    tracing::warn!("failed to initialize desktop pet window: {error}");
+                }
+                if let Err(error) =
+                    desktop_pet_window::apply_settings(&window, &config.renderer.desktop_pet)
+                {
+                    tracing::warn!("failed to apply desktop pet window settings: {error}");
+                }
             }
 
             #[cfg(unix)]

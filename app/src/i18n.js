@@ -25,6 +25,8 @@ export const translations = {
 
         'lbl_always_top': '总是在最前',
         'desc_always_top': '悬浮在所有系统窗口之上，避免被遮挡',
+        'lbl_all_desktops': '跟随桌面切换',
+        'desc_all_desktops': '切换 macOS 桌面或进入全屏空间时，保持桌宠可见',
         'lbl_opacity': '不透明度',
         'desc_opacity': '调整基础透明度 (0.1 - 1.0)',
         'lbl_show_bubble': '显示任务气泡',
@@ -99,6 +101,8 @@ export const translations = {
 
         'lbl_always_top': 'Always on Top',
         'desc_always_top': 'Keep floating above all system windows',
+        'lbl_all_desktops': 'Follow Desktop Switching',
+        'desc_all_desktops': 'Keep the pet visible when switching macOS desktops or entering a full-screen space',
         'lbl_opacity': 'Opacity',
         'desc_opacity': 'Adjust the base opacity (0.1 - 1.0)',
         'lbl_show_bubble': 'Show Task Bubble',

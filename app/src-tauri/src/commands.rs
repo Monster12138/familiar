@@ -78,7 +78,10 @@ pub fn save_config(app_handle: tauri::AppHandle, config: FamiliarConfig) -> Resu
             if res.is_ok() {
                 use tauri::Manager;
                 if let Some(window) = app_handle.get_webview_window("main") {
-                    let _ = window.set_always_on_top(config.renderer.desktop_pet.always_on_top);
+                    crate::desktop_pet_window::apply_settings(
+                        &window,
+                        &config.renderer.desktop_pet,
+                    )?;
                 }
                 
                 use tauri::Emitter;
