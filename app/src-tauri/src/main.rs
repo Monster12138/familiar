@@ -252,7 +252,7 @@ fn main() {
 
                     use tauri::Manager;
                     if let Some(settings_win) = app_handle.get_webview_window("settings") {
-                        let _ = settings_win.emit("state_changed", &full_state);
+                        let _ = settings_win.emit("settings_state_changed", &full_state);
                     }
 
                     if let Some(main_win) = app_handle.get_webview_window("main") {

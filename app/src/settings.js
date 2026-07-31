@@ -70,69 +70,121 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        sessionListContainer.innerHTML = '';
+        // Clean up empty state if present
+        const emptyState = sessionListContainer.querySelector('.session-empty-state');
+        if (emptyState) {
+            sessionListContainer.removeChild(emptyState);
+        }
+
+        const activeIds = new Set(currentActiveAgents.map(a => a.id));
+
+        // Remove cards for agents that are no longer active
+        const existingCards = sessionListContainer.querySelectorAll('.session-card-item');
+        existingCards.forEach(card => {
+            const cardId = card.getAttribute('data-session-id');
+            if (cardId && !activeIds.has(cardId)) {
+                card.remove();
+            }
+        });
+
+        // Add or update cards for each active agent
         currentActiveAgents.forEach(agent => {
             const isVisible = !hiddenSessions.includes(agent.id);
-            const card = document.createElement('div');
-            card.className = 'session-card-item';
-            if (!isVisible) {
-                card.style.opacity = '0.75';
-            }
-
-            const info = document.createElement('div');
-            info.className = 'session-card-info';
+            let card = sessionListContainer.querySelector(`[data-session-id="${CSS.escape(agent.id)}"]`);
 
             const statusLabelText = isVisible
                 ? agent.status
                 : `${agent.status} (${t('lbl_session_hidden', elLanguage ? elLanguage.value : 'zh-CN')})`;
 
-            const headerRow = document.createElement('div');
-            headerRow.className = 'session-header-row';
-            headerRow.innerHTML = `
-                ${getSourceBadgeHtml(agent.source)}
-                <span class="session-id-text" title="${agent.id}">${agent.id.slice(0, 16)}...</span>
-                <span class="session-status-badge" style="${!isVisible ? 'color: var(--text-muted);' : ''}">${statusLabelText}</span>
-            `;
+            const instructionText = agent.user_instruction || agent.current_activity || t('status_waiting', elLanguage ? elLanguage.value : 'zh-CN');
 
-            const instructionEl = document.createElement('div');
-            instructionEl.className = 'session-instruction-text';
-            instructionEl.textContent = agent.user_instruction || agent.current_activity || t('status_waiting', elLanguage ? elLanguage.value : 'zh-CN');
+            if (!card) {
+                // Create new card
+                card = document.createElement('div');
+                card.className = 'session-card-item';
+                card.setAttribute('data-session-id', agent.id);
+                card.style.opacity = isVisible ? '1.0' : '0.75';
 
-            info.appendChild(headerRow);
-            info.appendChild(instructionEl);
+                const info = document.createElement('div');
+                info.className = 'session-card-info';
 
-            const switchLabel = document.createElement('label');
-            switchLabel.className = 'switch';
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.checked = isVisible;
-            const slider = document.createElement('span');
-            slider.className = 'slider';
+                const headerRow = document.createElement('div');
+                headerRow.className = 'session-header-row';
+                headerRow.innerHTML = `
+                    ${getSourceBadgeHtml(agent.source)}
+                    <span class="session-id-text" title="${agent.id}">${agent.id.slice(0, 16)}...</span>
+                    <span class="session-status-badge" style="${!isVisible ? 'color: var(--text-muted);' : ''}">${statusLabelText}</span>
+                `;
 
-            checkbox.addEventListener('change', () => {
-                if (!currentConfig.sessions) currentConfig.sessions = { hidden_sessions: [] };
-                if (!Array.isArray(currentConfig.sessions.hidden_sessions)) {
-                    currentConfig.sessions.hidden_sessions = [];
-                }
+                const instructionEl = document.createElement('div');
+                instructionEl.className = 'session-instruction-text';
+                instructionEl.textContent = instructionText;
 
-                if (checkbox.checked) {
-                    currentConfig.sessions.hidden_sessions = currentConfig.sessions.hidden_sessions.filter(id => id !== agent.id);
-                    card.style.opacity = '1.0';
-                } else {
-                    if (!currentConfig.sessions.hidden_sessions.includes(agent.id)) {
-                        currentConfig.sessions.hidden_sessions.push(agent.id);
+                info.appendChild(headerRow);
+                info.appendChild(instructionEl);
+
+                const switchLabel = document.createElement('label');
+                switchLabel.className = 'switch';
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = isVisible;
+                const slider = document.createElement('span');
+                slider.className = 'slider';
+
+                checkbox.addEventListener('change', () => {
+                    if (!currentConfig.sessions) currentConfig.sessions = { hidden_sessions: [] };
+                    if (!Array.isArray(currentConfig.sessions.hidden_sessions)) {
+                        currentConfig.sessions.hidden_sessions = [];
                     }
-                    card.style.opacity = '0.75';
+
+                    if (checkbox.checked) {
+                        currentConfig.sessions.hidden_sessions = currentConfig.sessions.hidden_sessions.filter(id => id !== agent.id);
+                        card.style.opacity = '1.0';
+                        const badge = card.querySelector('.session-status-badge');
+                        if (badge) {
+                            badge.textContent = agent.status;
+                            badge.style.color = '';
+                        }
+                    } else {
+                        if (!currentConfig.sessions.hidden_sessions.includes(agent.id)) {
+                            currentConfig.sessions.hidden_sessions.push(agent.id);
+                        }
+                        card.style.opacity = '0.75';
+                        const badge = card.querySelector('.session-status-badge');
+                        if (badge) {
+                            badge.textContent = `${agent.status} (${t('lbl_session_hidden', elLanguage ? elLanguage.value : 'zh-CN')})`;
+                            badge.style.color = 'var(--text-muted)';
+                        }
+                    }
+                    scheduleAutoSave();
+                });
+
+                switchLabel.appendChild(checkbox);
+                switchLabel.appendChild(slider);
+
+                card.appendChild(info);
+                card.appendChild(switchLabel);
+                sessionListContainer.appendChild(card);
+            } else {
+                // Update existing card in place without destroying DOM elements
+                card.style.opacity = isVisible ? '1.0' : '0.75';
+
+                const badge = card.querySelector('.session-status-badge');
+                if (badge && badge.textContent !== statusLabelText) {
+                    badge.textContent = statusLabelText;
+                    badge.style.color = !isVisible ? 'var(--text-muted)' : '';
                 }
-                scheduleAutoSave();
-            });
 
-            switchLabel.appendChild(checkbox);
-            switchLabel.appendChild(slider);
+                const instructionEl = card.querySelector('.session-instruction-text');
+                if (instructionEl && instructionEl.textContent !== instructionText) {
+                    instructionEl.textContent = instructionText;
+                }
 
-            card.appendChild(info);
-            card.appendChild(switchLabel);
-            sessionListContainer.appendChild(card);
+                const checkbox = card.querySelector('input[type="checkbox"]');
+                if (checkbox && checkbox.checked !== isVisible) {
+                    checkbox.checked = isVisible;
+                }
+            }
         });
     }
 
@@ -332,7 +384,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const appWin = getCurrentWebviewWindow();
             if (appWin && appWin.listen) {
-                appWin.listen('state_changed', (event) => {
+                appWin.listen('settings_state_changed', (event) => {
                     if (event.payload && Array.isArray(event.payload.agents)) {
                         renderSessionList(event.payload.agents);
                     }
