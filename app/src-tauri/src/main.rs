@@ -70,6 +70,7 @@ fn main() {
             });
 
             let config = config_for_setup;
+            commands::sync_autostart(config.general.auto_start);
 
             use tauri::Manager;
             if let Some(window) = app.get_webview_window("main") {

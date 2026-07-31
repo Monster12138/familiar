@@ -85,10 +85,49 @@ pub fn get_config() -> Result<FamiliarConfig, String> {
     Ok(load_config_from_paths())
 }
 
+pub fn sync_autostart(enabled: bool) {
+    #[cfg(target_os = "macos")]
+    {
+        if let Some(home) = dirs::home_dir() {
+            let launch_agents_dir = home.join("Library").join("LaunchAgents");
+            let plist_path = launch_agents_dir.join("com.samgl.familiar.plist");
+
+            if enabled {
+                if let Ok(exe_path) = std::env::current_exe() {
+                    let exe_str = exe_path.to_string_lossy();
+                    let plist_content = format!(
+                        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+                         <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n\
+                         <plist version=\"1.0\">\n\
+                         <dict>\n\
+                             <key>Label</key>\n\
+                             <string>com.samgl.familiar</string>\n\
+                             <key>ProgramArguments</key>\n\
+                             <array>\n\
+                                 <string>{}</string>\n\
+                             </array>\n\
+                             <key>RunAtLoad</key>\n\
+                             <true/>\n\
+                         </dict>\n\
+                         </plist>",
+                        exe_str
+                    );
+                    let _ = std::fs::create_dir_all(&launch_agents_dir);
+                    let _ = std::fs::write(&plist_path, plist_content);
+                }
+            } else if plist_path.exists() {
+                let _ = std::fs::remove_file(&plist_path);
+            }
+        }
+    }
+}
+
 fn apply_and_emit_config(
     app_handle: &tauri::AppHandle,
     config: &FamiliarConfig,
 ) -> Result<(), String> {
+    sync_autostart(config.general.auto_start);
+
     use tauri::Manager;
     if let Some(window) = app_handle.get_webview_window("main") {
         crate::desktop_pet_window::apply_settings(&window, &config.renderer.desktop_pet)?;
