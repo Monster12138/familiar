@@ -193,7 +193,7 @@ pub async fn open_settings_window(app_handle: tauri::AppHandle) -> Result<(), St
         "settings",
         tauri::WebviewUrl::App("settings.html".into()),
     )
-    .title("Settings")
+    .title("Familiar Settings")
     .inner_size(800.0, 600.0)
     .resizable(true)
     .build()
