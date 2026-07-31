@@ -428,6 +428,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         scheduleAutoSave();
     });
 
+    const btnOpenSysLoginItems = document.getElementById('btn-open-sys-login-items');
+    if (btnOpenSysLoginItems) {
+        btnOpenSysLoginItems.addEventListener('click', async () => {
+            try {
+                await invoke('open_url', { url: 'x-apple.systempreferences:com.apple.LoginItems-Settings.extension' });
+            } catch (e) {
+                console.error("Failed to open system settings:", e);
+            }
+        });
+    }
+
     // Bind all controls for auto-save
     const autoSaveControls = [
         elAutostart, elPetAlwaysTop, elPetAllDesktops, elShowBubble, elShowPet, elShowStats

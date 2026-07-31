@@ -88,36 +88,52 @@ pub fn get_config() -> Result<FamiliarConfig, String> {
 pub fn sync_autostart(enabled: bool) {
     #[cfg(target_os = "macos")]
     {
-        if let Some(home) = dirs::home_dir() {
-            let launch_agents_dir = home.join("Library").join("LaunchAgents");
-            let plist_path = launch_agents_dir.join("com.samgl.familiar.plist");
+        use std::process::Command;
 
-            if enabled {
-                if let Ok(exe_path) = std::env::current_exe() {
-                    let exe_str = exe_path.to_string_lossy();
-                    let plist_content = format!(
-                        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
-                         <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n\
-                         <plist version=\"1.0\">\n\
-                         <dict>\n\
-                             <key>Label</key>\n\
-                             <string>com.samgl.familiar</string>\n\
-                             <key>ProgramArguments</key>\n\
-                             <array>\n\
-                                 <string>{}</string>\n\
-                             </array>\n\
-                             <key>RunAtLoad</key>\n\
-                             <true/>\n\
-                         </dict>\n\
-                         </plist>",
-                        exe_str
-                    );
-                    let _ = std::fs::create_dir_all(&launch_agents_dir);
-                    let _ = std::fs::write(&plist_path, plist_content);
+        let app_name = "Familiar";
+
+        if enabled {
+            let app_path = match std::env::current_exe() {
+                Ok(p) => {
+                    let path_str = p.to_string_lossy();
+                    if let Some(pos) = path_str.find(".app") {
+                        format!("{}.app", &path_str[..pos])
+                    } else {
+                        let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_default();
+                        let bundle = std::path::PathBuf::from(&manifest_dir).join("../../target/release/bundle/macos/Familiar.app");
+                        if bundle.exists() {
+                            if let Ok(canon) = std::fs::canonicalize(&bundle) {
+                                canon.to_string_lossy().to_string()
+                            } else {
+                                "/Applications/Familiar.app".to_string()
+                            }
+                        } else {
+                            "/Applications/Familiar.app".to_string()
+                        }
+                    }
                 }
-            } else if plist_path.exists() {
-                let _ = std::fs::remove_file(&plist_path);
-            }
+                Err(_) => "/Applications/Familiar.app".to_string(),
+            };
+
+            let script = format!(
+                "tell application \"System Events\" to if not (exists login item \"{}\") then make new login item at end with properties {{path:\"{}\", hidden:false}}",
+                app_name, app_path
+            );
+
+            let _ = Command::new("osascript")
+                .arg("-e")
+                .arg(&script)
+                .output();
+        } else {
+            let script = format!(
+                "tell application \"System Events\" to if exists login item \"{}\" then delete (every login item whose name is \"{}\")",
+                app_name, app_name
+            );
+
+            let _ = Command::new("osascript")
+                .arg("-e")
+                .arg(&script)
+                .output();
         }
     }
 }
@@ -303,4 +319,14 @@ pub fn preview_uninstall_hook(agent: &str) -> Result<DiffPreview, String> {
         return Ok(DiffPreview { before, after });
     }
     Err("Unknown agent".into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sync_autostart() {
+        sync_autostart(false);
+    }
 }

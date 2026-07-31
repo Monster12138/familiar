@@ -232,10 +232,13 @@
                                 <div class="setting-title" data-i18n="lbl_autostart">开机自启</div>
                                 <div class="setting-desc" data-i18n="desc_autostart">系统启动时自动运行 Familiar 守护进程</div>
                             </div>
-                            <label class="switch">
-                                <input type="checkbox" id="setting-autostart" checked>
-                                <span class="slider"></span>
-                            </label>
+                            <div style="display:flex; align-items:center; gap: 10px;">
+                                <button class="btn" id="btn-open-sys-login-items" data-i18n="btn_open_sys_login_items" style="font-size:12px; padding: 4px 10px; background: rgba(255,255,255,0.08);">打开系统设置</button>
+                                <label class="switch">
+                                    <input type="checkbox" id="setting-autostart" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
                         </div>
                         <div class="divider"></div>
                         <div class="setting-item">
