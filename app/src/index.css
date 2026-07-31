@@ -17,11 +17,19 @@
 }
 
 #context-menu .menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 8px 16px;
   cursor: pointer;
   font-size: 14px;
   transition: background 0.2s;
   -webkit-app-region: no-drag;
+}
+
+#context-menu .menu-icon {
+  flex-shrink: 0;
+  opacity: 0.85;
 }
 
 #context-menu .menu-item:hover {
