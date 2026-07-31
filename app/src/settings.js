@@ -16,7 +16,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Form elements
     const elLanguage = document.getElementById('setting-language');
-    const elAutostart = document.getElementById('setting-autostart');
     const elApiPort = document.getElementById('setting-api-port');
     
     const elPetScale = document.getElementById('setting-pet-scale');
@@ -287,7 +286,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!currentConfig.sessions) currentConfig.sessions = { hidden_sessions: [] };
 
         currentConfig.general.language = elLanguage.value;
-        currentConfig.general.auto_start = elAutostart.checked;
         currentConfig.api.port = parseInt(elApiPort.value, 10);
 
         currentConfig.renderer['desktop-pet'].scale = parseFloat(elPetScale.value);
@@ -334,7 +332,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 applyTranslations('en-US'); // default
             }
-            elAutostart.checked = currentConfig.general.auto_start !== false;
         } else {
             applyTranslations('en-US');
         }
@@ -441,7 +438,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Bind all controls for auto-save
     const autoSaveControls = [
-        elAutostart, elPetAlwaysTop, elPetAllDesktops, elShowBubble, elShowPet, elShowStats
+        elPetAlwaysTop, elPetAllDesktops, elShowBubble, elShowPet, elShowStats
     ];
     autoSaveControls.forEach(el => {
         if (el) el.addEventListener('change', scheduleAutoSave);

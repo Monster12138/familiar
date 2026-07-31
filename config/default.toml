@@ -1,6 +1,5 @@
 [general]
 language = "zh-CN"
-auto_start = true
 data_retention_days = 90
 
 [hooks]

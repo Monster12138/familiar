@@ -230,15 +230,15 @@
                         <div class="setting-item">
                             <div class="setting-info">
                                 <div class="setting-title" data-i18n="lbl_autostart">开机自启</div>
-                                <div class="setting-desc" data-i18n="desc_autostart">系统启动时自动运行 Familiar 守护进程</div>
+                                <div class="setting-desc" data-i18n="desc_autostart">在 macOS 系统设置中打开或设置 Familiar 的登录启动项</div>
                             </div>
-                            <div style="display:flex; align-items:center; gap: 10px;">
-                                <button class="btn" id="btn-open-sys-login-items" data-i18n="btn_open_sys_login_items" style="font-size:12px; padding: 4px 10px; background: rgba(255,255,255,0.08);">打开系统设置</button>
-                                <label class="switch">
-                                    <input type="checkbox" id="setting-autostart" checked>
-                                    <span class="slider"></span>
-                                </label>
-                            </div>
+                            <button class="btn-icon-link" id="btn-open-sys-login-items" title="打开系统登录项设置" data-i18n-title="desc_open_sys_login_items">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                    <polyline points="15 3 21 3 21 9"></polyline>
+                                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                                </svg>
+                            </button>
                         </div>
                         <div class="divider"></div>
                         <div class="setting-item">

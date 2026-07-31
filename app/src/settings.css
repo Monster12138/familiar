@@ -246,6 +246,32 @@ body {
 }
 
 .setting-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.btn-icon-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.btn-icon-link:hover {
+    background: var(--item-hover);
+    color: var(--text-main);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.setting-desc {
     font-size: 12px;
     color: var(--text-muted);
     line-height: 1.4;

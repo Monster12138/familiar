@@ -85,65 +85,10 @@ pub fn get_config() -> Result<FamiliarConfig, String> {
     Ok(load_config_from_paths())
 }
 
-pub fn sync_autostart(enabled: bool) {
-    #[cfg(target_os = "macos")]
-    {
-        use std::process::Command;
-
-        let app_name = "Familiar";
-
-        if enabled {
-            let app_path = match std::env::current_exe() {
-                Ok(p) => {
-                    let path_str = p.to_string_lossy();
-                    if let Some(pos) = path_str.find(".app") {
-                        format!("{}.app", &path_str[..pos])
-                    } else {
-                        let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_default();
-                        let bundle = std::path::PathBuf::from(&manifest_dir).join("../../target/release/bundle/macos/Familiar.app");
-                        if bundle.exists() {
-                            if let Ok(canon) = std::fs::canonicalize(&bundle) {
-                                canon.to_string_lossy().to_string()
-                            } else {
-                                "/Applications/Familiar.app".to_string()
-                            }
-                        } else {
-                            "/Applications/Familiar.app".to_string()
-                        }
-                    }
-                }
-                Err(_) => "/Applications/Familiar.app".to_string(),
-            };
-
-            let script = format!(
-                "tell application \"System Events\" to if not (exists login item \"{}\") then make new login item at end with properties {{path:\"{}\", hidden:false}}",
-                app_name, app_path
-            );
-
-            let _ = Command::new("osascript")
-                .arg("-e")
-                .arg(&script)
-                .output();
-        } else {
-            let script = format!(
-                "tell application \"System Events\" to if exists login item \"{}\" then delete (every login item whose name is \"{}\")",
-                app_name, app_name
-            );
-
-            let _ = Command::new("osascript")
-                .arg("-e")
-                .arg(&script)
-                .output();
-        }
-    }
-}
-
 fn apply_and_emit_config(
     app_handle: &tauri::AppHandle,
     config: &FamiliarConfig,
 ) -> Result<(), String> {
-    sync_autostart(config.general.auto_start);
-
     use tauri::Manager;
     if let Some(window) = app_handle.get_webview_window("main") {
         crate::desktop_pet_window::apply_settings(&window, &config.renderer.desktop_pet)?;
@@ -319,14 +264,4 @@ pub fn preview_uninstall_hook(agent: &str) -> Result<DiffPreview, String> {
         return Ok(DiffPreview { before, after });
     }
     Err("Unknown agent".into())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_sync_autostart() {
-        sync_autostart(false);
-    }
 }

@@ -18,7 +18,6 @@ pub struct FamiliarConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneralConfig {
     pub language: String,
-    pub auto_start: bool,
     pub data_retention_days: u32,
 }
 
@@ -115,7 +114,6 @@ impl Default for FamiliarConfig {
         Self {
             general: GeneralConfig {
                 language: "zh-CN".to_string(),
-                auto_start: true,
                 data_retention_days: 90,
             },
             hooks: HooksConfig {
