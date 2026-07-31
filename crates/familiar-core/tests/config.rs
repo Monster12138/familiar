@@ -28,3 +28,19 @@ fn scale_serializes_with_one_decimal_place() {
         "unexpected serialized scale:\n{serialized}"
     );
 }
+
+#[test]
+fn legacy_config_defaults_empty_hidden_sessions() {
+    let legacy_config = include_str!("../../../config/default.toml")
+        .replace("[sessions]\nhidden_sessions = []\n", "");
+    let path = std::env::temp_dir().join(format!(
+        "familiar-legacy-sessions-{}.toml",
+        std::process::id()
+    ));
+
+    std::fs::write(&path, legacy_config).expect("write legacy config");
+    let config = FamiliarConfig::load_from_file(&path).expect("load legacy config");
+    std::fs::remove_file(path).expect("remove legacy config");
+
+    assert!(config.sessions.hidden_sessions.is_empty());
+}

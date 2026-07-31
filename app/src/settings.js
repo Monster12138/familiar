@@ -33,9 +33,94 @@ document.addEventListener('DOMContentLoaded', async () => {
     const statusMsg = document.getElementById('save-status');
     const autoSaveIndicator = document.getElementById('auto-save-indicator');
     const autoSaveText = document.getElementById('auto-save-text');
+    const sessionListContainer = document.getElementById('session-list-container');
 
     let currentConfig = {};
     let autoSaveTimer = null;
+    let currentActiveAgents = [];
+
+    function getSourceBadgeHtml(source) {
+        const srcStr = typeof source === 'string' ? source : (source?.Custom || 'Agent');
+        if (srcStr === 'Codex') {
+            return `<span class="session-source-badge" style="background:#10a37f;">Codex</span>`;
+        } else if (srcStr === 'ClaudeCode' || srcStr === 'Claude') {
+            return `<span class="session-source-badge" style="background:#d97706;">Claude</span>`;
+        } else if (srcStr === 'Antigravity' || srcStr === 'Agy') {
+            return `<span class="session-source-badge" style="background:#4f46e5;">AGY</span>`;
+        }
+        return `<span class="session-source-badge" style="background:#6b7280;">${srcStr}</span>`;
+    }
+
+    function renderSessionList(agents) {
+        if (!sessionListContainer) return;
+        currentActiveAgents = agents || [];
+        const hiddenSessions = currentConfig.sessions?.hidden_sessions || [];
+
+        if (!currentActiveAgents || currentActiveAgents.length === 0) {
+            sessionListContainer.innerHTML = `
+                <div class="session-empty-state" data-i18n="lbl_no_active_sessions">
+                    ${t('lbl_no_active_sessions', elLanguage ? elLanguage.value : 'zh-CN')}
+                </div>
+            `;
+            return;
+        }
+
+        sessionListContainer.innerHTML = '';
+        currentActiveAgents.forEach(agent => {
+            const isVisible = !hiddenSessions.includes(agent.id);
+            const card = document.createElement('div');
+            card.className = 'session-card-item';
+
+            const info = document.createElement('div');
+            info.className = 'session-card-info';
+
+            const headerRow = document.createElement('div');
+            headerRow.className = 'session-header-row';
+            headerRow.innerHTML = `
+                ${getSourceBadgeHtml(agent.source)}
+                <span class="session-id-text" title="${agent.id}">${agent.id.slice(0, 16)}...</span>
+                <span class="session-status-badge">${agent.status}</span>
+            `;
+
+            const instructionEl = document.createElement('div');
+            instructionEl.className = 'session-instruction-text';
+            instructionEl.textContent = agent.user_instruction || agent.current_activity || t('status_waiting', elLanguage ? elLanguage.value : 'zh-CN');
+
+            info.appendChild(headerRow);
+            info.appendChild(instructionEl);
+
+            const switchLabel = document.createElement('label');
+            switchLabel.className = 'switch';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = isVisible;
+            const slider = document.createElement('span');
+            slider.className = 'slider';
+
+            checkbox.addEventListener('change', () => {
+                if (!currentConfig.sessions) currentConfig.sessions = { hidden_sessions: [] };
+                if (!Array.isArray(currentConfig.sessions.hidden_sessions)) {
+                    currentConfig.sessions.hidden_sessions = [];
+                }
+
+                if (checkbox.checked) {
+                    currentConfig.sessions.hidden_sessions = currentConfig.sessions.hidden_sessions.filter(id => id !== agent.id);
+                } else {
+                    if (!currentConfig.sessions.hidden_sessions.includes(agent.id)) {
+                        currentConfig.sessions.hidden_sessions.push(agent.id);
+                    }
+                }
+                scheduleAutoSave();
+            });
+
+            switchLabel.appendChild(checkbox);
+            switchLabel.appendChild(slider);
+
+            card.appendChild(info);
+            card.appendChild(switchLabel);
+            sessionListContainer.appendChild(card);
+        });
+    }
 
     // --- Tab Navigation Logic ---
     menuItems.forEach(item => {
@@ -133,6 +218,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!currentConfig.renderer) currentConfig.renderer = {};
         if (!currentConfig.renderer['desktop-pet']) currentConfig.renderer['desktop-pet'] = {};
         if (!currentConfig.hooks) currentConfig.hooks = {};
+        if (!currentConfig.sessions) currentConfig.sessions = { hidden_sessions: [] };
 
         currentConfig.general.language = elLanguage.value;
         currentConfig.general.auto_start = elAutostart.checked;
@@ -218,6 +304,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (currentConfig.hooks) {
             if (currentConfig.hooks.socket_path) elUdsPath.value = currentConfig.hooks.socket_path;
             if (currentConfig.hooks.tcp_port) elTcpPort.value = currentConfig.hooks.tcp_port;
+        }
+
+        // Load initial active sessions
+        try {
+            const activeSessions = await invoke('get_active_sessions');
+            renderSessionList(activeSessions);
+        } catch (e) {
+            console.error("Failed to load active sessions", e);
+        }
+
+        // Listen for state changes to update active sessions dynamically
+        if (window.__TAURI__?.event?.listen) {
+            window.__TAURI__.event.listen('state_changed', (event) => {
+                if (event.payload && Array.isArray(event.payload.agents)) {
+                    renderSessionList(event.payload.agents);
+                }
+            });
         }
 
     } catch (e) {

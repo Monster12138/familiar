@@ -39,7 +39,7 @@ impl StateMachine {
                 let mut state = state_ref_cleanup.write().await;
                 let now = chrono::Utc::now();
                 let initial_len = state.agents.len();
-                
+
                 // Then handle cleanup of completed agents
                 state.agents.retain(|agent| {
                     if agent.status == AgentStatus::Completed {
@@ -56,13 +56,29 @@ impl StateMachine {
                     // Update global mood if agents were removed
                     if state.agents.is_empty() {
                         state.mood = FamiliarMood::Sleepy;
-                    } else if state.agents.iter().any(|a| a.status == AgentStatus::Working) {
+                    } else if state
+                        .agents
+                        .iter()
+                        .any(|a| a.status == AgentStatus::Working)
+                    {
                         state.mood = FamiliarMood::Busy;
-                    } else if state.agents.iter().any(|a| a.status == AgentStatus::Thinking) {
+                    } else if state
+                        .agents
+                        .iter()
+                        .any(|a| a.status == AgentStatus::Thinking)
+                    {
                         state.mood = FamiliarMood::Thinking;
-                    } else if state.agents.iter().any(|a| a.status == AgentStatus::Completed) {
+                    } else if state
+                        .agents
+                        .iter()
+                        .any(|a| a.status == AgentStatus::Completed)
+                    {
                         state.mood = FamiliarMood::Celebrating;
-                    } else if state.agents.iter().any(|a| a.status == AgentStatus::WaitingInput) {
+                    } else if state
+                        .agents
+                        .iter()
+                        .any(|a| a.status == AgentStatus::WaitingInput)
+                    {
                         state.mood = FamiliarMood::Watching;
                     } else {
                         state.mood = FamiliarMood::Idle;
@@ -93,7 +109,9 @@ impl StateMachine {
                 AgentEventType::AgentStopped => {
                     state.agents.remove(idx);
                 }
-                AgentEventType::AgentStarted { instruction: Some(inst) } => {
+                AgentEventType::AgentStarted {
+                    instruction: Some(inst),
+                } => {
                     agent.user_instruction = Some(inst.clone());
                 }
                 AgentEventType::AgentStarted { instruction: None } => {}
@@ -239,13 +257,29 @@ impl StateMachine {
         // Aggregate global mood based on all active sessions
         if state.active_agent_count == 0 {
             state.mood = FamiliarMood::Sleepy;
-        } else if state.agents.iter().any(|a| a.status == AgentStatus::Working) {
+        } else if state
+            .agents
+            .iter()
+            .any(|a| a.status == AgentStatus::Working)
+        {
             state.mood = FamiliarMood::Busy;
-        } else if state.agents.iter().any(|a| a.status == AgentStatus::Thinking) {
+        } else if state
+            .agents
+            .iter()
+            .any(|a| a.status == AgentStatus::Thinking)
+        {
             state.mood = FamiliarMood::Thinking;
-        } else if state.agents.iter().any(|a| a.status == AgentStatus::Completed) {
+        } else if state
+            .agents
+            .iter()
+            .any(|a| a.status == AgentStatus::Completed)
+        {
             state.mood = FamiliarMood::Celebrating;
-        } else if state.agents.iter().any(|a| a.status == AgentStatus::WaitingInput) {
+        } else if state
+            .agents
+            .iter()
+            .any(|a| a.status == AgentStatus::WaitingInput)
+        {
             state.mood = FamiliarMood::Watching;
         } else {
             state.mood = FamiliarMood::Idle;
@@ -263,14 +297,14 @@ impl StateMachine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::event::{AgentEvent, AgentEventType, AgentSource, AgentCategory};
+    use crate::event::{AgentCategory, AgentEvent, AgentEventType, AgentSource};
     use crate::event_bus::EventBus;
     use uuid::Uuid;
 
     #[tokio::test]
     async fn test_state_machine_receives_stop_signal() {
         let bus = EventBus::new(100, 1000);
-        let machine = StateMachine::new(bus.clone());
+        let machine = StateMachine::new(bus.clone(), 4);
         machine.start_processing().await;
 
         let agent_id = Uuid::new_v4();
@@ -281,10 +315,14 @@ mod tests {
             timestamp: chrono::Utc::now(),
             source: AgentSource::Antigravity,
             category: AgentCategory::Coding,
-            event_type: AgentEventType::AgentStarted { instruction: Some("Do a task".into()) },
+            event_type: AgentEventType::AgentStarted {
+                instruction: Some("Do a task".into()),
+            },
             metadata: None,
-        }).await.unwrap();
-        
+        })
+        .await
+        .unwrap();
+
         // 2. Send Thinking to transition it
         bus.publish(AgentEvent {
             id: agent_id,
@@ -293,11 +331,13 @@ mod tests {
             category: AgentCategory::Coding,
             event_type: AgentEventType::Thinking,
             metadata: None,
-        }).await.unwrap();
+        })
+        .await
+        .unwrap();
 
         // Let the processing loop tick
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-        
+
         let state = machine.get_state().await;
         assert_eq!(state.agents.len(), 1);
         assert_eq!(state.agents[0].status, AgentStatus::Thinking);
@@ -308,9 +348,13 @@ mod tests {
             timestamp: chrono::Utc::now(),
             source: AgentSource::Antigravity,
             category: AgentCategory::Coding,
-            event_type: AgentEventType::TaskCompleted { summary: "Task finished".to_string() },
+            event_type: AgentEventType::TaskCompleted {
+                summary: "Task finished".to_string(),
+            },
             metadata: None,
-        }).await.unwrap();
+        })
+        .await
+        .unwrap();
 
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 

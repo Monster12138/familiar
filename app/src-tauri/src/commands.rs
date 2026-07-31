@@ -1,6 +1,16 @@
 use familiar_core::config::FamiliarConfig;
-use sysinfo::{System, Disks};
+use familiar_core::state::AgentState;
+use familiar_core::state_machine::StateMachine;
 use std::sync::Mutex as StdMutex;
+use sysinfo::{Disks, System};
+
+#[tauri::command]
+pub async fn get_active_sessions(
+    sm: tauri::State<'_, StateMachine>,
+) -> Result<Vec<AgentState>, String> {
+    let state = sm.get_state().await;
+    Ok(state.agents)
+}
 
 #[derive(Clone, serde::Serialize)]
 pub struct SystemStats {
@@ -17,29 +27,29 @@ pub fn get_system_stats(sys_state: tauri::State<'_, StdMutex<System>>) -> System
     // Refresh only needed components
     sys.refresh_cpu_all();
     sys.refresh_memory();
-    
+
     // Slight sleep to allow CPU calculation if needed, but normally we just rely on periodic frontend polling
     // sysinfo needs two data points to calculate CPU usage. Polling every 2s gives a good delta.
-    
+
     let cpu_usage = sys.global_cpu_usage();
     let memory_used = sys.used_memory();
     let memory_total = sys.total_memory();
-    
+
     // Disks
     let disks = Disks::new_with_refreshed_list();
     let mut max_disk_total = 0;
     let mut max_disk_used = 0;
-    
+
     for disk in disks.list() {
         if disk.total_space() > max_disk_total {
             max_disk_total = disk.total_space();
             max_disk_used = disk.total_space() - disk.available_space();
         }
     }
-    
+
     let disk_total = max_disk_total;
     let disk_used = max_disk_used;
-    
+
     SystemStats {
         cpu_usage,
         memory_used,
@@ -52,10 +62,7 @@ pub fn get_system_stats(sys_state: tauri::State<'_, StdMutex<System>>) -> System
 #[tauri::command]
 pub fn get_config() -> Result<FamiliarConfig, String> {
     // Attempt to load from standard workspace relative paths
-    let paths = [
-        "config/default.toml",
-        "../../config/default.toml",
-    ];
+    let paths = ["config/default.toml", "../../config/default.toml"];
     for p in paths {
         if std::path::Path::new(p).exists() {
             if let Ok(c) = FamiliarConfig::load_from_file(p) {
@@ -68,13 +75,12 @@ pub fn get_config() -> Result<FamiliarConfig, String> {
 
 #[tauri::command]
 pub fn save_config(app_handle: tauri::AppHandle, config: FamiliarConfig) -> Result<(), String> {
-    let paths = [
-        "config/default.toml",
-        "../../config/default.toml",
-    ];
+    let paths = ["config/default.toml", "../../config/default.toml"];
     for p in paths {
         if std::path::Path::new(p).exists() {
-            let res = config.save_to_file(std::path::Path::new(p)).map_err(|e| e.to_string());
+            let res = config
+                .save_to_file(std::path::Path::new(p))
+                .map_err(|e| e.to_string());
             if res.is_ok() {
                 use tauri::Manager;
                 if let Some(window) = app_handle.get_webview_window("main") {
@@ -83,7 +89,7 @@ pub fn save_config(app_handle: tauri::AppHandle, config: FamiliarConfig) -> Resu
                         &config.renderer.desktop_pet,
                     )?;
                 }
-                
+
                 use tauri::Emitter;
                 let _ = app_handle.emit("config_changed", config);
             }
@@ -152,7 +158,7 @@ pub fn get_hooks_status() -> Result<serde_json::Value, String> {
         Box::new(ClaudeCodeHook::new()),
         Box::new(CodexHook::new()),
     ];
-    
+
     let mut status_map = serde_json::Map::new();
     for hook in hooks {
         let agent_name = hook.name().to_string();
@@ -162,7 +168,7 @@ pub fn get_hooks_status() -> Result<serde_json::Value, String> {
         });
         status_map.insert(agent_name, status);
     }
-    
+
     Ok(serde_json::Value::Object(status_map))
 }
 

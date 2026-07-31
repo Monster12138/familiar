@@ -11,8 +11,11 @@ let currentLang = 'en-US';
 
 
 
+let currentConfig = null;
+
 async function applyConfigToWindow(config) {
     if (!config) return;
+    currentConfig = config;
 
     if (config.general && config.general.language) {
         currentLang = config.general.language;
@@ -33,8 +36,12 @@ async function init() {
         const state = event.payload;
         if (!state) return;
 
-        // Show bubbles for active agents
-        const activeAgents = state.agents.filter(a => ["Thinking", "Working", "Completed", "WaitingInput", "Idle"].includes(a.status));
+        // Show bubbles for active agents (excluding hidden sessions)
+        const hiddenSessions = currentConfig?.sessions?.hidden_sessions || [];
+        const activeAgents = state.agents.filter(a =>
+            !hiddenSessions.includes(a.id) &&
+            ["Thinking", "Working", "Completed", "WaitingInput", "Idle"].includes(a.status)
+        );
         bubbleOverlay.render(activeAgents, currentLang, t);
     });
 

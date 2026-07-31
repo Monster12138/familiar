@@ -11,6 +11,8 @@ pub struct FamiliarConfig {
     pub api: ApiConfig,
     pub notifications: NotificationsConfig,
     pub achievements: AchievementsConfig,
+    #[serde(default)]
+    pub sessions: SessionsConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,6 +104,12 @@ pub struct AchievementsConfig {
     pub enabled: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct SessionsConfig {
+    #[serde(default)]
+    pub hidden_sessions: Vec<String>,
+}
+
 impl Default for FamiliarConfig {
     fn default() -> Self {
         Self {
@@ -145,6 +153,7 @@ impl Default for FamiliarConfig {
                 min_level: "info".to_string(),
             },
             achievements: AchievementsConfig { enabled: true },
+            sessions: SessionsConfig::default(),
         }
     }
 }

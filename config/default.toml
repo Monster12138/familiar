@@ -47,3 +47,6 @@ min_level = "info"
 
 [achievements]
 enabled = true
+
+[sessions]
+hidden_sessions = []
