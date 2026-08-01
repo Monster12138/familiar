@@ -279,8 +279,23 @@ pub fn get_sprite_packs(app_handle: tauri::AppHandle) -> Result<Vec<SpritePackIn
 }
 
 #[tauri::command]
-pub fn import_sprite_pack(path: String) -> Result<SpritePackInfo, String> {
-    SpritePackManager::import_pack(&path).map_err(|e| e.to_string())
+pub async fn import_sprite_pack(path: Option<String>) -> Result<SpritePackInfo, String> {
+    let import_path = if let Some(p) = path.filter(|s| !s.is_empty()) {
+        std::path::PathBuf::from(p)
+    } else {
+        let picked = rfd::AsyncFileDialog::new()
+            .set_title("选择素材包 (.fpack / .zip)")
+            .add_filter("Familiar Sprite Pack", &["fpack", "zip"])
+            .pick_file()
+            .await;
+
+        match picked {
+            Some(file) => file.path().to_path_buf(),
+            None => return Err("Cancelled".to_string()),
+        }
+    };
+
+    SpritePackManager::import_pack(&import_path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

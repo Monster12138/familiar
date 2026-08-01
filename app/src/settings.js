@@ -535,20 +535,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    if (btnImportPack && fileImportPack) {
-        btnImportPack.addEventListener('click', () => {
-            fileImportPack.click();
-        });
-
-        fileImportPack.addEventListener('change', async (e) => {
-            const files = e.target.files;
-            if (!files || files.length === 0) return;
-            const file = files[0];
-            const filePath = file.path || file.name;
+    if (btnImportPack) {
+        btnImportPack.addEventListener('click', async () => {
             const lang = elLanguage ? elLanguage.value : 'zh-CN';
-
             try {
-                const imported = await invoke('import_sprite_pack', { path: filePath });
+                const imported = await invoke('import_sprite_pack', { path: null });
                 if (imported && imported.manifest) {
                     if (!currentConfig.renderer) currentConfig.renderer = {};
                     if (!currentConfig.renderer['desktop-pet']) currentConfig.renderer['desktop-pet'] = {};
@@ -557,9 +548,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     scheduleAutoSave();
                 }
             } catch (err) {
-                alert(t('msg_import_failed', lang) + err);
-            } finally {
-                fileImportPack.value = '';
+                if (err !== 'Cancelled' && err !== 'User cancelled selection') {
+                    alert(t('msg_import_failed', lang) + err);
+                }
             }
         });
     }
