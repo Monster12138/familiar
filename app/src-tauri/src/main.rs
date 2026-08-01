@@ -44,6 +44,7 @@ fn main() {
     let state_machine = StateMachine::new(
         event_bus.clone(),
         config.renderer.desktop_pet.celebration_secs,
+        config.renderer.desktop_pet.sleep_timeout_secs,
     );
     let event_bus_for_server = event_bus.clone();
     let config_for_setup = config.clone();

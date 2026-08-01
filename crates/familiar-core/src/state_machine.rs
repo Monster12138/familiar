@@ -10,14 +10,16 @@ pub struct StateMachine {
     render_state: Arc<RwLock<RenderState>>,
     event_bus: EventBus,
     celebration_secs: i64,
+    sleep_timeout_secs: i64,
 }
 
 impl StateMachine {
-    pub fn new(event_bus: EventBus, celebration_secs: u32) -> Self {
+    pub fn new(event_bus: EventBus, celebration_secs: u32, sleep_timeout_secs: u32) -> Self {
         Self {
             render_state: Arc::new(RwLock::new(RenderState::default())),
             event_bus,
             celebration_secs: celebration_secs as i64,
+            sleep_timeout_secs: sleep_timeout_secs as i64,
         }
     }
 
@@ -29,18 +31,18 @@ impl StateMachine {
         let mut rx = self.event_bus.subscribe();
         let state_ref = self.render_state.clone();
 
-        // Background timer to clean up completed agents after celebration_secs to let the celebration animation play out
+        // Background timer to clean up completed agents and handle Idle -> Sleepy inactivity timeout
         let state_ref_cleanup = self.render_state.clone();
         let celebration_secs = self.celebration_secs;
+        let sleep_timeout_secs = self.sleep_timeout_secs;
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
             loop {
                 interval.tick().await;
                 let mut state = state_ref_cleanup.write().await;
                 let now = chrono::Utc::now();
-                let initial_len = state.agents.len();
 
-                // Then handle cleanup of completed agents
+                // Handle cleanup of completed agents
                 state.agents.retain(|agent| {
                     if agent.status == AgentStatus::Completed {
                         if let Some(last) = agent.last_event_at {
@@ -52,50 +54,22 @@ impl StateMachine {
                     true
                 });
 
-                if state.agents.len() != initial_len {
-                    // Update global mood if agents were removed
-                    if state.agents.is_empty() {
-                        state.mood = FamiliarMood::Sleepy;
-                    } else if state
-                        .agents
-                        .iter()
-                        .any(|a| a.status == AgentStatus::Working)
-                    {
-                        state.mood = FamiliarMood::Busy;
-                    } else if state
-                        .agents
-                        .iter()
-                        .any(|a| a.status == AgentStatus::Thinking)
-                    {
-                        state.mood = FamiliarMood::Thinking;
-                    } else if state
-                        .agents
-                        .iter()
-                        .any(|a| a.status == AgentStatus::Completed)
-                    {
-                        state.mood = FamiliarMood::Celebrating;
-                    } else if state
-                        .agents
-                        .iter()
-                        .any(|a| a.status == AgentStatus::WaitingInput)
-                    {
-                        state.mood = FamiliarMood::Watching;
-                    } else {
-                        state.mood = FamiliarMood::Idle;
-                    }
-                }
+                state.active_agent_count = state.agents.len();
+                Self::update_mood(&mut state, now, sleep_timeout_secs);
             }
         });
 
+        let sleep_timeout_secs = self.sleep_timeout_secs;
         tokio::spawn(async move {
             while let Ok(event) = rx.recv().await {
                 let mut state = state_ref.write().await;
-                Self::apply_event(&mut state, &event);
+                Self::apply_event(&mut state, &event, sleep_timeout_secs);
             }
         });
     }
 
-    fn apply_event(state: &mut RenderState, event: &AgentEvent) {
+    fn apply_event(state: &mut RenderState, event: &AgentEvent, sleep_timeout_secs: i64) {
+        state.last_activity_at = event.timestamp;
         let agent_id = event.id.to_string(); // In a real app we might group by process/session ID
 
         // Find or create agent state
@@ -118,22 +92,18 @@ impl StateMachine {
                 AgentEventType::Thinking => {
                     agent.status = AgentStatus::Thinking;
                     agent.current_activity = Some("Thinking...".to_string());
-                    state.mood = FamiliarMood::Thinking;
                 }
                 AgentEventType::Processing { description } => {
                     agent.status = AgentStatus::Working;
                     agent.current_activity = Some(description.clone());
-                    state.mood = FamiliarMood::Busy;
                 }
                 AgentEventType::ReadingFile { path } => {
                     agent.status = AgentStatus::Working;
                     agent.current_activity = Some(format!("Reading {}", path));
-                    state.mood = FamiliarMood::Busy;
                 }
                 AgentEventType::WritingFile { path } => {
                     agent.status = AgentStatus::Working;
                     agent.current_activity = Some(format!("Writing {}", path));
-                    state.mood = FamiliarMood::Busy;
                 }
                 AgentEventType::RunningCommand { cmd, instruction } => {
                     agent.status = AgentStatus::Working;
@@ -141,32 +111,26 @@ impl StateMachine {
                     if let Some(inst) = instruction {
                         agent.user_instruction = Some(inst.clone());
                     }
-                    state.mood = FamiliarMood::Busy;
                 }
                 AgentEventType::SearchingCode { query } => {
                     agent.status = AgentStatus::Working;
                     agent.current_activity = Some(format!("Searching `{}`", query));
-                    state.mood = FamiliarMood::Busy;
                 }
                 AgentEventType::BrowsingWeb { url } => {
                     agent.status = AgentStatus::Working;
                     agent.current_activity = Some(format!("Browsing {}", url));
-                    state.mood = FamiliarMood::Busy;
                 }
                 AgentEventType::TaskCompleted { summary } => {
                     agent.status = AgentStatus::Completed;
                     agent.current_activity = Some(summary.clone());
-                    state.mood = FamiliarMood::Celebrating;
                 }
                 AgentEventType::TaskFailed { error } => {
                     agent.status = AgentStatus::Failed;
                     agent.current_activity = Some(error.clone());
-                    state.mood = FamiliarMood::Alarmed;
                 }
                 AgentEventType::WaitingForInput => {
                     agent.status = AgentStatus::WaitingInput;
                     agent.current_activity = Some("Waiting for user input...".to_string());
-                    state.mood = FamiliarMood::Watching;
                 }
                 _ => {}
             }
@@ -254,10 +218,19 @@ impl StateMachine {
                 .push(agent.clone());
         }
 
-        // Aggregate global mood based on all active sessions
-        if state.active_agent_count == 0 {
-            state.mood = FamiliarMood::Sleepy;
-        } else if state
+        let now = chrono::Utc::now();
+        Self::update_mood(state, now, sleep_timeout_secs);
+
+        tracing::info!(
+            agent_id = %agent_id,
+            event = ?event.event_type,
+            mood = ?state.mood,
+            "State updated from event"
+        );
+    }
+
+    fn update_mood(state: &mut RenderState, now: chrono::DateTime<chrono::Utc>, sleep_timeout_secs: i64) {
+        if state
             .agents
             .iter()
             .any(|a| a.status == AgentStatus::Working)
@@ -282,15 +255,13 @@ impl StateMachine {
         {
             state.mood = FamiliarMood::Watching;
         } else {
-            state.mood = FamiliarMood::Idle;
+            let idle_secs = now.signed_duration_since(state.last_activity_at).num_seconds();
+            if idle_secs >= sleep_timeout_secs {
+                state.mood = FamiliarMood::Sleepy;
+            } else {
+                state.mood = FamiliarMood::Idle;
+            }
         }
-
-        tracing::info!(
-            agent_id = %agent_id,
-            event = ?event.event_type,
-            mood = ?state.mood,
-            "State updated from event"
-        );
     }
 }
 
@@ -304,7 +275,7 @@ mod tests {
     #[tokio::test]
     async fn test_state_machine_receives_stop_signal() {
         let bus = EventBus::new(100, 1000);
-        let machine = StateMachine::new(bus.clone(), 4);
+        let machine = StateMachine::new(bus.clone(), 4, 300);
         machine.start_processing().await;
 
         let agent_id = Uuid::new_v4();
@@ -363,5 +334,24 @@ mod tests {
         assert_eq!(state.agents.len(), 1);
         assert_eq!(state.agents[0].status, AgentStatus::Completed);
         assert_eq!(state.mood, FamiliarMood::Celebrating);
+    }
+
+    #[tokio::test]
+    async fn test_idle_to_sleep_inactivity_timeout() {
+        let bus = EventBus::new(100, 1000);
+        // Set sleep_timeout_secs = 1 second for fast test
+        let machine = StateMachine::new(bus.clone(), 4, 1);
+        machine.start_processing().await;
+
+        // Initially in Idle mood
+        let state = machine.get_state().await;
+        assert_eq!(state.mood, FamiliarMood::Idle);
+
+        // Wait 1.2 seconds for background timer tick
+        tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
+
+        // Should transition to Sleepy
+        let state = machine.get_state().await;
+        assert_eq!(state.mood, FamiliarMood::Sleepy);
     }
 }

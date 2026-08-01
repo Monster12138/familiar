@@ -68,6 +68,7 @@ pub struct RenderState {
     pub sources: HashMap<String, SourceStats>,
     pub mood: FamiliarMood,
     pub notifications: Vec<Notification>,
+    pub last_activity_at: DateTime<Utc>,
 }
 
 impl Default for RenderState {
@@ -82,8 +83,9 @@ impl Default for RenderState {
                 tasks_completed: 0,
             },
             sources: HashMap::new(),
-            mood: FamiliarMood::Sleepy,
+            mood: FamiliarMood::Idle,
             notifications: Vec::new(),
+            last_activity_at: Utc::now(),
         }
     }
 }

@@ -20,7 +20,7 @@ async fn test_hook_to_state_machine_flow() {
 
     // 3. Setup Core components
     let event_bus = EventBus::new(100, 100);
-    let state_machine = StateMachine::new(event_bus.clone(), 4);
+    let state_machine = StateMachine::new(event_bus.clone(), 4, 300);
 
     // Start the state machine processing loop
     state_machine.start_processing().await;

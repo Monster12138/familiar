@@ -56,6 +56,8 @@ pub struct DesktopPetConfig {
     pub show_dashboard: bool,
     #[serde(default = "default_celebration_secs")]
     pub celebration_secs: u32,
+    #[serde(default = "default_sleep_timeout_secs")]
+    pub sleep_timeout_secs: u32,
 }
 
 fn default_true() -> bool {
@@ -72,6 +74,10 @@ where
 
 fn default_celebration_secs() -> u32 {
     4
+}
+
+fn default_sleep_timeout_secs() -> u32 {
+    300
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -134,6 +140,7 @@ impl Default for FamiliarConfig {
                     show_pet: true,
                     show_dashboard: true,
                     celebration_secs: 4,
+                    sleep_timeout_secs: 300,
                 },
                 menu_bar: MenuBarConfig {
                     show_active_count: true,

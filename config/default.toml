@@ -27,6 +27,7 @@ show_task_bubble = true
 show_pet = true
 show_dashboard = true
 celebration_secs = 10
+sleep_timeout_secs = 300
 
 [renderer.menu-bar]
 show_active_count = true

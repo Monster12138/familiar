@@ -32,6 +32,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const elTcpPort = document.getElementById('setting-tcp-port');
     const elCelebrationSecs = document.getElementById('setting-celebration-secs');
     const valCelebrationSecs = document.getElementById('val-celebration-secs');
+    const elSleepTimeoutSecs = document.getElementById('setting-sleep-timeout-secs');
+    const valSleepTimeoutSecs = document.getElementById('val-sleep-timeout-secs');
 
     const saveBtn = document.getElementById('save-btn');
     const statusMsg = document.getElementById('save-status');
@@ -262,6 +264,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         elCelebrationSecs.addEventListener('input', updateCelebVal);
         updateCelebVal();
     }
+    if (elSleepTimeoutSecs && valSleepTimeoutSecs) {
+        const updateSleepVal = () => { valSleepTimeoutSecs.textContent = elSleepTimeoutSecs.value + 's'; };
+        elSleepTimeoutSecs.addEventListener('input', updateSleepVal);
+        updateSleepVal();
+    }
 
     // --- Auto-Save Logic ---
 
@@ -309,6 +316,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentConfig.renderer['desktop-pet'].show_pet = elShowPet.checked;
         currentConfig.renderer['desktop-pet'].show_dashboard = elShowStats.checked;
         currentConfig.renderer['desktop-pet'].celebration_secs = parseInt(elCelebrationSecs.value, 10);
+        if (elSleepTimeoutSecs) {
+            currentConfig.renderer['desktop-pet'].sleep_timeout_secs = parseInt(elSleepTimeoutSecs.value, 10);
+        }
 
         currentConfig.hooks.socket_path = elUdsPath.value;
         currentConfig.hooks.tcp_port = parseInt(elTcpPort.value, 10);
@@ -373,6 +383,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (petConf.celebration_secs !== undefined && elCelebrationSecs) {
                 elCelebrationSecs.value = petConf.celebration_secs;
                 if (valCelebrationSecs) valCelebrationSecs.textContent = petConf.celebration_secs + 's';
+            }
+            if (petConf.sleep_timeout_secs !== undefined && elSleepTimeoutSecs) {
+                elSleepTimeoutSecs.value = petConf.sleep_timeout_secs;
+                if (valSleepTimeoutSecs) valSleepTimeoutSecs.textContent = petConf.sleep_timeout_secs + 's';
             }
         }
 
@@ -698,7 +712,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     const autoSaveInputs = [
-        elApiPort, elPetScale, elPetOpacity, elUdsPath, elTcpPort, elCelebrationSecs
+        elApiPort, elPetScale, elPetOpacity, elUdsPath, elTcpPort, elCelebrationSecs, elSleepTimeoutSecs
     ];
     autoSaveInputs.forEach(el => {
         if (el) el.addEventListener('change', scheduleAutoSave);
