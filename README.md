@@ -1,54 +1,60 @@
 # Familiar
 
-> *"The familiar that never sleeps"* — Your local-first desktop companion for coding agents.
+> *“A desktop pet that reacts to your world.”* — A local-first companion that responds to the rhythm of your work, agents, and everyday workflows.
 
-一个模块化、高性能的开源桌面伴侣系统，实时连接各种 AI Agent 工具（如 Claude Code、Codex CLI、Google Antigravity），以桌面宠物、菜单栏等多种形态实时展示 agent 工作状态与活动数据。
-
----
+[简体中文](README_zh.md)
 
 > [!NOTE]
-> **成熟度说明 (Project Maturity)**: 当前项目处于 **Alpha / 早期开发阶段**。核心 Rust 逻辑、Tauri 桌面宠物与 Hook 采集层已可用，更多高级面板与跨平台编译打包持续迭代中。
+> Familiar is in **Alpha**. The core Rust event pipeline, desktop companion, and hook integrations are usable; richer dashboards, persistence, and cross-platform release builds are still evolving.
 
----
+## Why
 
-## 🌟 特性 (Features)
+Familiar starts with a desktop pet that reacts to your world. It stays quietly in your workspace and responds to the rhythm around you: an agent beginning a task, a workflow waiting for input, or a long stretch of focused work. Agent state linkage is one way it comes alive, turning local activity into subtle changes you can notice without opening another window.
 
-- 🔌 **多 Agent 支持** — 支持 Claude Code、Codex CLI 及 Antigravity，基于官方 Hook API 精准采集事件。
-- 🧩 **模块化三层架构** — `familiar-hooks` 采集层、`familiar-core` 事件与状态层、`app` 桌面渲染层相互分离。
-- 🐱 **桌面伴侣/宠物** — 基于 Canvas 的像素风动画，实时呈现 Agent 的思考、执行命令、闲置与休眠状态。
-- 📊 **本机状态面板** — 当前显示 CPU、内存和磁盘使用情况；Agent 历史统计与持久化仍在规划中。
-- 🎨 **自定义皮肤包 (Sprite Pack)** — 开放的资源包格式，轻松引入更多桌面伴侣样式。
-- 🔒 **隐私优先 (Privacy First)** — Hook 事件只在本机处理，当前不发送远程遥测或用户活动数据。详见 [PRIVACY.md](docs/PRIVACY.md)。
+The companion is not limited to coding tools. Familiar's hook layer can connect status from coding agents, other local agents, and non-programming workflows, so the pet can react to more of the way you work. Events are normalized locally, rendered by a Tauri desktop app, and never sent to a telemetry service by default.
 
----
+## Features
 
-## 🛠️ 技术栈 (Tech Stack)
+- **Reactive desktop pet** — Pixel-art animations respond to activity without taking over your workspace.
+- **Agent state linkage** — Connect Claude Code, Codex CLI, and Google Antigravity so the companion can reflect their activity.
+- **Hook-based extensibility** — Adapt other agents and local workflows through the same event pipeline, including non-programming scenarios.
+- **Modular architecture** — Keep hook parsing, state management, transport, and rendering in separate layers.
+- **Local activity view** — Show the current CPU, memory, and disk state alongside the companion.
+- **Sprite packs** — Import and package additional companions with the documented `.fpack` format.
+- **Privacy-first by design** — Process hook data locally and minimize operational logs; no remote telemetry is included.
 
-| 组件 | 技术选择 |
-|---|---|
-| 桌面框架 | Tauri 2.0 |
-| 后端语言 | Rust (Tokio, Axum, Rusqlite) |
-| 前端渲染 | Vanilla ES Modules + Canvas API + Vite |
-| 本地事件传输 | Unix Domain Socket / TCP loopback；REST/WebSocket 仍为实验性 scaffold |
-| 采集 CLI | `familiar-cli` |
+## Supported integrations
 
----
+| Integration | Transport | Status |
+| --- | --- | --- |
+| Claude Code | Hook reporter over the local Familiar channel | Pending verification |
+| Codex CLI | Hook reporter over the local Familiar channel | Available |
+| Google Antigravity | Native hook adapter with transcript extraction | Available |
 
-## 🚀 快速开始与开发指南
+## Quick Start
 
-### 前置要求
-- **Rust**: 1.88+
-- **Node.js**: v18+ & npm
-- **C++ 构建工具** (Windows) / **Xcode Command Line Tools** (macOS)
+Familiar does not publish installable release artifacts yet. Build it from source with Rust, Node.js, and the platform desktop prerequisites.
 
-### 1. 验证后端与 Hook 库
+### Prerequisites
+
+- **Rust** 1.88 or later, including Cargo, rustfmt, and Clippy
+- **Node.js** 18 or later and npm
+- **macOS** Xcode Command Line Tools
+- **Windows** Visual Studio Build Tools with C++ desktop development
+- **Linux** GTK3 and WebKitGTK development packages
+
+### Build and run
+
+From the repository root:
+
 ```bash
 cargo check --workspace
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-### 2. 运行桌面端开发服务器
+Build the desktop application from `app/`:
+
 ```bash
 cd app
 npm ci
@@ -56,27 +62,65 @@ npm run build
 npm run tauri dev
 ```
 
----
+The settings window can install or remove Familiar-owned hooks. Existing agent configuration is backed up before it is changed.
 
-## 🔒 隐私与安全 (Privacy & Security)
+## Architecture
 
-- **本地处理**: 为了显示当前任务，Familiar 会从 hook payload 或本地 transcript 中提取最近的任务说明、命令和文件活动，并仅保存在进程内存中。当前版本不会把 Agent 事件写入 SQLite，也不会向远程服务上报这些数据。
-- **日志最小化**: 持久化运行日志只记录事件种类、会话标识和 mood，不记录提示词、命令、文件路径或原始 hook payload。
-- **完整说明**: 具体读取范围、配置修改和清理方式见 [PRIVACY.md](docs/PRIVACY.md)。
-- **安全漏洞报告**: 如发现安全漏洞，请阅读 [SECURITY.md](SECURITY.md) 获取私密报告渠道。
+| Layer | Responsibility |
+| --- | --- |
+| `familiar-hooks` | Parse, preview, install, and remove vendor hook integrations |
+| `familiar-core` | Normalize events, manage state, load configuration, and provide sprite-pack abstractions |
+| `familiar-api` | Local transport and experimental REST/WebSocket routes |
+| `familiar-cli` | Lightweight hook reporter used by supported integrations |
+| `app/` | Tauri composition, tray integration, desktop windows, and vanilla JavaScript rendering |
 
----
+The primary local transport uses Unix domain sockets on Unix-like systems and loopback TCP where needed. Agent activity is currently held in process memory; the SQLite storage abstraction is experimental and is not wired into the desktop application.
 
-## 🤝 贡献与社区 (Contributing)
+## Privacy
 
-欢迎提交 Issue 和 Pull Request！在开始之前，请阅读：
-- [CONTRIBUTING.md](CONTRIBUTING.md) — 贡献流程与代码规范
-- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — 社区行为准则
+Familiar may read the latest task description, command text, tool names, file paths, and related local hook data to render the current state. Antigravity transcript files may be read when a hook explicitly references them.
 
----
+The current application does not persist a full transcript or agent event history, and it does not send captured data to a remote service. Operational logs contain only minimal metadata such as event kind, session identifier, and mood; raw prompts, commands, paths, and hook payloads are excluded.
 
-## 📄 开源协议 (License)
+See [docs/PRIVACY.md](docs/PRIVACY.md) for the complete data-flow, configuration, logging, and cleanup details.
 
-本项目采用 **[MIT](LICENSE-MIT)** 与 **[Apache-2.0](LICENSE-APACHE)** 双重开源协议（Dual License）。
-您可以根据需要自由选择在 MIT 或 Apache 2.0 许可下使用、修改与分发本软件。
-仓库内置的 sprite 与应用图标采用相同许可证，详见 [ASSETS.md](ASSETS.md)。
+## Documentation
+
+- [Privacy & Data Handling](docs/PRIVACY.md) — What Familiar reads, keeps, and logs
+- [Design Notes](docs/DESIGN.md) — Architecture and protocol background
+- [Backend Workflow](docs/BACKEND_WORKFLOW.md) — Rust development workflow
+- [Frontend Workflow](docs/FRONTEND_WORKFLOW.md) — UI development workflow
+- [Sprite Pack Guide](docs/SPRITE_PACK_CREATION_GUIDE.md) — Create and package companions
+
+## Project status
+
+Implemented today:
+
+- Local hook parsing and reporting for the supported integrations
+- Event normalization and desktop state transitions
+- Tauri desktop companion and sprite-pack loading
+- Settings flows for hook installation and removal
+- CPU, memory, and disk indicators
+
+Planned or still experimental:
+
+- Persistent agent history and retention management
+- A complete statistics and activity dashboard
+- Stable public API guarantees
+- Signed release artifacts and verified Windows/Linux packaging
+
+## Contributing
+
+Issues and pull requests are welcome. Before contributing, please read:
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) — Development setup and contribution workflow
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — Community standards
+- [SECURITY.md](SECURITY.md) — Private vulnerability reporting
+
+Please keep the privacy-first behavior intact: do not add telemetry or persist captured prompts, transcripts, file contents, or hook payloads without an explicit product decision.
+
+## License
+
+Familiar is dual-licensed under the [MIT License](LICENSE-MIT) or the [Apache License, Version 2.0](LICENSE-APACHE), at your option.
+
+Built-in sprites, sprite archives, and application icons are covered by the same project license. See [ASSETS.md](ASSETS.md) for the asset scope and third-party contribution requirements.
