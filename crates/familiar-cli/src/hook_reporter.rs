@@ -28,7 +28,7 @@ pub async fn run(source_name: &str, event_name: &str) -> Result<()> {
         "hook_event_name": event_name,
         "payload": json
     });
-    
+
     let mut payload_bytes = serde_json::to_vec(&payload)?;
     payload_bytes.push(b'\n');
 
@@ -44,7 +44,8 @@ pub async fn run(source_name: &str, event_name: &str) -> Result<()> {
         let mut stream = tokio::net::TcpStream::connect("127.0.0.1:9528").await?;
         stream.write_all(&payload_bytes).await?;
         Ok::<(), anyhow::Error>(())
-    }.await;
+    }
+    .await;
 
     let output_json = get_hook_response_json(event_name, res.is_err());
     println!("{}", output_json);
@@ -54,36 +55,30 @@ pub async fn run(source_name: &str, event_name: &str) -> Result<()> {
 fn get_hook_response_json(event_name: &str, offline: bool) -> String {
     match event_name {
         "PreToolUse" | "PermissionRequest" => {
-            let reason = if offline { "Familiar offline" } else { "Familiar notified" };
+            let reason = if offline {
+                "Familiar offline"
+            } else {
+                "Familiar notified"
+            };
             serde_json::json!({
                 "decision": "allow",
                 "reason": reason
             })
             .to_string()
         }
-        "PostToolUse" => {
-            serde_json::json!({}).to_string()
-        }
-        "PreInvocation" => {
-            serde_json::json!({
-                "injectSteps": []
-            })
-            .to_string()
-        }
-        "PostInvocation" => {
-            serde_json::json!({
-                "injectSteps": []
-            })
-            .to_string()
-        }
-        "Stop" | "SessionEnd" | "SubagentStop" => {
-            serde_json::json!({
-                "decision": "allow"
-            })
-            .to_string()
-        }
-        _ => {
-            serde_json::json!({}).to_string()
-        }
+        "PostToolUse" => serde_json::json!({}).to_string(),
+        "PreInvocation" => serde_json::json!({
+            "injectSteps": []
+        })
+        .to_string(),
+        "PostInvocation" => serde_json::json!({
+            "injectSteps": []
+        })
+        .to_string(),
+        "Stop" | "SessionEnd" | "SubagentStop" => serde_json::json!({
+            "decision": "allow"
+        })
+        .to_string(),
+        _ => serde_json::json!({}).to_string(),
     }
 }

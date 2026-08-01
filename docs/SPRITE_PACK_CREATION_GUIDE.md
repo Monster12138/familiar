@@ -11,6 +11,7 @@
 ```
 my-custom-pet/
 ├── pack.json         # [必需] 素材包描述文件 (Manifest)
+├── LICENSE           # [推荐] 素材的完整许可证文本
 ├── preview.png       # [可选] 配置面板中的预览图 (默认回退至 idle.png)
 ├── idle.png          # [必需] 待命/空闲状态图片
 ├── working.png       # [可选] 执行任务/敲代码状态图片
@@ -39,6 +40,8 @@ my-custom-pet/
   "created_at": "2026-08-01",
   "email": "xiaoming@example.com",
   "version": "1.0.0",
+  "license": "CC-BY-4.0",
+  "source": "https://example.com/my-custom-pet",
   "description": "基于个人宠物照片生成的 AI 极简像素风桌面宠物",
   "preview": "idle.png",
   "states": {
@@ -63,6 +66,8 @@ my-custom-pet/
 - `created_at`: 创作日期 (YYYY-MM-DD)。
 - `email`: 联系邮箱。
 - `version`: 素材包版本（如 `1.0.0`）。
+- `license`: **[强烈推荐]** 素材的 SPDX 许可证表达式（如 `CC-BY-4.0`、`CC0-1.0` 或 `MIT OR Apache-2.0`）。
+- `source`: **[强烈推荐]** 素材主页或可核验的原始来源链接。
 - `description`: 素材包简介描述。
 - `preview`: 预览图文件名。
 - `states`: **[必需]** 状态与图片文件映射表。必须至少包含 `idle` 键。
@@ -176,7 +181,7 @@ def remove_outer_background(image_path, save_path):
 cd my-custom-pet
 
 # 压缩为 fpack 归档
-zip -r ../my-custom-pet.fpack pack.json *.png
+zip -r ../my-custom-pet.fpack pack.json LICENSE* *.png
 ```
 
 ---

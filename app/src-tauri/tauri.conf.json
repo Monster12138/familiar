@@ -27,6 +27,9 @@
     "active": true,
     "resources": {
       "../../target/release/familiar-cli": "bin/familiar-cli",
+      "../../ASSETS.md": "ASSETS.md",
+      "../../LICENSE-APACHE": "LICENSE-APACHE",
+      "../../LICENSE-MIT": "LICENSE-MIT",
       "../../sprites": "sprites"
     }
   },

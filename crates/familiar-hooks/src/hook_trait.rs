@@ -9,15 +9,29 @@ pub trait AgentHook: Send + Sync {
     fn category(&self) -> AgentCategory;
     async fn start(&self, sender: mpsc::Sender<AgentEvent>) -> Result<()>;
     async fn stop(&self) -> Result<()>;
-    
+
     // Hook injection management
-    fn config_path(&self) -> Option<std::path::PathBuf> { None }
-    fn is_injected(&self) -> bool { false }
-    fn get_injection_payload(&self) -> Option<serde_json::Value> { None }
-    fn inject(&self) -> Result<()> { Err(anyhow::anyhow!("Not implemented for this agent")) }
-    fn uninstall(&self) -> Result<()> { Err(anyhow::anyhow!("Not implemented for this agent")) }
-    
+    fn config_path(&self) -> Option<std::path::PathBuf> {
+        None
+    }
+    fn is_injected(&self) -> bool {
+        false
+    }
+    fn get_injection_payload(&self) -> Option<serde_json::Value> {
+        None
+    }
+    fn inject(&self) -> Result<()> {
+        Err(anyhow::anyhow!("Not implemented for this agent"))
+    }
+    fn uninstall(&self) -> Result<()> {
+        Err(anyhow::anyhow!("Not implemented for this agent"))
+    }
+
     // Returns (before_content, after_content)
-    fn preview_inject(&self) -> Result<(String, String)> { Err(anyhow::anyhow!("Not implemented for this agent")) }
-    fn preview_uninstall(&self) -> Result<(String, String)> { Err(anyhow::anyhow!("Not implemented for this agent")) }
+    fn preview_inject(&self) -> Result<(String, String)> {
+        Err(anyhow::anyhow!("Not implemented for this agent"))
+    }
+    fn preview_uninstall(&self) -> Result<(String, String)> {
+        Err(anyhow::anyhow!("Not implemented for this agent"))
+    }
 }

@@ -9,6 +9,8 @@ fn test_parse_sprite_pack_manifest() {
         "created_at": "2026-07-31",
         "email": "test@example.com",
         "version": "1.0.0",
+        "license": "CC-BY-4.0",
+        "source": "https://example.com/test-pack",
         "description": "Test sprite pack",
         "preview": "idle.png",
         "states": {
@@ -21,6 +23,11 @@ fn test_parse_sprite_pack_manifest() {
     assert_eq!(manifest.id, "test-pack");
     assert_eq!(manifest.name, "Test Pack");
     assert_eq!(manifest.author, "Tester");
+    assert_eq!(manifest.license.as_deref(), Some("CC-BY-4.0"));
+    assert_eq!(
+        manifest.source.as_deref(),
+        Some("https://example.com/test-pack")
+    );
     assert_eq!(manifest.states.get("working").unwrap(), "working.gif");
 }
 

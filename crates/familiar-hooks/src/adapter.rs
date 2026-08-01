@@ -168,11 +168,17 @@ impl CliAgentHookAdapter {
             .or_else(|| json["payload"]["tool_name"].as_str())
             .unwrap_or("");
 
-        let args_option = json.get("toolCall").and_then(|t| t.get("args"))
+        let args_option = json
+            .get("toolCall")
+            .and_then(|t| t.get("args"))
             .or_else(|| json.get("tool_arguments"))
             .or_else(|| json.get("args"))
             .or_else(|| json.get("input"))
-            .or_else(|| json.get("payload").and_then(|p| p.get("toolCall")).and_then(|t| t.get("args")))
+            .or_else(|| {
+                json.get("payload")
+                    .and_then(|p| p.get("toolCall"))
+                    .and_then(|t| t.get("args"))
+            })
             .or_else(|| json.get("payload").and_then(|p| p.get("tool_arguments")));
 
         let empty_json = serde_json::json!({});
@@ -187,7 +193,11 @@ impl CliAgentHookAdapter {
                     .or_else(|| args["CommandLine"].as_str())
                     .or_else(|| args["script"].as_str())
                     .filter(|s| !s.is_empty())
-                    .unwrap_or(if tool_name.is_empty() { "Command" } else { tool_name })
+                    .unwrap_or(if tool_name.is_empty() {
+                        "Command"
+                    } else {
+                        tool_name
+                    })
                     .to_string();
                 AgentEventType::RunningCommand { cmd, instruction }
             }
@@ -203,7 +213,11 @@ impl CliAgentHookAdapter {
                     .or_else(|| args["Target"].as_str())
                     .or_else(|| args["filePath"].as_str())
                     .filter(|s| !s.is_empty())
-                    .unwrap_or(if tool_name.is_empty() { "file" } else { tool_name })
+                    .unwrap_or(if tool_name.is_empty() {
+                        "file"
+                    } else {
+                        tool_name
+                    })
                     .to_string();
                 AgentEventType::WritingFile { path }
             }

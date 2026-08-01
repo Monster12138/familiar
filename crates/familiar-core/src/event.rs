@@ -70,6 +70,31 @@ pub enum AgentEventType {
     },
 }
 
+impl AgentEventType {
+    /// Returns a stable, non-sensitive event name suitable for logs and metrics.
+    ///
+    /// Event payload fields can contain prompts, commands, paths, or error text
+    /// and must not be formatted into persistent operational logs.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Self::AgentStarted { .. } => "AgentStarted",
+            Self::AgentStopped => "AgentStopped",
+            Self::Thinking => "Thinking",
+            Self::Processing { .. } => "Processing",
+            Self::ReadingFile { .. } => "ReadingFile",
+            Self::WritingFile { .. } => "WritingFile",
+            Self::RunningCommand { .. } => "RunningCommand",
+            Self::SearchingCode { .. } => "SearchingCode",
+            Self::BrowsingWeb { .. } => "BrowsingWeb",
+            Self::TaskCompleted { .. } => "TaskCompleted",
+            Self::TaskFailed { .. } => "TaskFailed",
+            Self::WaitingForInput => "WaitingForInput",
+            Self::SubagentStarted { .. } => "SubagentStarted",
+            Self::SubagentStopped { .. } => "SubagentStopped",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EventMetadata {
     pub extra: Value,
@@ -83,4 +108,20 @@ pub struct AgentEvent {
     pub category: AgentCategory,
     pub event_type: AgentEventType,
     pub metadata: Option<EventMetadata>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AgentEventType;
+
+    #[test]
+    fn event_kind_does_not_include_sensitive_payload_fields() {
+        let event = AgentEventType::RunningCommand {
+            cmd: "secret command".to_string(),
+            instruction: Some("secret prompt".to_string()),
+        };
+
+        assert_eq!(event.kind(), "RunningCommand");
+        assert!(!event.kind().contains("secret"));
+    }
 }

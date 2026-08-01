@@ -19,6 +19,12 @@ pub struct SpritePackManifest {
     pub created_at: String,
     pub email: String,
     pub version: String,
+    /// SPDX license expression for the pack's visual assets.
+    #[serde(default)]
+    pub license: Option<String>,
+    /// Optional homepage or source repository for attribution.
+    #[serde(default)]
+    pub source: Option<String>,
     #[serde(default)]
     pub description: String,
     #[serde(default)]

@@ -68,11 +68,17 @@ impl CodexHook {
                 }
             }
         }
-        let fallback = std::path::PathBuf::from(
-            "/Users/sam.gl/workspace/rust/familiar/target/debug/familiar-cli",
-        );
-        if fallback.exists() {
-            return fallback.to_string_lossy().to_string();
+        if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
+            let dev_cli =
+                std::path::PathBuf::from(&manifest_dir).join("../../target/release/familiar-cli");
+            if dev_cli.exists() {
+                return dev_cli.to_string_lossy().to_string();
+            }
+            let dev_cli_debug =
+                std::path::PathBuf::from(&manifest_dir).join("../../target/debug/familiar-cli");
+            if dev_cli_debug.exists() {
+                return dev_cli_debug.to_string_lossy().to_string();
+            }
         }
         "familiar-cli".to_string()
     }
@@ -237,7 +243,7 @@ impl AgentHook for CodexHook {
 
                 let empty_keys: Vec<String> = hooks_obj
                     .iter()
-                    .filter(|(_, v)| v.as_array().map_or(false, |arr| arr.is_empty()))
+                    .filter(|(_, v)| v.as_array().is_some_and(|arr| arr.is_empty()))
                     .map(|(k, _)| k.clone())
                     .collect();
                 for k in empty_keys {
@@ -247,7 +253,7 @@ impl AgentHook for CodexHook {
 
             if let Some(obj) = json.as_object_mut() {
                 if let Some(hooks) = obj.get("hooks") {
-                    if hooks.as_object().map_or(false, |o| o.is_empty()) {
+                    if hooks.as_object().is_some_and(|o| o.is_empty()) {
                         obj.remove("hooks");
                     }
                 }
@@ -345,7 +351,7 @@ impl AgentHook for CodexHook {
 
                 let empty_keys: Vec<String> = hooks_obj
                     .iter()
-                    .filter(|(_, v)| v.as_array().map_or(false, |arr| arr.is_empty()))
+                    .filter(|(_, v)| v.as_array().is_some_and(|arr| arr.is_empty()))
                     .map(|(k, _)| k.clone())
                     .collect();
                 for k in empty_keys {
@@ -355,7 +361,7 @@ impl AgentHook for CodexHook {
 
             if let Some(obj) = json.as_object_mut() {
                 if let Some(hooks) = obj.get("hooks") {
-                    if hooks.as_object().map_or(false, |o| o.is_empty()) {
+                    if hooks.as_object().is_some_and(|o| o.is_empty()) {
                         obj.remove("hooks");
                     }
                 }

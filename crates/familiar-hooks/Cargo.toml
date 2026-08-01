@@ -1,7 +1,12 @@
 [package]
 name = "familiar-hooks"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+publish.workspace = true
 
 [dependencies]
 familiar-core = { path = "../familiar-core" }
@@ -12,6 +17,3 @@ anyhow = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
 dirs = "6.0.0"
-
-[dev-dependencies]
-tempfile = "3.10"

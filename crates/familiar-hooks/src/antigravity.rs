@@ -70,16 +70,11 @@ impl AntigravityHook {
     }
 
     fn map_native_hook(&self, event_name: &str, json: &Value) -> Option<AgentEvent> {
-        let _ = std::fs::write(
-            format!("/tmp/familiar_hook_debug_{}.log", event_name),
-            serde_json::to_string_pretty(json).unwrap_or_default(),
-        );
-
         let agent_id = json
             .get("conversationId")
             .and_then(|v| v.as_str())
             .and_then(|s| uuid::Uuid::parse_str(s).ok())
-            .unwrap_or_else(|| uuid::Uuid::nil());
+            .unwrap_or_else(uuid::Uuid::nil);
 
         match event_name {
             "SessionStart" => {
@@ -87,7 +82,7 @@ impl AntigravityHook {
                     .as_str()
                     .or_else(|| json["task"].as_str())
                     .or_else(|| json["prompt"].as_str())
-                    .map(|s| Self::extract_clean_text(s));
+                    .map(Self::extract_clean_text);
                 Some(AgentEvent {
                     id: agent_id,
                     timestamp: chrono::Utc::now(),
@@ -266,20 +261,15 @@ impl AgentHook for AntigravityHook {
 
                             // If it's a newly discovered conversation in this session, don't replay history
                             // Just set the cursor to the end, minus 2 lines to catch the very message that triggered this
-                            let cursor =
-                                file_cursors.entry(transcript.clone()).or_insert_with(|| {
-                                    if current_count > 2 {
-                                        current_count - 2
-                                    } else {
-                                        0
-                                    }
-                                });
+                            let cursor = file_cursors
+                                .entry(transcript.clone())
+                                .or_insert_with(|| current_count.saturating_sub(2));
 
                             let agent_id = dir
                                 .file_name()
                                 .and_then(|os_str| os_str.to_str())
                                 .and_then(|s| uuid::Uuid::parse_str(s).ok())
-                                .unwrap_or_else(|| uuid::Uuid::nil());
+                                .unwrap_or_else(uuid::Uuid::nil);
 
                             if current_count > *cursor {
                                 for line in &lines[*cursor..] {

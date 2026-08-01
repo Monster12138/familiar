@@ -223,13 +223,17 @@ impl StateMachine {
 
         tracing::info!(
             agent_id = %agent_id,
-            event = ?event.event_type,
+            event_type = event.event_type.kind(),
             mood = ?state.mood,
             "State updated from event"
         );
     }
 
-    fn update_mood(state: &mut RenderState, now: chrono::DateTime<chrono::Utc>, sleep_timeout_secs: i64) {
+    fn update_mood(
+        state: &mut RenderState,
+        now: chrono::DateTime<chrono::Utc>,
+        sleep_timeout_secs: i64,
+    ) {
         if state
             .agents
             .iter()
@@ -255,7 +259,9 @@ impl StateMachine {
         {
             state.mood = FamiliarMood::Watching;
         } else {
-            let idle_secs = now.signed_duration_since(state.last_activity_at).num_seconds();
+            let idle_secs = now
+                .signed_duration_since(state.last_activity_at)
+                .num_seconds();
             if idle_secs >= sleep_timeout_secs {
                 state.mood = FamiliarMood::Sleepy;
             } else {

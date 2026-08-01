@@ -89,7 +89,10 @@ async fn notify_handler(State(state): State<AppState>, Json(mut payload): Json<V
         .to_string();
 
     if let Some(obj) = payload["payload"].as_object_mut() {
-        obj.insert("hook_event_name".to_string(), Value::String(event_name.clone()));
+        obj.insert(
+            "hook_event_name".to_string(),
+            Value::String(event_name.clone()),
+        );
     }
 
     let data = &payload["payload"];

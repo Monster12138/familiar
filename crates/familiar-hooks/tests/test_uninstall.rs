@@ -1,5 +1,5 @@
-use familiar_hooks::hook_trait::AgentHook;
 use familiar_hooks::antigravity::AntigravityHook;
+use familiar_hooks::hook_trait::AgentHook;
 
 #[test]
 fn test_it() {
