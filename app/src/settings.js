@@ -42,6 +42,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Sprite pack UI elements
     const convertFileSrc = window.__TAURI__.core.convertFileSrc || ((p) => p);
     const spritePackGrid = document.getElementById('sprite-pack-grid');
+    const btnOpenSpriteDir = document.getElementById('btn-open-sprite-dir');
     const btnImportPack = document.getElementById('btn-import-pack');
     const fileImportPack = document.getElementById('file-import-pack');
 
@@ -438,9 +439,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!activeSprite) {
                 try {
                     const activePack = await invoke('get_active_sprite_pack');
-                    activeSprite = activePack?.manifest?.id || 'default-cat';
+                    activeSprite = activePack?.manifest?.id || 'british-blue';
                 } catch (_) {
-                    activeSprite = 'default-cat';
+                    activeSprite = 'british-blue';
                 }
             }
 
@@ -522,6 +523,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) {
             console.error("Failed to load sprite packs:", e);
         }
+    }
+
+    if (btnOpenSpriteDir) {
+        btnOpenSpriteDir.addEventListener('click', async () => {
+            try {
+                await invoke('open_sprite_dir');
+            } catch (e) {
+                console.error("Failed to open sprite directory:", e);
+            }
+        });
     }
 
     if (btnImportPack && fileImportPack) {

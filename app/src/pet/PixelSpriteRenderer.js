@@ -98,7 +98,7 @@ export class PixelSpriteRenderer extends SpriteRenderer {
             return this.packInfo.state_urls[fileName];
         }
 
-        const packId = this.manifest.id || this.manifest.name || 'default-cat';
+        const packId = this.manifest.id || this.manifest.name || 'british-blue';
         if (this.packInfo && !this.packInfo.is_builtin && this.packInfo.path) {
             try {
                 return convertFileSrc(`${this.packInfo.path}/${fileName}`);

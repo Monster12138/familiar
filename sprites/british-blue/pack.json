@@ -1,12 +1,12 @@
 {
   "format_version": 1,
-  "id": "default-cat",
-  "name": "默认像素猫",
-  "author": "Familiar Team",
+  "id": "british-blue",
+  "name": "皮蛋",
+  "author": "Familiar",
   "created_at": "2026-07-31",
-  "email": "support@familiar-agent.org",
+  "email": "glcoding@qq.com",
   "version": "1.0.0",
-  "description": "Familiar 官方默认像素猫显示素材包",
+  "description": "极简像素风格蓝猫",
   "preview": "idle.png",
   "states": {
     "idle": "idle.png",

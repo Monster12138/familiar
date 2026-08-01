@@ -373,6 +373,7 @@ fn main() {
             commands::get_sprite_packs,
             commands::import_sprite_pack,
             commands::get_active_sprite_pack,
+            commands::open_sprite_dir,
             commands::quit_app,
             drag_main_window,
         ])

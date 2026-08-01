@@ -230,10 +230,10 @@ impl SpritePackManager {
             anyhow!("Invalid sprite pack manifest: {e}")
         })?;
 
-        Self::validate_manifest(&info.manifest).map_err(|e| {
+        if let Err(e) = Self::validate_manifest(&info.manifest) {
             let _ = fs::remove_dir_all(&temp_dir);
-            e
-        })?;
+            return Err(e);
+        }
 
         let pack_id = info.manifest.id.clone();
         let target_dir = user_dir.join(&pack_id);

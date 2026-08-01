@@ -294,7 +294,7 @@ pub fn get_active_sprite_pack(app_handle: tauri::AppHandle) -> Result<SpritePack
         return Ok(pack.clone());
     }
 
-    if let Some(pack) = packs.iter().find(|p| p.manifest.id == "default-cat") {
+    if let Some(pack) = packs.iter().find(|p| p.manifest.id == "british-blue") {
         return Ok(pack.clone());
     }
 
@@ -303,4 +303,11 @@ pub fn get_active_sprite_pack(app_handle: tauri::AppHandle) -> Result<SpritePack
     }
 
     Err(format!("Sprite pack '{}' not found", active_id))
+}
+
+#[tauri::command]
+pub fn open_sprite_dir() -> Result<(), String> {
+    let dir = SpritePackManager::get_user_sprite_dir();
+    let _ = std::fs::create_dir_all(&dir);
+    open::that(&dir).map_err(|e| e.to_string())
 }

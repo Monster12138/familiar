@@ -43,6 +43,7 @@ export const translations = {
 
         'group_pet_pack': '素材包管理',
         'desc_pet_pack': '管理与切换桌面宠物显示的素材包，支持从外部导入 .fpack 格式的素材包',
+        'btn_open_sprite_dir': '打开文件夹',
         'btn_import_pack': '导入素材包',
         'lbl_pack_author': '作者',
         'lbl_pack_created': '创作时间',
@@ -161,6 +162,7 @@ export const translations = {
 
         'group_pet_pack': 'Sprite Pack Management',
         'desc_pet_pack': 'Manage and switch desktop pet sprite packs. Import .fpack format sprite packs from external sources',
+        'btn_open_sprite_dir': 'Open Folder',
         'btn_import_pack': 'Import Pack',
         'lbl_pack_author': 'Author',
         'lbl_pack_created': 'Created',
@@ -231,6 +233,13 @@ export function applyTranslations(lang) {
                     el.innerHTML = dict[key];
                 }
             }
+        }
+    });
+
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        if (dict[key]) {
+            el.title = dict[key];
         }
     });
 }

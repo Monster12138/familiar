@@ -124,7 +124,7 @@ impl Default for FamiliarConfig {
             renderer: RendererConfig {
                 enabled: vec!["desktop-pet".to_string(), "menu-bar".to_string()],
                 desktop_pet: DesktopPetConfig {
-                    sprite: "default-cat".to_string(),
+                    sprite: "british-blue".to_string(),
                     scale: 2.0,
                     position: "bottom-right".to_string(),
                     always_on_top: true,

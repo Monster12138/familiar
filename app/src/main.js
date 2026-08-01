@@ -91,7 +91,7 @@ async function loadActiveSpritePack() {
     } catch (e) {
         console.error("Failed to load active sprite pack via command, trying fallback", e);
         try {
-            const manifest = await fetchManifest("default-cat");
+            const manifest = await fetchManifest("british-blue");
             await renderer.loadSpritePack(manifest);
             renderer.playAnimation("idle");
         } catch (err) {

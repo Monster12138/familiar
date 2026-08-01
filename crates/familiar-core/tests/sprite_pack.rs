@@ -28,8 +28,10 @@ fn test_parse_sprite_pack_manifest() {
 fn test_discover_default_cat_pack() {
     let packs = SpritePackManager::discover_packs();
     assert!(!packs.is_empty(), "Should discover built-in sprite packs");
-    let has_default = packs.iter().any(|p| p.manifest.id == "default-cat");
-    assert!(has_default, "Should discover default-cat");
+    let has_default = packs
+        .iter()
+        .any(|p| p.manifest.id == "british-blue" || p.manifest.id == "tabby-cat");
+    assert!(has_default, "Should discover built-in packs");
 }
 
 #[test]

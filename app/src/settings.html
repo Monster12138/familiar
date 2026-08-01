@@ -161,8 +161,19 @@
                             <h2 data-i18n="group_pet_pack">素材包管理</h2>
                             <p data-i18n="desc_pet_pack" style="color:var(--text-muted);font-size:13px;margin: 4px 0 0 0;">管理与切换桌面宠物显示的素材包，支持从外部导入 .fpack 格式的素材包</p>
                         </div>
-                        <div>
-                            <button id="btn-import-pack" class="secondary-btn btn-sm" data-i18n="btn_import_pack" style="white-space:nowrap;">+ 导入素材包</button>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <button id="btn-open-sprite-dir" class="secondary-btn btn-sm" data-i18n-title="btn_open_sprite_dir" title="打开素材文件夹" style="display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; padding:0;">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                                </svg>
+                            </button>
+                            <button id="btn-import-pack" class="secondary-btn btn-sm" data-i18n-title="btn_import_pack" title="导入素材包" style="display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; padding:0;">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="17 8 12 3 7 8"></polyline>
+                                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                                </svg>
+                            </button>
                             <input type="file" id="file-import-pack" accept=".fpack" style="display:none;" />
                         </div>
                     </div>
