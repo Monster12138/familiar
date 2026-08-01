@@ -575,7 +575,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 'watching': t('state_watching', lang),
             };
 
-            Object.entries(states).forEach(([stateKey, fileName]) => {
+            const standardOrder = ['idle', 'working', 'thinking', 'interacting', 'happy', 'celebrating', 'alarmed', 'sleeping', 'watching'];
+
+            const sortedEntries = Object.entries(states).sort(([a], [b]) => {
+                let idxA = standardOrder.indexOf(a);
+                let idxB = standardOrder.indexOf(b);
+                if (idxA === -1) idxA = 999;
+                if (idxB === -1) idxB = 999;
+                if (idxA !== idxB) return idxA - idxB;
+                return a.localeCompare(b);
+            });
+
+            sortedEntries.forEach(([stateKey, fileName]) => {
                 let imgSrc = '';
                 if (pack.is_builtin) {
                     imgSrc = `/sprites/${manifest.id}/${fileName}`;
