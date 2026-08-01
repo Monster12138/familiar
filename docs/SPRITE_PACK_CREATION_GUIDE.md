@@ -32,12 +32,12 @@ my-custom-pet/
 {
   "format_version": 1,
   "id": "my-custom-pet",
-  "name": "我的像素小狗",
+  "name": "我的像素小猫",
   "author": "开发者小明",
   "created_at": "2026-08-01",
   "email": "xiaoming@example.com",
   "version": "1.0.0",
-  "description": "基于个人宠物照片生成的 AI 像素风桌面宠物",
+  "description": "基于个人宠物照片生成的 AI 极简像素风桌面宠物",
   "preview": "idle.png",
   "states": {
     "idle": "idle.png",
@@ -48,13 +48,14 @@ my-custom-pet/
     "sleeping": "sleeping.png",
     "celebrating": "happy.png",
     "watching": "thinking.png"
-  }
+  },
+  "sha256": "6bfad07af8469b061b4d44a3acb0c567b71f96238628c1ddcfaa34373ecee1ce"
 }
 ```
 
 ### 字段说明：
 - `format_version`: **[必需]** 素材格式版本号，当前版本为 `1`。
-- `id`: **[必需]** 素材包唯一标识符（建议全小写，中划线分隔，如 `my-cat-pack`）。
+- `id`: **[必需]** 素材包唯一标识符（建议全小写，中划线分隔，如 `tabby-cat`）。
 - `name`: **[必需]** 显示在设置面板中的素材包名称。
 - `author`: **[必需]** 作者姓名或昵称。
 - `created_at`: 创作日期 (YYYY-MM-DD)。
@@ -63,60 +64,110 @@ my-custom-pet/
 - `description`: 素材包简介描述。
 - `preview`: 预览图文件名。
 - `states`: **[必需]** 状态与图片文件映射表。必须至少包含 `idle` 键。
+- `sha256`: **[可选]** 素材包除了 `pack.json` 之外所有资源文件的 sha256 校验和。
 
 ---
 
-## 三、AI 素材生成与处理全流程
+## 三、AI 素材生成与风格指导
 
-### 步骤 1：主体提取 (移除背景)
-从输入的实拍图片中提取宠物主体，保留透明通道 (Alpha Channel)：
-- **命令行工具 (推荐)**：使用 `rembg`
-  ```bash
-  pip install rembg
-  rembg i input_pet.jpg subject.png
-  ```
-- **图形工具**：Photoshop「快速选择工具」->「选择主体」->「抠图导出透明 PNG」。
-- **在线工具**：使用 Remove.bg 或 Removebg 在线工具。
+### 1. 官方推荐风格：极简 2D 复古像素风 (Minimal Retro Pixel Style)
 
----
+官方默认素材（如 `british-blue` 皮蛋、`tabby-cat` 小虎）采用的是**极简复古 2D 像素风格**，具有高对比度、清晰可爱、占用分辨率小等显著优点。
 
-### 步骤 2：AI 像素风格重绘与状态变体生成
-
-将提取出的主体 `subject.png` 导入 AI 绘画工具（Midjourney, Stable Diffusion 或 ComfyUI），生成不同状态的像素风图像：
-
-#### 常用 AI Prompt 模板 (以 Midjourney / SD 为例)
-
-1. **基础 Prompt**：
-   > `pixel art, 16-bit pixel art style, sprite sheet element, transparent background, isolated subject, [Subject Description]`
-
-2. **状态变体 Prompt 提示词**：
-   - **`idle` (待命状态)**:
-     `... standing naturally, looking forward, cute, pixel art, transparent background`
-   - **`working` (敲代码/忙碌中)**:
-     `... sitting at a tiny desk, typing furiously on a mechanical keyboard, laptop, sparks, focused expression, pixel art`
-   - **`thinking` (思考中)**:
-     `... hand on chin, looking up thoughtfully, small question mark bubble overhead, pixel art`
-   - **`happy` (庆祝/完成)**:
-     `... jumping joyfully, cheering with arms up, sparkles, party confetti, happy face, pixel art`
-   - **`alarmed` (异常/警告)**:
-     `... shocked pose, sweat drop, exclamation mark overhead, wide open eyes, pixel art`
-   - **`sleeping` (休眠)**:
-     `... curled up peacefully, eyes closed, small Zzz bubbles, pixel art`
+#### 核心视觉特征：
+- **粗黑像素外描边 (Bold Black Outline)**：1-2 像素宽度的黑色描边包裹角色轮廓，确保角色的任意动态在各种不同桌面壁纸（深色/浅色/复杂壁纸）上都能极高辨识度凸显。
+- **大圆眼/经典复古眼 (Big Round Retro Eyes)**：大面积圆形白色眼眶结合黑色小眼珠，形象生动讨喜。
+- **平铺色块 (Flat Color Palette)**：减少复杂的渐变与光影细节，使用少色彩的平铺色块填充，保持极简感。
+- **闭合描边防透光**：确保主体描边闭合，方便在抠图阶段将内部白色（如白下巴、白脚掌、Zzz 气泡）完整保留。
 
 ---
 
-### 步骤 3：像素化后处理与尺寸规范
+### 2. Prompt 提示词工程模板
 
-1. **分辨率调整**：
-   将 AI 生成的各状态图片统一缩放至 **128x128** 或 **256x256** 像素。使用邻近插值（Nearest Neighbor）保持像素边缘不模糊。
-2. **透明度检查**：
-   确保图片的背景完全透明（无杂色像素），避免桌面宠物周围出现不必要的硬方块。
+在生成极简像素风素材时，建议使用以下 Prompt 结构：
+
+#### 基础通用 Prompt 模板：
+> `Minimal 2D pixel art game character, strictly in retro minimalist pixel sprite style, bold black pixel outline, big cute round white eyes, clean minimal pixel sprite, isolated sprite, solid white background, [Subject Features]`
+
+#### 状态变体 Prompt 提示词：
+
+1. **`idle` (待命/空闲)**:
+   > `Minimal 2D pixel art character of [Subject Description] with thick black outline and big round eyes, standing naturally, clean minimal pixel sprite, solid white background`
+
+2. **`working` (敲代码/工作)**:
+   > `Same minimal 2D pixel art character of [Subject Description] with thick black outline. Sitting at a small laptop typing on keyboard, focused pose, clean minimal pixel sprite, solid white background`
+
+3. **`thinking` (思考中)**:
+   > `Same minimal 2D pixel art character of [Subject Description] with thick black outline. Paw on chin looking up thoughtfully, small question mark bubble overhead, clean minimal pixel sprite, solid white background`
+
+4. **`happy` (庆祝/成功)**:
+   > `Same minimal 2D pixel art character of [Subject Description] with thick black outline. Standing on hind legs cheering happily with paws up, sparkles around, happy face, clean minimal pixel sprite, solid white background`
+
+5. **`alarmed` (异常/警告)**:
+   > `Same minimal 2D pixel art character of [Subject Description] with thick black outline. Shocked expression, wide eyes, sweat drop on head, clean minimal pixel sprite, solid white background`
+
+6. **`sleeping` (休眠)**:
+   > `Same minimal 2D pixel art character of [Subject Description] with thick black outline. Curled up sleeping peacefully, eyes closed, small Zzz speech bubble, clean minimal pixel sprite, solid white background`
+
+> **提示词技巧**：在生成 2 - 6 种状态时，一定要将 `idle.png` 作为 Image Reference 输入给 AI 模型，并在 Prompt 开头加上 `"Same minimal 2D pixel art character of ..."` 保持角色的统一性。
 
 ---
 
-## 四、打包导出为 `.fpack`
+## 四、图像后处理与背景抠图 (BFS 连通填充)
 
-将整理好的素材文件与 `pack.json` 放入同一文件夹，在终端中切入该文件夹执行打包：
+### 1. 透明背景处理要点
+- 绝对**不要使用简单的全局阈值过滤（Global Thresholding）**，否则角色体内的白色部位（白脚掌、白下巴、`Zzz` 气泡填色）会被误扣成透明孔。
+- 应该使用**边缘连通泛滥填充算法 (BFS / DFS Flood Fill)** 或专业的背景提取算法（如 `rembg`），从图像外围四角（0, 0）开始遍历填充，遇到黑色描边时终止，只剥离纯外围背景。
+
+```python
+# Python BFS 示例：仅消除外围背景，保留角色内部白色部位
+import collections
+from PIL import Image
+
+def remove_outer_background(image_path, save_path):
+    img = Image.open(image_path).convert('RGBA')
+    width, height = img.size
+    pixels = img.load()
+
+    def is_white(r, g, b):
+        return r > 230 and g > 230 and b > 230
+
+    visited = set()
+    queue = collections.deque()
+
+    # 将图片四条边缘的白色像素入队
+    for x in range(width):
+        for y in (0, height - 1):
+            if is_white(*pixels[x, y][:3]) and (x, y) not in visited:
+                visited.add((x, y))
+                queue.append((x, y))
+    for y in range(height):
+        for x in (0, width - 1):
+            if is_white(*pixels[x, y][:3]) and (x, y) not in visited:
+                visited.add((x, y))
+                queue.append((x, y))
+
+    # BFS 广度优先搜索泛滥填充
+    while queue:
+        cx, cy = queue.popleft()
+        # 仅将最外层连通背景的 Alpha 设为 0
+        pixels[cx, cy] = (0, 0, 0, 0)
+
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            nx, ny = cx + dx, cy + dy
+            if 0 <= nx < width and 0 <= ny < height and (nx, ny) not in visited:
+                if is_white(*pixels[nx, ny][:3]):
+                    visited.add((nx, ny))
+                    queue.append((nx, ny))
+
+    img.save(save_path, 'PNG')
+```
+
+---
+
+## 五、打包导出为 `.fpack`
+
+整理好 `pack.json` 和所有的图片资源后，在终端中执行打包命令：
 
 ```bash
 # 进入素材包文件夹
@@ -128,10 +179,10 @@ zip -r ../my-custom-pet.fpack pack.json *.png
 
 ---
 
-## 五、在 Familiar 中导入与验证
+## 六、在 Familiar 中导入与验证
 
 1. 启动 **Familiar** 桌面应用。
-2. 点击托盘或右键菜单中的 **【设置】**（Settings）。
+2. 点击应用面板顶部的 **【设置】**。
 3. 切换至 **【偏好】->【宠物素材】** 栏目。
-4. 点击 **【+ 导入素材包】** 按钮，选择刚才生成的 `my-custom-pet.fpack` 文件。
-5. 导入成功后，在列表卡片中点击 **【使用此素材包】** 即可实时切换桌面宠物！
+4. 点击 **【导入素材包】图标**，选择刚才生成的 `my-custom-pet.fpack` 文件。
+5. 点击 **【打开文件夹】图标** 可随时打开存放素材的本地目录 (`~/.config/familiar/sprites`) 进行手动管理。
