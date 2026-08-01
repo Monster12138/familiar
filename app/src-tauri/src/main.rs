@@ -306,8 +306,54 @@ fn main() {
 
             Ok(())
         })
-        .on_window_event(|_window, _event| {
-            // no window event handling needed for single window
+        .on_window_event({
+            use std::sync::{Arc, Mutex};
+            use std::time::{Duration, Instant};
+            use tauri::Manager;
+
+            let pos_state = Arc::new(Mutex::new((None::<(i32, i32)>, Instant::now(), false)));
+
+            move |window, event| {
+                if window.label() == "main" {
+                    if let tauri::WindowEvent::Moved(pos) = event {
+                        let mut lock = pos_state.lock().unwrap();
+                        lock.0 = Some((pos.x, pos.y));
+                        lock.1 = Instant::now();
+
+                        if !lock.2 {
+                            lock.2 = true;
+                            let pos_state_clone = pos_state.clone();
+                            let app_handle = window.app_handle().clone();
+                            tauri::async_runtime::spawn(async move {
+                                loop {
+                                    tokio::time::sleep(Duration::from_millis(500)).await;
+                                    let (target_pos, should_save) = {
+                                        let mut lock = pos_state_clone.lock().unwrap();
+                                        if lock.1.elapsed() >= Duration::from_millis(500) {
+                                            lock.2 = false;
+                                            (lock.0, true)
+                                        } else {
+                                            (None, false)
+                                        }
+                                    };
+
+                                    if should_save {
+                                        if let Some((x, y)) = target_pos {
+                                            let mut config =
+                                                crate::commands::load_config_from_paths();
+                                            config.renderer.desktop_pet.position =
+                                                format!("{},{}", x, y);
+                                            let _ =
+                                                crate::commands::save_config(app_handle, config);
+                                        }
+                                        break;
+                                    }
+                                }
+                            });
+                        }
+                    }
+                }
+            }
         })
         .invoke_handler(tauri::generate_handler![
             commands::greet,

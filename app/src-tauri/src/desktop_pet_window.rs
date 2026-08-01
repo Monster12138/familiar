@@ -50,6 +50,14 @@ pub fn apply_settings(
         .set_visible_on_all_workspaces(config.show_on_all_desktops)
         .map_err(|error| error.to_string())?;
 
+    if let Some((x_str, y_str)) = config.position.split_once(',') {
+        if let (Ok(x), Ok(y)) = (x_str.parse::<i32>(), y_str.parse::<i32>()) {
+            let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition::new(
+                x, y,
+            )));
+        }
+    }
+
     #[cfg(target_os = "macos")]
     apply_macos_desktop_behavior(window, config.show_on_all_desktops)?;
 

@@ -273,7 +273,9 @@ use tauri::Manager;
 #[tauri::command]
 pub fn get_sprite_packs(app_handle: tauri::AppHandle) -> Result<Vec<SpritePackInfo>, String> {
     let resource_dir = app_handle.path().resource_dir().ok();
-    Ok(SpritePackManager::discover_packs_with_extra(resource_dir.as_deref()))
+    Ok(SpritePackManager::discover_packs_with_extra(
+        resource_dir.as_deref(),
+    ))
 }
 
 #[tauri::command]
