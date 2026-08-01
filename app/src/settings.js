@@ -46,6 +46,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btnImportPack = document.getElementById('btn-import-pack');
     const fileImportPack = document.getElementById('file-import-pack');
 
+    // Preview modal elements
+    const previewModalOverlay = document.getElementById('preview-modal-overlay');
+    const previewModalSubInfo = document.getElementById('preview-modal-sub-info');
+    const previewModalStateGrid = document.getElementById('preview-modal-state-grid');
+    const btnClosePreviewModal = document.getElementById('btn-close-preview-modal');
+
     let currentConfig = {};
     let autoSaveTimer = null;
     let currentActiveAgents = [];
@@ -489,8 +495,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                         ${manifest.created_at ? `<span>${t('lbl_pack_created', lang)}: ${manifest.created_at}</span>` : ''}
                         ${manifest.email ? `<span>${t('lbl_pack_email', lang)}: ${manifest.email}</span>` : ''}
                     </div>
-                    <div class="sprite-pack-footer">
-                        <button class="sprite-pack-use-btn ${isActive ? 'in-use' : 'secondary-btn'}" ${isActive ? 'disabled' : ''}>
+                    <div class="sprite-pack-footer" style="display:flex; gap:8px;">
+                        <button class="secondary-btn btn-sm btn-preview-pack" style="white-space:nowrap; display:inline-flex; align-items:center; gap:4px; padding: 6px 10px;">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            <span data-i18n="btn_preview_pack">${t('btn_preview_pack', lang)}</span>
+                        </button>
+                        <button class="sprite-pack-use-btn ${isActive ? 'in-use' : 'secondary-btn'}" ${isActive ? 'disabled' : ''} style="flex:1;">
                             ${buttonText}
                         </button>
                     </div>
@@ -505,6 +518,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                             imgEl.style.opacity = '0.2';
                         }
                     };
+                }
+
+                const previewBtn = card.querySelector('.btn-preview-pack');
+                if (previewBtn) {
+                    previewBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        openPreviewModal(pack);
+                    });
                 }
 
                 if (!isActive) {
@@ -523,6 +544,76 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) {
             console.error("Failed to load sprite packs:", e);
         }
+    }
+
+    function openPreviewModal(pack) {
+        if (!previewModalOverlay || !pack || !pack.manifest) return;
+        const manifest = pack.manifest;
+        const lang = elLanguage ? elLanguage.value : 'zh-CN';
+
+        if (previewModalSubInfo) {
+            previewModalSubInfo.innerHTML = `
+                <span class="pack-name">${manifest.name}</span>
+                <span>v${manifest.version || '1.0.0'}</span>
+                <span>(${pack.is_builtin ? t('lbl_builtin', lang) : t('lbl_custom', lang)})</span>
+            `;
+        }
+
+        if (previewModalStateGrid) {
+            previewModalStateGrid.innerHTML = '';
+            const states = manifest.states || {};
+
+            Object.entries(states).forEach(([stateKey, fileName]) => {
+                let imgSrc = '';
+                if (pack.is_builtin) {
+                    imgSrc = `/sprites/${manifest.id}/${fileName}`;
+                } else {
+                    imgSrc = convertFileSrc(`${pack.path}/${fileName}`);
+                }
+
+                const item = document.createElement('div');
+                item.className = 'preview-state-item';
+                item.innerHTML = `
+                    <div class="preview-state-box">
+                        <img src="${imgSrc}" alt="${stateKey}" />
+                    </div>
+                    <div class="preview-state-name">${stateKey}</div>
+                    <div class="preview-state-filename">${fileName}</div>
+                `;
+
+                const stateImg = item.querySelector('img');
+                if (stateImg) {
+                    stateImg.onerror = () => {
+                        if (pack.path) {
+                            stateImg.src = convertFileSrc(`${pack.path}/${fileName}`);
+                        } else {
+                            stateImg.style.opacity = '0.2';
+                        }
+                    };
+                }
+
+                previewModalStateGrid.appendChild(item);
+            });
+        }
+
+        previewModalOverlay.classList.add('active');
+    }
+
+    function closePreviewModal() {
+        if (previewModalOverlay) {
+            previewModalOverlay.classList.remove('active');
+        }
+    }
+
+    if (btnClosePreviewModal) {
+        btnClosePreviewModal.addEventListener('click', closePreviewModal);
+    }
+    if (previewModalOverlay) {
+        previewModalOverlay.addEventListener('click', (e) => {
+            if (e.target === previewModalOverlay) {
+                closePreviewModal();
+            }
+        });
     }
 
     if (btnOpenSpriteDir) {
