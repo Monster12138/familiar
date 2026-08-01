@@ -324,6 +324,9 @@ fn main() {
             commands::get_config_content,
             commands::preview_inject_hook,
             commands::preview_uninstall_hook,
+            commands::get_sprite_packs,
+            commands::import_sprite_pack,
+            commands::get_active_sprite_pack,
             commands::quit_app,
             drag_main_window,
         ])

@@ -15,3 +15,5 @@ tracing = { workspace = true }
 anyhow = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-appender = { workspace = true }
+dirs = "6.0.0"
+zip = { version = "2.2", default-features = false, features = ["deflate"] }

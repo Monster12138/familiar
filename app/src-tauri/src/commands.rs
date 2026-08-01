@@ -265,3 +265,40 @@ pub fn preview_uninstall_hook(agent: &str) -> Result<DiffPreview, String> {
     }
     Err("Unknown agent".into())
 }
+
+use familiar_core::sprite_pack::{SpritePackInfo, SpritePackManager};
+
+use tauri::Manager;
+
+#[tauri::command]
+pub fn get_sprite_packs(app_handle: tauri::AppHandle) -> Result<Vec<SpritePackInfo>, String> {
+    let resource_dir = app_handle.path().resource_dir().ok();
+    Ok(SpritePackManager::discover_packs_with_extra(resource_dir.as_deref()))
+}
+
+#[tauri::command]
+pub fn import_sprite_pack(path: String) -> Result<SpritePackInfo, String> {
+    SpritePackManager::import_pack(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_active_sprite_pack(app_handle: tauri::AppHandle) -> Result<SpritePackInfo, String> {
+    let config = load_config_from_paths();
+    let active_id = config.renderer.desktop_pet.sprite;
+
+    let resource_dir = app_handle.path().resource_dir().ok();
+    let packs = SpritePackManager::discover_packs_with_extra(resource_dir.as_deref());
+    if let Some(pack) = packs.iter().find(|p| p.manifest.id == active_id) {
+        return Ok(pack.clone());
+    }
+
+    if let Some(pack) = packs.iter().find(|p| p.manifest.id == "default-cat") {
+        return Ok(pack.clone());
+    }
+
+    if let Some(pack) = packs.into_iter().next() {
+        return Ok(pack);
+    }
+
+    Err(format!("Sprite pack '{}' not found", active_id))
+}

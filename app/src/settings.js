@@ -39,6 +39,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const autoSaveText = document.getElementById('auto-save-text');
     const sessionListContainer = document.getElementById('session-list-container');
 
+    // Sprite pack UI elements
+    const convertFileSrc = window.__TAURI__.core.convertFileSrc || ((p) => p);
+    const spritePackGrid = document.getElementById('sprite-pack-grid');
+    const btnImportPack = document.getElementById('btn-import-pack');
+    const fileImportPack = document.getElementById('file-import-pack');
+
     let currentConfig = {};
     let autoSaveTimer = null;
     let currentActiveAgents = [];
@@ -394,6 +400,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (e) {
         console.error("Failed to load config", e);
     }
+
+    // Load sprite packs (must be after DOM and config are ready)
+    await loadAndRenderSpritePacks();
     
     // Copy buttons logic
     document.querySelectorAll('.modal-path-copy').forEach(btn => {
@@ -419,9 +428,135 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
+    async function loadAndRenderSpritePacks() {
+        if (!spritePackGrid) return;
+        try {
+            const packs = await invoke('get_sprite_packs');
+
+            // Determine active sprite: prefer config, then query backend, then default
+            let activeSprite = currentConfig.renderer?.['desktop-pet']?.sprite;
+            if (!activeSprite) {
+                try {
+                    const activePack = await invoke('get_active_sprite_pack');
+                    activeSprite = activePack?.manifest?.id || 'default-cat';
+                } catch (_) {
+                    activeSprite = 'default-cat';
+                }
+            }
+
+            const lang = elLanguage ? elLanguage.value : 'zh-CN';
+
+            spritePackGrid.innerHTML = '';
+
+            if (!packs || packs.length === 0) {
+                spritePackGrid.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:16px;">未找到可用的素材包</div>`;
+                return;
+            }
+
+            packs.forEach(pack => {
+                const manifest = pack.manifest;
+                const isActive = manifest.id === activeSprite;
+
+                let previewSrc = '';
+                const previewFile = manifest.preview || 'idle.png';
+                if (pack.is_builtin) {
+                    previewSrc = `/sprites/${manifest.id}/${previewFile}`;
+                } else {
+                    previewSrc = convertFileSrc(`${pack.path}/${previewFile}`);
+                }
+
+                const card = document.createElement('div');
+                card.className = `sprite-pack-card ${isActive ? 'active' : ''}`;
+
+                const badgeClass = pack.is_builtin ? 'builtin' : 'custom';
+                const badgeText = pack.is_builtin ? t('lbl_builtin', lang) : t('lbl_custom', lang);
+                const buttonText = isActive ? t('lbl_in_use', lang) : t('btn_use_pack', lang);
+
+                card.innerHTML = `
+                    <div class="sprite-pack-header">
+                        <div class="sprite-pack-preview">
+                            <img src="${previewSrc}" alt="${manifest.name}" onerror="this.style.opacity='0.2'" />
+                        </div>
+                        <div class="sprite-pack-details">
+                            <div class="sprite-pack-title" title="${manifest.name}">${manifest.name}</div>
+                            <div class="sprite-pack-author">${t('lbl_pack_author', lang)}: ${manifest.author || 'Unknown'}</div>
+                        </div>
+                    </div>
+                    <div class="sprite-pack-desc">${manifest.description || ''}</div>
+                    <div class="sprite-pack-meta-row">
+                        <span class="sprite-pack-badge ${badgeClass}">${badgeText}</span>
+                        ${manifest.created_at ? `<span>${t('lbl_pack_created', lang)}: ${manifest.created_at}</span>` : ''}
+                        ${manifest.email ? `<span>${t('lbl_pack_email', lang)}: ${manifest.email}</span>` : ''}
+                    </div>
+                    <div class="sprite-pack-footer">
+                        <button class="sprite-pack-use-btn ${isActive ? 'in-use' : 'secondary-btn'}" ${isActive ? 'disabled' : ''}>
+                            ${buttonText}
+                        </button>
+                    </div>
+                `;
+
+                const imgEl = card.querySelector('.sprite-pack-preview img');
+                if (imgEl) {
+                    imgEl.onerror = () => {
+                        if (pack.path) {
+                            imgEl.src = convertFileSrc(`${pack.path}/${previewFile}`);
+                        } else {
+                            imgEl.style.opacity = '0.2';
+                        }
+                    };
+                }
+
+                if (!isActive) {
+                    const useBtn = card.querySelector('.sprite-pack-use-btn');
+                    useBtn.addEventListener('click', () => {
+                        if (!currentConfig.renderer) currentConfig.renderer = {};
+                        if (!currentConfig.renderer['desktop-pet']) currentConfig.renderer['desktop-pet'] = {};
+                        currentConfig.renderer['desktop-pet'].sprite = manifest.id;
+                        loadAndRenderSpritePacks();
+                        scheduleAutoSave();
+                    });
+                }
+
+                spritePackGrid.appendChild(card);
+            });
+        } catch (e) {
+            console.error("Failed to load sprite packs:", e);
+        }
+    }
+
+    if (btnImportPack && fileImportPack) {
+        btnImportPack.addEventListener('click', () => {
+            fileImportPack.click();
+        });
+
+        fileImportPack.addEventListener('change', async (e) => {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+            const file = files[0];
+            const filePath = file.path || file.name;
+            const lang = elLanguage ? elLanguage.value : 'zh-CN';
+
+            try {
+                const imported = await invoke('import_sprite_pack', { path: filePath });
+                if (imported && imported.manifest) {
+                    if (!currentConfig.renderer) currentConfig.renderer = {};
+                    if (!currentConfig.renderer['desktop-pet']) currentConfig.renderer['desktop-pet'] = {};
+                    currentConfig.renderer['desktop-pet'].sprite = imported.manifest.id;
+                    await loadAndRenderSpritePacks();
+                    scheduleAutoSave();
+                }
+            } catch (err) {
+                alert(t('msg_import_failed', lang) + err);
+            } finally {
+                fileImportPack.value = '';
+            }
+        });
+    }
+
     // Language setting update UI + auto save
     elLanguage.addEventListener('change', () => {
         applyTranslations(elLanguage.value);
+        loadAndRenderSpritePacks();
         scheduleAutoSave();
     });
 

@@ -5,11 +5,13 @@ export const translations = {
         'nav_pref': '偏好',
         'nav_general': '通用配置',
         'nav_pet': '显示配置',
+        'nav_pet_pack': '宠物素材',
         'nav_sys': '系统',
         'nav_hooks': 'Hooks',
         'nav_about': '关于',
         'title_general': '通用配置',
         'title_pet': '显示配置',
+        'title_pet_pack': '宠物素材包',
         'title_hooks': 'Hooks',
         'title_about': '关于',
         'group_general': '通用配置',
@@ -38,6 +40,20 @@ export const translations = {
         'desc_show_stats': '是否显示底部的系统状态仪表栏',
         'lbl_celebration_secs': '庆祝动作时长',
         'desc_celebration_secs': '任务完成后庆祝动画持续的秒数（1 - 15）',
+
+        'group_pet_pack': '素材包管理',
+        'desc_pet_pack': '管理与切换桌面宠物显示的素材包，支持从外部导入 .fpack 格式的素材包',
+        'btn_import_pack': '导入素材包',
+        'lbl_pack_author': '作者',
+        'lbl_pack_created': '创作时间',
+        'lbl_pack_email': '联系邮箱',
+        'lbl_builtin': '系统自带',
+        'lbl_custom': '自定义导入',
+        'btn_use_pack': '使用此素材包',
+        'lbl_in_use': '已使用',
+        'msg_import_success': '素材包导入成功！',
+        'msg_import_failed': '素材包导入失败: ',
+
         'group_ipc': 'Agent 进程间通信 (IPC)',
         'lbl_uds': 'Unix Domain Socket 路径',
         'desc_uds': '用于与本地原生 Agent 工具 (如 Antigravity, Claude Code) 进行极速通信的 UDS 文件路径。<br><span style="color:var(--text-muted);font-size:11px;">通常无需修改，保持默认即可。</span>',
@@ -96,12 +112,14 @@ export const translations = {
         'nav_pref': 'Preferences',
         'nav_general': 'General',
         'nav_pet': 'Display Config',
+        'nav_pet_pack': 'Pet Materials',
         'nav_sessions': 'Sessions',
         'nav_sys': 'System',
         'nav_hooks': 'Hooks',
         'nav_about': 'About',
         'title_general': 'General',
         'title_pet': 'Display Configuration',
+        'title_pet_pack': 'Pet Sprite Packs',
         'title_sessions': 'Sessions',
         'title_hooks': 'Hooks',
         'title_about': 'About',
@@ -140,6 +158,20 @@ export const translations = {
         'desc_show_stats': 'Show or hide the system status dashboard at the bottom',
         'lbl_celebration_secs': 'Celebration Duration',
         'desc_celebration_secs': 'How long (in seconds) the celebration animation plays after a task completes (1 - 15)',
+
+        'group_pet_pack': 'Sprite Pack Management',
+        'desc_pet_pack': 'Manage and switch desktop pet sprite packs. Import .fpack format sprite packs from external sources',
+        'btn_import_pack': 'Import Pack',
+        'lbl_pack_author': 'Author',
+        'lbl_pack_created': 'Created',
+        'lbl_pack_email': 'Email',
+        'lbl_builtin': 'Built-in',
+        'lbl_custom': 'Custom',
+        'btn_use_pack': 'Use Pack',
+        'lbl_in_use': 'In Use',
+        'msg_import_success': 'Sprite pack imported successfully!',
+        'msg_import_failed': 'Failed to import sprite pack: ',
+
         'group_familiar': 'Familiar',
         'lbl_version': 'Current Version',
         'desc_version': 'v1.0.0 (Beta) - Powered by Rust & Tauri 2.0',
@@ -186,13 +218,9 @@ export function applyTranslations(lang) {
             if (el.tagName === 'INPUT' && el.type === 'text' && el.placeholder) {
                 el.placeholder = dict[key];
             } else {
-                // If it contains child elements that we want to preserve, we might need a more complex update,
-                // but setting innerHTML is the easiest for now, especially with the <br> and <span> in descriptions.
-                // However, for buttons with SVGs inside, we need to be careful!
                 if (el.hasAttribute('data-i18n-html')) {
                     el.innerHTML = dict[key];
                 } else if (el.hasAttribute('data-i18n-text-only')) {
-                    // Update only text nodes to preserve SVGs
                     for (let child of el.childNodes) {
                         if (child.nodeType === Node.TEXT_NODE && child.textContent.trim().length > 0) {
                             child.textContent = ' ' + dict[key];

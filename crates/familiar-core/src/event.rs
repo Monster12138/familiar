@@ -23,28 +23,51 @@ pub enum AgentCategory {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AgentEventType {
     // Lifecycle
-    AgentStarted { instruction: Option<String> },
+    AgentStarted {
+        instruction: Option<String>,
+    },
     AgentStopped,
 
     // Core states
     Thinking,
-    Processing { description: String },
+    Processing {
+        description: String,
+    },
 
     // Coding specific
-    ReadingFile { path: String },
-    WritingFile { path: String },
-    RunningCommand { cmd: String, instruction: Option<String> },
-    SearchingCode { query: String },
-    BrowsingWeb { url: String },
+    ReadingFile {
+        path: String,
+    },
+    WritingFile {
+        path: String,
+    },
+    RunningCommand {
+        cmd: String,
+        instruction: Option<String>,
+    },
+    SearchingCode {
+        query: String,
+    },
+    BrowsingWeb {
+        url: String,
+    },
 
     // Results
-    TaskCompleted { summary: String },
-    TaskFailed { error: String },
+    TaskCompleted {
+        summary: String,
+    },
+    TaskFailed {
+        error: String,
+    },
     WaitingForInput,
 
     // Subagents
-    SubagentStarted { agent_type: String },
-    SubagentStopped { agent_type: String },
+    SubagentStarted {
+        agent_type: String,
+    },
+    SubagentStopped {
+        agent_type: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -11,8 +11,16 @@ let currentLang = 'en-US';
 window.celebrationMs = 4000; // default, updated from config
 
 async function fetchManifest(spriteName) {
-    const res = await fetch(`/sprites/${spriteName}/manifest.json`);
-    return await res.json();
+    try {
+        let res = await fetch(`/sprites/${spriteName}/pack.json`);
+        if (!res.ok) {
+            res = await fetch(`/sprites/${spriteName}/manifest.json`);
+        }
+        return await res.json();
+    } catch (e) {
+        console.error("fetchManifest failed", e);
+        throw e;
+    }
 }
 
 function setupContextMenu() {
@@ -70,6 +78,28 @@ function setupContextMenu() {
     }
 }
 
+let currentSpriteId = null;
+
+async function loadActiveSpritePack() {
+    try {
+        const packInfo = await invoke("get_active_sprite_pack");
+        if (packInfo && packInfo.manifest) {
+            currentSpriteId = packInfo.manifest.id;
+            await renderer.loadSpritePack(packInfo);
+            renderer.playAnimation("idle");
+        }
+    } catch (e) {
+        console.error("Failed to load active sprite pack via command, trying fallback", e);
+        try {
+            const manifest = await fetchManifest("default-cat");
+            await renderer.loadSpritePack(manifest);
+            renderer.playAnimation("idle");
+        } catch (err) {
+            console.error("Fallback load failed", err);
+        }
+    }
+}
+
 async function init() {
     const container = document.getElementById("pet-container");
     
@@ -81,12 +111,14 @@ async function init() {
     renderer.init(container);
 
     try {
-        const manifest = await fetchManifest("pixel-cat");
-        await renderer.loadSpritePack(manifest);
-        renderer.playAnimation("idle");
+        const config = await invoke("get_config");
+        await applyConfigToWindow(config);
     } catch (e) {
-        console.error("Failed to load sprite pack", e);
+        console.error("Failed to load initial config", e);
+        document.body.style.opacity = '1';
     }
+
+    await loadActiveSpritePack();
 
     // Listen for state changes from Rust Backend
     await listen("state_changed", (event) => {
@@ -128,15 +160,6 @@ async function init() {
     await listen("config_changed", (event) => {
         applyConfigToWindow(event.payload);
     });
-
-    try {
-        const config = await invoke("get_config");
-        applyConfigToWindow(config);
-    } catch (e) {
-        console.error("Failed to load initial config", e);
-    }
-
-    // Unified window architecture - no need to sync aux windows
 }
 
 let lastWidth = 0;
@@ -178,6 +201,10 @@ async function applyConfigToWindow(config) {
     
     const petConf = config.renderer['desktop-pet'];
     
+    if (petConf.sprite && currentSpriteId && petConf.sprite !== currentSpriteId) {
+        loadActiveSpritePack();
+    }
+
     document.body.style.opacity = petConf.opacity !== undefined ? petConf.opacity : 1;
     
     if (petConf.scale !== undefined && renderer) {

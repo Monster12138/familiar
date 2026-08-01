@@ -3,6 +3,7 @@ pub mod event;
 pub mod event_bus;
 pub mod logger;
 pub mod plugin;
+pub mod sprite_pack;
 pub mod state;
 pub mod state_machine;
 pub mod stats;

@@ -1,0 +1,22 @@
+{
+  "format_version": 1,
+  "id": "default-cat",
+  "name": "默认像素猫",
+  "author": "Familiar Team",
+  "created_at": "2026-07-31",
+  "email": "support@familiar-agent.org",
+  "version": "1.0.0",
+  "description": "Familiar 官方默认像素猫显示素材包",
+  "preview": "idle.png",
+  "states": {
+    "idle": "idle.png",
+    "thinking": "thinking.png",
+    "working": "working.png",
+    "happy": "happy.png",
+    "alarmed": "alarmed.png",
+    "sleeping": "sleeping.png",
+    "celebrating": "happy.png",
+    "watching": "thinking.png"
+  },
+  "sha256": "5fcfc8c7b3eecec1a8c361d3729599da7f263d8e5eca074c247bd32e032ef472"
+}

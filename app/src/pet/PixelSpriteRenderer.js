@@ -1,167 +1,169 @@
 import { SpriteRenderer } from './SpriteRenderer.js';
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { convertFileSrc } from "@tauri-apps/api/core";
 
 export class PixelSpriteRenderer extends SpriteRenderer {
     constructor() {
         super();
-        this.canvas = null;
-        this.ctx = null;
+        this.container = null;
+        this.imgElement = null;
+        this.offscreenCanvas = null;
+        this.offscreenCtx = null;
+        
+        this.packInfo = null;
         this.manifest = null;
-        this.spriteImage = null;
-        
         this.currentAnim = null;
-        this.currentFrameIndex = 0;
-        this.lastFrameTime = 0;
-        this.animationId = null;
-        
-        this.frameWidth = 0;
-        this.frameHeight = 0;
+        this.currentAssetUrl = null;
     }
 
     init(container) {
-        this.canvas = document.createElement('canvas');
-        this.canvas.style.display = 'block';
-        this.canvas.style.imageRendering = 'pixelated';
-        
-        this.ctx = this.canvas.getContext('2d');
-        // Ensure crisp pixels
-        this.ctx.imageSmoothingEnabled = false;
+        this.container = container;
+        container.innerHTML = '';
 
-        // Pixel-perfect drag using canvas alpha channel
-        this.canvas.addEventListener('mousedown', (e) => {
-            if (e.button === 0) {
-                // Get pixel data at the click coordinates
-                const rect = this.canvas.getBoundingClientRect();
-                const scaleX = this.canvas.width / rect.width;
-                const scaleY = this.canvas.height / rect.height;
+        // Image element for state asset (PNG, GIF, WEBP, SVG, APNG)
+        this.imgElement = document.createElement('img');
+        this.imgElement.style.display = 'block';
+        this.imgElement.style.imageRendering = 'pixelated';
+        this.imgElement.style.userSelect = 'none';
+        this.imgElement.style.webkitUserDrag = 'none';
+
+        // Offscreen canvas for alpha-channel click testing
+        this.offscreenCanvas = document.createElement('canvas');
+        this.offscreenCtx = this.offscreenCanvas.getContext('2d', { willReadFrequently: true });
+
+        this.imgElement.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            const rect = this.imgElement.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return;
+
+            this.offscreenCanvas.width = this.imgElement.naturalWidth || rect.width;
+            this.offscreenCanvas.height = this.imgElement.naturalHeight || rect.height;
+            try {
+                this.offscreenCtx.clearRect(0, 0, this.offscreenCanvas.width, this.offscreenCanvas.height);
+                this.offscreenCtx.drawImage(this.imgElement, 0, 0);
+                const scaleX = this.offscreenCanvas.width / rect.width;
+                const scaleY = this.offscreenCanvas.height / rect.height;
                 const x = (e.clientX - rect.left) * scaleX;
                 const y = (e.clientY - rect.top) * scaleY;
-                
-                const pixel = this.ctx.getImageData(x, y, 1, 1).data;
-                if (pixel[3] > 0) { // If alpha > 0 (not transparent)
-                    import("@tauri-apps/api/webviewWindow").then(({ getCurrentWebviewWindow }) => {
-                        getCurrentWebviewWindow().startDragging();
-                    });
+                const pixel = this.offscreenCtx.getImageData(x, y, 1, 1).data;
+                if (pixel[3] > 0) {
+                    getCurrentWebviewWindow().startDragging();
                 }
+            } catch (err) {
+                getCurrentWebviewWindow().startDragging();
             }
         });
 
-        // Add canvas to DOM
-        container.appendChild(this.canvas);
-        
-        // No window resize listener needed, unified container handles scale
+        container.appendChild(this.imgElement);
     }
 
-    async loadSpritePack(manifest) {
-        this.manifest = manifest;
-        return new Promise((resolve, reject) => {
-            this.spriteImage = new Image();
-            this.spriteImage.onload = () => {
-                // Calculate frame dimensions based on grid
-                const [cols, rows] = this.manifest.grid;
-                this.frameWidth = this.spriteImage.width / cols;
-                this.frameHeight = this.spriteImage.height / rows;
-                
-                this.canvas.width = this.frameWidth;
-                this.canvas.height = this.frameHeight;
-                
-                // Normalize the pet size to a base CSS box of 128x128, preserving aspect ratio.
-                // This prevents massive AI-generated sprites from becoming gigantic.
-                const baseRenderSize = 128;
-                const aspectRatio = this.frameWidth / this.frameHeight;
-                let cssWidth, cssHeight;
-                if (aspectRatio > 1) {
-                    cssWidth = baseRenderSize;
-                    cssHeight = baseRenderSize / aspectRatio;
-                } else {
-                    cssHeight = baseRenderSize;
-                    cssWidth = baseRenderSize * aspectRatio;
-                }
-                
-                this.canvas.style.width = `${cssWidth}px`;
-                this.canvas.style.height = `${cssHeight}px`;
-                
-                this.ctx.imageSmoothingEnabled = false;
+    async loadSpritePack(packInfoOrManifest) {
+        if (packInfoOrManifest && packInfoOrManifest.manifest) {
+            this.packInfo = packInfoOrManifest;
+            this.manifest = packInfoOrManifest.manifest;
+        } else {
+            this.manifest = packInfoOrManifest || {};
+            this.packInfo = { manifest: this.manifest, is_builtin: true };
+        }
+
+        const states = this.manifest.states || {};
+        const idleFile = states.idle || states.default || Object.values(states)[0] || 'idle.png';
+        const idleUrl = this._resolveAssetUrl(idleFile);
+
+        this.currentAnim = 'idle';
+        this.currentAssetUrl = idleUrl;
+
+        return new Promise((resolve) => {
+            const tempImg = new Image();
+            tempImg.onload = () => {
+                this._resizeElement(this.imgElement, tempImg.naturalWidth, tempImg.naturalHeight);
+                this.imgElement.src = idleUrl;
                 resolve();
             };
-            this.spriteImage.onerror = reject;
-            // The image is expected to be served statically
-            this.spriteImage.src = `/sprites/${manifest.name}/${manifest.sprite_sheet}`;
+            tempImg.onerror = () => {
+                this.imgElement.src = idleUrl;
+                resolve();
+            };
+            tempImg.src = idleUrl;
         });
     }
-    
-    // resizeWindowToFrame removed because window size is managed by main.js
-    
 
+    _resolveAssetUrl(fileName) {
+        if (!fileName) return '';
+        if (fileName.startsWith('http://') || fileName.startsWith('https://') || fileName.startsWith('data:')) {
+            return fileName;
+        }
+
+        if (this.packInfo && this.packInfo.state_urls && this.packInfo.state_urls[fileName]) {
+            return this.packInfo.state_urls[fileName];
+        }
+
+        const packId = this.manifest.id || this.manifest.name || 'default-cat';
+        if (this.packInfo && !this.packInfo.is_builtin && this.packInfo.path) {
+            try {
+                return convertFileSrc(`${this.packInfo.path}/${fileName}`);
+            } catch (e) {
+                return `/sprites/${packId}/${fileName}`;
+            }
+        }
+
+        return `/sprites/${packId}/${fileName}`;
+    }
+
+    _resizeElement(element, width, height) {
+        const baseRenderSize = 128;
+        const aspectRatio = (width && height) ? (width / height) : 1;
+        let cssWidth, cssHeight;
+        if (aspectRatio > 1) {
+            cssWidth = baseRenderSize;
+            cssHeight = baseRenderSize / aspectRatio;
+        } else {
+            cssHeight = baseRenderSize;
+            cssWidth = baseRenderSize * aspectRatio;
+        }
+        element.style.width = `${cssWidth}px`;
+        element.style.height = `${cssHeight}px`;
+    }
 
     playAnimation(name) {
-        if (!this.manifest.animations[name]) {
-            console.warn(`Animation ${name} not found, falling back to idle`);
-            name = 'idle';
+        if (this.currentAnim === name && this.currentAssetUrl) {
+            return;
         }
-        
-        if (this.currentAnim === name) return;
-        
-        this.currentAnim = name;
-        this.currentFrameIndex = 0;
-        this.lastFrameTime = performance.now();
-        
-        if (!this.animationId) {
-            this.animationId = requestAnimationFrame((t) => this._renderLoop(t));
-        }
-    }
 
-    _renderLoop(timestamp) {
-        this.animationId = requestAnimationFrame((t) => this._renderLoop(t));
-        
-        if (!this.currentAnim || !this.manifest) return;
-        
-        const animData = this.manifest.animations[this.currentAnim];
-        const frameDuration = 1000 / animData.fps;
-        
-        if (timestamp - this.lastFrameTime >= frameDuration) {
-            this.currentFrameIndex++;
-            if (this.currentFrameIndex >= animData.frames.length) {
-                if (animData.loop) {
-                    this.currentFrameIndex = 0;
-                } else {
-                    this.currentFrameIndex = animData.frames.length - 1;
-                }
+        const states = this.manifest ? (this.manifest.states || {}) : {};
+        let file = states[name];
+
+        if (!file) {
+            if (name === 'celebrating') file = states.happy || states.idle;
+            else if (name === 'watching') file = states.thinking || states.idle;
+            else file = states.idle || states.default || Object.values(states)[0];
+        }
+
+        if (file) {
+            const targetUrl = this._resolveAssetUrl(file);
+            if (this.currentAssetUrl === targetUrl) {
+                this.currentAnim = name;
+                return;
             }
-            this.lastFrameTime = timestamp;
-            this._drawFrame();
-        }
-    }
 
-    _drawFrame() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        const animData = this.manifest.animations[this.currentAnim];
-        const frameId = animData.frames[this.currentFrameIndex];
-        
-        const [cols] = this.manifest.grid;
-        const col = frameId % cols;
-        const row = Math.floor(frameId / cols);
-        
-        const sx = col * this.frameWidth;
-        const sy = row * this.frameHeight;
-        
-        const dw = this.canvas.width;
-        const dh = this.canvas.height;
-        
-        this.ctx.drawImage(
-            this.spriteImage,
-            sx, sy, this.frameWidth, this.frameHeight,
-            0, 0, dw, dh
-        );
+            this.currentAnim = name;
+            const tempImg = new Image();
+            tempImg.onload = () => {
+                this._resizeElement(this.imgElement, tempImg.naturalWidth, tempImg.naturalHeight);
+                this.imgElement.src = targetUrl;
+                this.currentAssetUrl = targetUrl;
+            };
+            tempImg.onerror = () => {
+                this.imgElement.src = targetUrl;
+                this.currentAssetUrl = targetUrl;
+            };
+            tempImg.src = targetUrl;
+        }
     }
 
     destroy() {
-        if (this.animationId) {
-            cancelAnimationFrame(this.animationId);
-        }
-        if (this.canvas && this.canvas.parentNode) {
-            this.canvas.parentNode.removeChild(this.canvas);
+        if (this.imgElement && this.imgElement.parentNode) {
+            this.imgElement.parentNode.removeChild(this.imgElement);
         }
     }
 }

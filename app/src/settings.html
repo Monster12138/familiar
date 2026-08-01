@@ -18,6 +18,10 @@
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                         显示配置
                     </a>
+                    <a href="#section-pet-pack" class="menu-item" data-target="section-pet-pack" data-i18n="nav_pet_pack" data-i18n-text-only>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+                        宠物素材
+                    </a>
                     <a href="#section-hooks" class="menu-item" data-target="section-hooks" data-i18n="nav_hooks" data-i18n-text-only>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                         Hooks
@@ -147,6 +151,23 @@
                                 <span class="range-value" id="val-celebration-secs">4s</span>
                             </div>
                         </div>
+                    </div>
+                </section>
+
+                <!-- 宠物素材包 -->
+                <section class="settings-group" id="section-pet-pack">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <div>
+                            <h2 data-i18n="group_pet_pack">素材包管理</h2>
+                            <p data-i18n="desc_pet_pack" style="color:var(--text-muted);font-size:13px;margin: 4px 0 0 0;">管理与切换桌面宠物显示的素材包，支持从外部导入 .fpack 格式的素材包</p>
+                        </div>
+                        <div>
+                            <button id="btn-import-pack" class="secondary-btn btn-sm" data-i18n="btn_import_pack" style="white-space:nowrap;">+ 导入素材包</button>
+                            <input type="file" id="file-import-pack" accept=".fpack" style="display:none;" />
+                        </div>
+                    </div>
+                    <div id="sprite-pack-grid" class="sprite-pack-grid">
+                        <!-- Dynamic Sprite Pack Cards rendered by JS -->
                     </div>
                 </section>
 
