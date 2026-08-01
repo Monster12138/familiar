@@ -13,11 +13,13 @@ my-custom-pet/
 ├── pack.json         # [必需] 素材包描述文件 (Manifest)
 ├── preview.png       # [可选] 配置面板中的预览图 (默认回退至 idle.png)
 ├── idle.png          # [必需] 待命/空闲状态图片
-├── thinking.png      # [可选] 思考中状态图片
 ├── working.png       # [可选] 执行任务/敲代码状态图片
-├── happy.png         # [可选] 完成/庆祝状态图片
-├── alarmed.png       # [可选] 警告/异常状态图片
-└── sleeping.png      # [可选] 休眠/无活动状态图片
+├── thinking.png      # [可选] 思考中状态图片
+├── interacting.png   # [可选] 互动中状态图片 (鼠标点击交互)
+├── celebrating.png   # [可选] 任务完成/庆祝状态图片
+├── alarmed.png       # [可选] 警告/异常报错状态图片
+├── sleeping.png      # [可选] 休眠/无活动状态图片
+└── watching.png      # [可选] 观察/等待用户输入状态图片
 ```
 
 > **支持的图片格式**：静态图片支持 `.png`, `.webp`, `.svg`；动态图片支持 `.gif`, 动态 `.webp`, `.apng`。
@@ -41,13 +43,13 @@ my-custom-pet/
   "preview": "idle.png",
   "states": {
     "idle": "idle.png",
-    "thinking": "thinking.png",
     "working": "working.png",
-    "happy": "happy.png",
+    "thinking": "thinking.png",
+    "interacting": "interacting.png",
+    "celebrating": "celebrating.png",
     "alarmed": "alarmed.png",
     "sleeping": "sleeping.png",
-    "celebrating": "happy.png",
-    "watching": "thinking.png"
+    "watching": "watching.png"
   },
   "sha256": "6bfad07af8469b061b4d44a3acb0c567b71f96238628c1ddcfaa34373ecee1ce"
 }

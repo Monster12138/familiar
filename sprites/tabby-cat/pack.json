@@ -2,21 +2,21 @@
   "format_version": 1,
   "id": "tabby-cat",
   "name": "小虎",
-  "author": "Familiar",
+  "author": "Familiar Studio",
   "created_at": "2026-08-01",
   "email": "glcoding@qq.com",
   "version": "1.0.0",
-  "description": "极简像素风狸花猫",
+  "description": "经典美短虎斑狸花小猫小虎的极简复古像素风桌面宠物",
   "preview": "idle.png",
   "states": {
     "idle": "idle.png",
-    "thinking": "thinking.png",
     "working": "working.png",
-    "happy": "happy.png",
+    "thinking": "thinking.png",
+    "interacting": "interacting.png",
+    "celebrating": "celebrating.png",
     "alarmed": "alarmed.png",
     "sleeping": "sleeping.png",
-    "celebrating": "happy.png",
-    "watching": "thinking.png"
+    "watching": "watching.png"
   },
-  "sha256": "6bfad07af8469b061b4d44a3acb0c567b71f96238628c1ddcfaa34373ecee1ce"
+  "sha256": "7623f35f87e851a82ed5162e7dfa04d5d4f8231b15db2484a76fb602cb8cd656"
 }

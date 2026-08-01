@@ -15,7 +15,7 @@ pub enum AgentStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum FamiliarMood {
-    Happy,
+    Interacting,
     Thinking,
     Busy,
     Sleepy,

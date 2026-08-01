@@ -563,6 +563,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             previewModalStateGrid.innerHTML = '';
             const states = manifest.states || {};
 
+            const stateLabels = {
+                'idle': t('state_idle', lang),
+                'working': t('state_working', lang),
+                'thinking': t('state_thinking', lang),
+                'interacting': t('state_interacting', lang),
+                'happy': t('state_interacting', lang),
+                'celebrating': t('state_celebrating', lang),
+                'alarmed': t('state_alarmed', lang),
+                'sleeping': t('state_sleeping', lang),
+                'watching': t('state_watching', lang),
+            };
+
             Object.entries(states).forEach(([stateKey, fileName]) => {
                 let imgSrc = '';
                 if (pack.is_builtin) {
@@ -571,13 +583,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     imgSrc = convertFileSrc(`${pack.path}/${fileName}`);
                 }
 
+                const displayName = stateLabels[stateKey] || stateKey;
+
                 const item = document.createElement('div');
                 item.className = 'preview-state-item';
                 item.innerHTML = `
                     <div class="preview-state-box">
                         <img src="${imgSrc}" alt="${stateKey}" />
                     </div>
-                    <div class="preview-state-name">${stateKey}</div>
+                    <div class="preview-state-name">${displayName}</div>
                     <div class="preview-state-filename">${fileName}</div>
                 `;
 

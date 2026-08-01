@@ -134,7 +134,9 @@ export class PixelSpriteRenderer extends SpriteRenderer {
         let file = states[name];
 
         if (!file) {
-            if (name === 'celebrating') file = states.happy || states.idle;
+            if (name === 'interacting') file = states.happy || states.idle;
+            else if (name === 'happy') file = states.interacting || states.idle;
+            else if (name === 'celebrating') file = states.happy || states.interacting || states.idle;
             else if (name === 'watching') file = states.thinking || states.idle;
             else file = states.idle || states.default || Object.values(states)[0];
         }

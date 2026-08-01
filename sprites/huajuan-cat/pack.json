@@ -10,13 +10,13 @@
   "preview": "idle.png",
   "states": {
     "idle": "idle.png",
-    "thinking": "thinking.png",
     "working": "working.png",
-    "happy": "happy.png",
+    "thinking": "thinking.png",
+    "interacting": "interacting.png",
+    "celebrating": "celebrating.png",
     "alarmed": "alarmed.png",
     "sleeping": "sleeping.png",
-    "celebrating": "happy.png",
-    "watching": "thinking.png"
+    "watching": "watching.png"
   },
-  "sha256": "f3c6f1b08e8a00095fd875d8a98d709408bc9d043c0e6bc7c728becd63ee6884"
+  "sha256": "5050f439d66f5f395581b6471612774c6ded5398dfe5e96ab7b58b8e3b26b588"
 }

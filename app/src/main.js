@@ -134,16 +134,24 @@ async function init() {
         // Map mood to animation
         switch (state.mood) {
             case "Thinking":
+                renderer.playAnimation("thinking");
+                break;
             case "Busy":
                 renderer.playAnimation("working");
                 break;
+            case "Interacting":
             case "Happy":
+                renderer.playAnimation("interacting");
+                break;
             case "Celebrating":
-                renderer.playAnimation("happy");
+                renderer.playAnimation("celebrating");
                 // Automatically revert to idle after celebration
                 window.idleFallbackTimer = setTimeout(() => {
                     renderer.playAnimation("idle");
                 }, window.celebrationMs);
+                break;
+            case "Watching":
+                renderer.playAnimation("watching");
                 break;
             case "Alarmed":
                 renderer.playAnimation("alarmed");
