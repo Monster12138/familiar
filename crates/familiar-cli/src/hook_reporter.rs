@@ -47,38 +47,82 @@ pub async fn run(source_name: &str, event_name: &str) -> Result<()> {
     }
     .await;
 
-    let output_json = get_hook_response_json(event_name, res.is_err());
+    let output_json = get_hook_response_json(source_name, event_name, res.is_err());
     println!("{}", output_json);
     Ok(())
 }
 
-fn get_hook_response_json(event_name: &str, offline: bool) -> String {
-    match event_name {
-        "PreToolUse" | "PermissionRequest" => {
-            let reason = if offline {
-                "Familiar offline"
-            } else {
-                "Familiar notified"
-            };
-            serde_json::json!({
-                "decision": "allow",
-                "reason": reason
-            })
-            .to_string()
+fn get_hook_response_json(source_name: &str, event_name: &str, offline: bool) -> String {
+    if source_name == "qoder" {
+        match event_name {
+            "PreToolUse" => {
+                let reason = if offline {
+                    "Familiar offline"
+                } else {
+                    "Familiar notified"
+                };
+                serde_json::json!({
+                    "hookSpecificOutput": {
+                        "hookEventName": "PreToolUse",
+                        "permissionDecision": "allow",
+                        "permissionDecisionReason": reason
+                    }
+                })
+                .to_string()
+            }
+            _ => serde_json::json!({}).to_string(),
         }
-        "PostToolUse" => serde_json::json!({}).to_string(),
-        "PreInvocation" => serde_json::json!({
-            "injectSteps": []
-        })
-        .to_string(),
-        "PostInvocation" => serde_json::json!({
-            "injectSteps": []
-        })
-        .to_string(),
-        "Stop" | "SessionEnd" | "SubagentStop" => serde_json::json!({
-            "decision": "allow"
-        })
-        .to_string(),
-        _ => serde_json::json!({}).to_string(),
+    } else {
+        match event_name {
+            "PreToolUse" | "PermissionRequest" => {
+                let reason = if offline {
+                    "Familiar offline"
+                } else {
+                    "Familiar notified"
+                };
+                serde_json::json!({
+                    "decision": "allow",
+                    "reason": reason
+                })
+                .to_string()
+            }
+            "PostToolUse" => serde_json::json!({}).to_string(),
+            "PreInvocation" => serde_json::json!({
+                "injectSteps": []
+            })
+            .to_string(),
+            "PostInvocation" => serde_json::json!({
+                "injectSteps": []
+            })
+            .to_string(),
+            "Stop" | "SessionEnd" | "SubagentStop" => serde_json::json!({
+                "decision": "allow"
+            })
+            .to_string(),
+            _ => serde_json::json!({}).to_string(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_qoder_hook_response_json() {
+        let resp = get_hook_response_json("qoder", "PreToolUse", false);
+        let json: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert_eq!(
+            json["hookSpecificOutput"]["permissionDecision"].as_str(),
+            Some("allow")
+        );
+        assert_eq!(
+            json["hookSpecificOutput"]["permissionDecisionReason"].as_str(),
+            Some("Familiar notified")
+        );
+
+        let stop_resp = get_hook_response_json("qoder", "Stop", false);
+        let stop_json: serde_json::Value = serde_json::from_str(&stop_resp).unwrap();
+        assert_eq!(stop_json, serde_json::json!({}));
     }
 }

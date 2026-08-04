@@ -66,6 +66,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             return `<span class="session-source-badge" style="background:#d97706;">Claude</span>`;
         } else if (srcStr === 'Antigravity' || srcStr === 'Agy') {
             return `<span class="session-source-badge" style="background:#4f46e5;">AGY</span>`;
+        } else if (srcStr === 'Qoder') {
+            return `<span class="session-source-badge" style="background:#0284c7;">Qoder</span>`;
         }
         return `<span class="session-source-badge" style="background:#6b7280;">${srcStr}</span>`;
     }
@@ -816,7 +818,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const status = await invoke('get_hooks_status');
             if (status) {
                 hooksStatusCache = status;
-                const agents = ['antigravity', 'claude-code', 'codex'];
+                const agents = ['antigravity', 'claude-code', 'codex', 'qoder'];
                 agents.forEach(agent => {
                     if (status[agent]) {
                         const isInj = status[agent].injected;
@@ -840,7 +842,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    const AGENTS = ['antigravity', 'claude-code', 'codex'];
+    const AGENTS = ['antigravity', 'claude-code', 'codex', 'qoder'];
     AGENTS.forEach(agent => {
         const btnViewConfig = document.getElementById(`btn-view-config-${agent}`);
         const btnInject = document.getElementById(`btn-inject-${agent}`);

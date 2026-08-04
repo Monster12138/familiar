@@ -145,6 +145,9 @@ impl CliAgentHookAdapter {
             "PostToolUse" | "tool_result" => AgentEventType::Processing {
                 description: "Tool finished".into(),
             },
+            "PostToolUseFailure" => AgentEventType::Processing {
+                description: "Tool failed".into(),
+            },
             "PermissionRequest" => AgentEventType::WaitingForInput,
             "SubagentStart" => AgentEventType::SubagentStarted {
                 agent_type: "Unknown".into(),
@@ -171,6 +174,7 @@ impl CliAgentHookAdapter {
         let args_option = json
             .get("toolCall")
             .and_then(|t| t.get("args"))
+            .or_else(|| json.get("tool_input"))
             .or_else(|| json.get("tool_arguments"))
             .or_else(|| json.get("args"))
             .or_else(|| json.get("input"))
@@ -179,6 +183,7 @@ impl CliAgentHookAdapter {
                     .and_then(|p| p.get("toolCall"))
                     .and_then(|t| t.get("args"))
             })
+            .or_else(|| json.get("payload").and_then(|p| p.get("tool_input")))
             .or_else(|| json.get("payload").and_then(|p| p.get("tool_arguments")));
 
         let empty_json = serde_json::json!({});
@@ -186,7 +191,7 @@ impl CliAgentHookAdapter {
         let instruction = Self::extract_instruction(json);
 
         match tool_name {
-            "Bash" | "run_command" | "execute" => {
+            "run_in_terminal" | "Bash" | "run_command" | "execute" => {
                 let cmd = args["command"]
                     .as_str()
                     .or_else(|| args["cmd"].as_str())
@@ -201,17 +206,21 @@ impl CliAgentHookAdapter {
                     .to_string();
                 AgentEventType::RunningCommand { cmd, instruction }
             }
-            "Edit"
+            "create_file"
+            | "search_replace"
+            | "delete_file"
+            | "Edit"
             | "Write"
             | "apply_patch"
             | "write_to_file"
             | "replace_file_content"
             | "multi_replace_file_content" => {
-                let path = args["path"]
+                let path = args["file_path"]
                     .as_str()
+                    .or_else(|| args["path"].as_str())
+                    .or_else(|| args["filePath"].as_str())
                     .or_else(|| args["TargetFile"].as_str())
                     .or_else(|| args["Target"].as_str())
-                    .or_else(|| args["filePath"].as_str())
                     .filter(|s| !s.is_empty())
                     .unwrap_or(if tool_name.is_empty() {
                         "file"
@@ -221,21 +230,31 @@ impl CliAgentHookAdapter {
                     .to_string();
                 AgentEventType::WritingFile { path }
             }
-            "view_file" | "read_file" | "cat" => {
-                let path = args["AbsolutePath"]
+            "read_file" | "Read" | "view_file" | "cat" => {
+                let path = args["file_path"]
                     .as_str()
                     .or_else(|| args["path"].as_str())
                     .or_else(|| args["filePath"].as_str())
+                    .or_else(|| args["AbsolutePath"].as_str())
                     .filter(|s| !s.is_empty())
                     .unwrap_or("file")
                     .to_string();
                 AgentEventType::ReadingFile { path }
             }
-            "search_web" | "read_url_content" => {
+            "grep_code" | "Grep" | "search_file" | "Glob" => {
+                let query = args["query"]
+                    .as_str()
+                    .or_else(|| args["pattern"].as_str())
+                    .or_else(|| args["path"].as_str())
+                    .unwrap_or("")
+                    .to_string();
+                AgentEventType::SearchingCode { query }
+            }
+            "search_web" | "WebSearch" | "fetch_content" | "WebFetch" | "read_url_content" => {
                 let url = args["query"]
                     .as_str()
-                    .or_else(|| args["Url"].as_str())
                     .or_else(|| args["url"].as_str())
+                    .or_else(|| args["Url"].as_str())
                     .unwrap_or("")
                     .to_string();
                 AgentEventType::BrowsingWeb { url }
@@ -257,6 +276,7 @@ impl CliAgentHookAdapter {
             AgentSource::ClaudeCode => AgentCategory::Coding,
             AgentSource::Codex => AgentCategory::Coding,
             AgentSource::Antigravity => AgentCategory::Coding,
+            AgentSource::Qoder => AgentCategory::Coding,
             AgentSource::Custom(_) => AgentCategory::General,
         }
     }

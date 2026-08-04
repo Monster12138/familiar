@@ -65,6 +65,7 @@ Depending on the selected integration, Familiar may update:
 - Claude Code: `~/.claude/settings.json`
 - Codex: `~/.codex/hooks.json`
 - Antigravity: `~/.gemini/config/hooks.json`
+- Qoder: `~/.qoder/settings.json`
 
 Removing a hook through the settings UI removes Familiar-owned hook entries;
 it does not delete unrelated Agent configuration or transcript history.

@@ -173,6 +173,7 @@ use familiar_hooks::antigravity::AntigravityHook;
 use familiar_hooks::claude_code::ClaudeCodeHook;
 use familiar_hooks::codex::CodexHook;
 use familiar_hooks::hook_trait::AgentHook;
+use familiar_hooks::qoder::QoderHook;
 use serde_json::json;
 
 fn get_hook_by_name(agent: &str) -> Option<Box<dyn AgentHook>> {
@@ -180,6 +181,7 @@ fn get_hook_by_name(agent: &str) -> Option<Box<dyn AgentHook>> {
         "antigravity" => Some(Box::new(AntigravityHook::new())),
         "claude-code" => Some(Box::new(ClaudeCodeHook::new())),
         "codex" => Some(Box::new(CodexHook::new())),
+        "qoder" => Some(Box::new(QoderHook::new())),
         _ => None,
     }
 }
@@ -190,6 +192,7 @@ pub fn get_hooks_status() -> Result<serde_json::Value, String> {
         Box::new(AntigravityHook::new()),
         Box::new(ClaudeCodeHook::new()),
         Box::new(CodexHook::new()),
+        Box::new(QoderHook::new()),
     ];
 
     let mut status_map = serde_json::Map::new();

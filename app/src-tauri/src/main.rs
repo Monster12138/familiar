@@ -128,6 +128,7 @@ fn main() {
                                                                 "claude-code" => {
                                                                     AgentSource::ClaudeCode
                                                                 }
+                                                                "qoder" => AgentSource::Qoder,
                                                                 other => AgentSource::Custom(
                                                                     other.to_string(),
                                                                 ),
@@ -201,6 +202,7 @@ fn main() {
                                                             "claude-code" => {
                                                                 AgentSource::ClaudeCode
                                                             }
+                                                            "qoder" => AgentSource::Qoder,
                                                             other => AgentSource::Custom(
                                                                 other.to_string(),
                                                             ),
