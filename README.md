@@ -29,11 +29,12 @@ The companion is not limited to coding tools. Familiar's hook layer can connect 
 | --- | --- | --- |
 | Claude Code | Hook reporter over the local Familiar channel | Pending verification |
 | Codex CLI | Hook reporter over the local Familiar channel | Available |
+| Qoder | Hook reporter over the local Familiar channel | Available |
 | Google Antigravity | Native hook adapter with transcript extraction | Available |
 
 ## Quick Start
 
-Familiar does not publish installable release artifacts yet. Build it from source with Rust, Node.js, and the platform desktop prerequisites.
+Apple Silicon macOS builds are available from [GitHub Releases](https://github.com/Monster12138/familiar/releases). The current alpha builds are not notarized, so macOS may require explicit approval before first launch. Builds for other platforms can be created from source with Rust, Node.js, and the platform desktop prerequisites.
 
 ### Prerequisites
 
@@ -107,7 +108,7 @@ Planned or still experimental:
 - Persistent agent history and retention management
 - A complete statistics and activity dashboard
 - Stable public API guarantees
-- Signed release artifacts and verified Windows/Linux packaging
+- Signed and notarized macOS artifacts, plus verified Windows/Linux packaging
 
 ## Contributing
 

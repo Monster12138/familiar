@@ -1,8 +1,54 @@
 use familiar_core::config::FamiliarConfig;
 use familiar_core::state::AgentState;
 use familiar_core::state_machine::StateMachine;
+use std::collections::HashSet;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
+use std::sync::RwLock;
+use std::time::{Duration, Instant};
 use sysinfo::{Disks, System};
+
+pub struct AppConfigState {
+    pub config: RwLock<FamiliarConfig>,
+    pub hidden_sessions: RwLock<HashSet<String>>,
+    pub revision: AtomicU64,
+}
+
+impl AppConfigState {
+    pub fn new(config: FamiliarConfig) -> Self {
+        let hidden_sessions = config.sessions.hidden_sessions.iter().cloned().collect();
+        Self {
+            config: RwLock::new(config),
+            hidden_sessions: RwLock::new(hidden_sessions),
+            revision: AtomicU64::new(1),
+        }
+    }
+
+    pub fn get_config(&self) -> FamiliarConfig {
+        self.config.read().unwrap().clone()
+    }
+
+    pub fn update(&self, new_config: FamiliarConfig) {
+        let new_hidden: HashSet<String> = new_config
+            .sessions
+            .hidden_sessions
+            .iter()
+            .cloned()
+            .collect();
+        *self.config.write().unwrap() = new_config;
+        *self.hidden_sessions.write().unwrap() = new_hidden;
+        self.revision.fetch_add(1, Ordering::SeqCst);
+    }
+}
+
+pub struct SystemStatsState {
+    pub system: System,
+    pub disks: Disks,
+    pub cached_disk_used: u64,
+    pub cached_disk_total: u64,
+    pub last_disk_refresh: Option<Instant>,
+}
 
 #[tauri::command]
 pub async fn get_active_sessions(
@@ -22,40 +68,45 @@ pub struct SystemStats {
 }
 
 #[tauri::command]
-pub fn get_system_stats(sys_state: tauri::State<'_, StdMutex<System>>) -> SystemStats {
-    let mut sys = sys_state.lock().unwrap();
+pub fn get_system_stats(sys_state: tauri::State<'_, StdMutex<SystemStatsState>>) -> SystemStats {
+    let mut stats = sys_state.lock().unwrap();
     // Refresh only needed components
-    sys.refresh_cpu_all();
-    sys.refresh_memory();
+    stats.system.refresh_cpu_all();
+    stats.system.refresh_memory();
 
-    // Slight sleep to allow CPU calculation if needed, but normally we just rely on periodic frontend polling
-    // sysinfo needs two data points to calculate CPU usage. Polling every 2s gives a good delta.
+    let cpu_usage = stats.system.global_cpu_usage();
+    let memory_used = stats.system.used_memory();
+    let memory_total = stats.system.total_memory();
 
-    let cpu_usage = sys.global_cpu_usage();
-    let memory_used = sys.used_memory();
-    let memory_total = sys.total_memory();
+    // Refresh disk info at most once every 60 seconds
+    let now = Instant::now();
+    let should_refresh_disks = stats
+        .last_disk_refresh
+        .is_none_or(|last| now.duration_since(last) >= Duration::from_secs(60));
 
-    // Disks
-    let disks = Disks::new_with_refreshed_list();
-    let mut max_disk_total = 0;
-    let mut max_disk_used = 0;
+    if should_refresh_disks {
+        stats.disks.refresh();
+        let mut max_disk_total = 0;
+        let mut max_disk_used = 0;
 
-    for disk in disks.list() {
-        if disk.total_space() > max_disk_total {
-            max_disk_total = disk.total_space();
-            max_disk_used = disk.total_space() - disk.available_space();
+        for disk in stats.disks.list() {
+            if disk.total_space() > max_disk_total {
+                max_disk_total = disk.total_space();
+                max_disk_used = disk.total_space() - disk.available_space();
+            }
         }
-    }
 
-    let disk_total = max_disk_total;
-    let disk_used = max_disk_used;
+        stats.cached_disk_total = max_disk_total;
+        stats.cached_disk_used = max_disk_used;
+        stats.last_disk_refresh = Some(now);
+    }
 
     SystemStats {
         cpu_usage,
         memory_used,
         memory_total,
-        disk_used,
-        disk_total,
+        disk_used: stats.cached_disk_used,
+        disk_total: stats.cached_disk_total,
     }
 }
 
@@ -81,8 +132,10 @@ pub fn load_config_from_paths() -> FamiliarConfig {
 }
 
 #[tauri::command]
-pub fn get_config() -> Result<FamiliarConfig, String> {
-    Ok(load_config_from_paths())
+pub fn get_config(
+    config_state: tauri::State<'_, Arc<AppConfigState>>,
+) -> Result<FamiliarConfig, String> {
+    Ok(config_state.get_config())
 }
 
 fn apply_and_emit_config(
@@ -99,14 +152,18 @@ fn apply_and_emit_config(
     Ok(())
 }
 
-#[tauri::command]
-pub fn save_config(app_handle: tauri::AppHandle, config: FamiliarConfig) -> Result<(), String> {
+pub fn save_config_internal(
+    app_handle: &tauri::AppHandle,
+    config_state: &Arc<AppConfigState>,
+    config: FamiliarConfig,
+) -> Result<(), String> {
     let search_paths = get_config_search_paths();
     for p in &search_paths {
         if p.exists() {
             let res = config.save_to_file(p).map_err(|e| e.to_string());
             if res.is_ok() {
-                apply_and_emit_config(&app_handle, &config)?;
+                config_state.update(config.clone());
+                apply_and_emit_config(app_handle, &config)?;
             }
             return res;
         }
@@ -119,12 +176,22 @@ pub fn save_config(app_handle: tauri::AppHandle, config: FamiliarConfig) -> Resu
         }
         let res = config.save_to_file(user_path).map_err(|e| e.to_string());
         if res.is_ok() {
-            apply_and_emit_config(&app_handle, &config)?;
+            config_state.update(config.clone());
+            apply_and_emit_config(app_handle, &config)?;
         }
         return res;
     }
 
     Err("Config file path resolution error".to_string())
+}
+
+#[tauri::command]
+pub fn save_config(
+    app_handle: tauri::AppHandle,
+    config_state: tauri::State<'_, Arc<AppConfigState>>,
+    config: FamiliarConfig,
+) -> Result<(), String> {
+    save_config_internal(&app_handle, &config_state, config)
 }
 
 #[tauri::command]
@@ -302,8 +369,11 @@ pub async fn import_sprite_pack(path: Option<String>) -> Result<SpritePackInfo, 
 }
 
 #[tauri::command]
-pub fn get_active_sprite_pack(app_handle: tauri::AppHandle) -> Result<SpritePackInfo, String> {
-    let config = load_config_from_paths();
+pub fn get_active_sprite_pack(
+    app_handle: tauri::AppHandle,
+    config_state: tauri::State<'_, Arc<AppConfigState>>,
+) -> Result<SpritePackInfo, String> {
+    let config = config_state.get_config();
     let active_id = config.renderer.desktop_pet.sprite;
 
     let resource_dir = app_handle.path().resource_dir().ok();

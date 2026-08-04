@@ -237,7 +237,13 @@ async function applyConfigToWindow(config) {
     
     const statsContainer = document.getElementById('stats-container');
     if (statsContainer) {
-        statsContainer.style.display = (petConf.show_dashboard !== false) ? 'block' : 'none';
+        const isShow = petConf.show_dashboard !== false;
+        statsContainer.style.display = isShow ? 'block' : 'none';
+        if (isShow) {
+            window.startStatsPolling?.();
+        } else {
+            window.stopStatsPolling?.();
+        }
     }
 
     if (petConf.celebration_secs !== undefined) {
