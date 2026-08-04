@@ -1,7 +1,7 @@
 # Familiar 资源占用优化方案
 
-> 版本：v1.0  
-> 更新时间：2026-08-04  
+> 版本：v1.0
+> 更新时间：2026-08-04
 > 适用范围：Familiar macOS Tauri 桌面应用
 
 ## 1. 背景与目标
@@ -232,4 +232,3 @@ struct StateMachine {
 - revision 必须覆盖定时清理、sleep timeout 和配置过滤变化，否则可能遗漏 UI 更新。
 - 页面可见性在 Tauri 窗口隐藏场景下可能与浏览器 `document.visibilityState` 不完全一致，应结合 Tauri 窗口事件验证。
 - 每个阶段保持独立提交；发生回归时可以单独回退，不影响其他优化。
-
