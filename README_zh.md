@@ -5,7 +5,7 @@
 [English](README.md)
 
 > [!NOTE]
-> Familiar 当前处于 **Alpha** 阶段。核心 Rust 事件流水线、桌面伴侣和 Hook 集成已经可用；更丰富的数据面板、持久化能力以及跨平台正式发布包仍在持续迭代。
+> Familiar v0.2.0 已提供 Apple Silicon macOS 安装包。核心 Rust 事件流水线、桌面伴侣和 Hook 集成已经可用；更丰富的数据面板、持久化能力、签名分发以及跨平台正式发布包仍在持续迭代。
 
 ## 为什么做 Familiar
 
@@ -16,7 +16,7 @@ Familiar 是一只桌面宠物。它以轻量、持续的陪伴感存在于你�
 ## 特性
 
 - **会回应的桌面宠物** —— 像素风动画随工作活动变化，不打断你的工作流。
-- **Agent 状态联动** —— 通过 Hook API 连接 Claude Code、Codex CLI 和 Google Antigravity，让桌面宠物反映它们的活动。
+- **Agent 状态联动** —— 通过 Hook API 连接 Claude Code、Codex CLI、Qoder 和 Google Antigravity，让桌面宠物反映它们的活动。
 - **Hook 扩展能力** —— 通过同一套事件流水线接入其他 Agent 和本地工作流，也支持非编程场景。
 - **模块化架构** —— Hook 解析、状态管理、传输和渲染彼此分层。
 - **本机状态视图** —— 在桌面伴侣旁显示当前 CPU、内存和磁盘状态。
@@ -29,11 +29,12 @@ Familiar 是一只桌面宠物。它以轻量、持续的陪伴感存在于你�
 | --- | --- | --- |
 | Claude Code | 通过本地 Familiar 通道上报 Hook 事件 | 待验证 |
 | Codex CLI | 通过本地 Familiar 通道上报 Hook 事件 | 可用 |
+| Qoder | 通过本地 Familiar 通道上报 Hook 事件 | 可用 |
 | Google Antigravity | 支持 transcript 提取的原生 Hook 适配器 | 可用 |
 
 ## 快速开始
 
-Familiar 目前还没有可直接安装的正式发布包，请使用 Rust、Node.js 和对应平台的桌面开发依赖从源码构建。
+Apple Silicon macOS 安装包可从 [GitHub Releases](https://github.com/Monster12138/familiar/releases) 下载。当前安装包尚未使用 Apple Developer ID 签名和公证，因此首次启动时 macOS 可能要求手动允许。其他平台可以使用 Rust、Node.js 和对应平台的桌面开发依赖从源码构建。
 
 ### 前置要求
 
@@ -76,6 +77,22 @@ npm run tauri dev
 
 主要本地传输在类 Unix 系统上使用 Unix Domain Socket，必要时使用回环 TCP。Agent 活动当前只保存在进程内存中；SQLite 存储抽象仍处于实验阶段，尚未接入桌面应用。
 
+## 性能表现
+
+Familiar 会在对应 UI 隐藏时暂停轮询，缓存变化较慢的磁盘与配置数据，并且只在渲染状态实际变化时向 WebView 发送更新。
+
+在 Apple Silicon macOS 上连续运行 v0.2.0 约 2 小时 39 分钟后，进行 30 秒空闲采样，最新结果如下：
+
+| 指标 | 结果 |
+| --- | ---: |
+| CPU 平均占用 | 0.013% |
+| CPU 中位数 | 0% |
+| CPU P95 | 0.1% |
+| 物理内存占用 | 约 37 MiB |
+| 线程数 | 17–19 |
+
+未发现持续 CPU 热点或明显内存泄漏。实际结果可能因硬件、可见窗口、Agent 活动量和 Sprite Pack 而有所不同。
+
 ## 隐私
 
 为了展示当前状态，Familiar 可能读取最近的任务说明、命令文本、工具名称、文件路径以及其他本地 Hook 数据。当 Hook 明确引用 Antigravity transcript 文件时，程序也可能读取该文件。
@@ -90,6 +107,7 @@ npm run tauri dev
 - [设计说明](docs/DESIGN.md) —— 架构与协议背景
 - [后端工作流](docs/BACKEND_WORKFLOW.md) —— Rust 开发流程
 - [前端工作流](docs/FRONTEND_WORKFLOW.md) —— UI 开发流程
+- [发布流程](docs/RELEASE_PROCESS.md) —— 版本、macOS 打包、制品、Tag 与 GitHub Release 流程
 - [Sprite Pack 制作指南](docs/SPRITE_PACK_CREATION_GUIDE.md) —— 创建和打包桌面伴侣
 
 ## 项目状态

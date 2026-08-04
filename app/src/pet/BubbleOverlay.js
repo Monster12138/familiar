@@ -27,6 +27,8 @@ export class BubbleOverlay {
             return `<span style="display:inline-flex; align-items:center; background:#d97706; color:#ffffff; font-size:9px; font-weight:700; padding:1px 4px; border-radius:4px; line-height:1.2;">Claude</span>`;
         } else if (srcStr === 'Antigravity' || srcStr === 'Agy') {
             return `<span style="display:inline-flex; align-items:center; background:#4f46e5; color:#ffffff; font-size:9px; font-weight:700; padding:1px 4px; border-radius:4px; line-height:1.2;">AGY</span>`;
+        } else if (srcStr === 'Qoder') {
+            return `<span style="display:inline-flex; align-items:center; background:#0284c7; color:#ffffff; font-size:9px; font-weight:700; padding:1px 4px; border-radius:4px; line-height:1.2;">Qoder</span>`;
         }
         return `<span style="display:inline-flex; align-items:center; background:#6b7280; color:#ffffff; font-size:9px; font-weight:700; padding:1px 4px; border-radius:4px; line-height:1.2;">${srcStr}</span>`;
     }

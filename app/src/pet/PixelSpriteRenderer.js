@@ -164,8 +164,21 @@ export class PixelSpriteRenderer extends SpriteRenderer {
     }
 
     destroy() {
-        if (this.imgElement && this.imgElement.parentNode) {
-            this.imgElement.parentNode.removeChild(this.imgElement);
+        if (this.imgElement) {
+            this.imgElement.src = '';
+            if (this.imgElement.parentNode) {
+                this.imgElement.parentNode.removeChild(this.imgElement);
+            }
+            this.imgElement = null;
         }
+        if (this.offscreenCanvas) {
+            this.offscreenCanvas.width = 0;
+            this.offscreenCanvas.height = 0;
+            this.offscreenCanvas = null;
+        }
+        this.offscreenCtx = null;
+        this.container = null;
+        this.packInfo = null;
+        this.manifest = null;
     }
 }

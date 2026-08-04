@@ -5,7 +5,7 @@
 [简体中文](README_zh.md)
 
 > [!NOTE]
-> Familiar is in **Alpha**. The core Rust event pipeline, desktop companion, and hook integrations are usable; richer dashboards, persistence, and cross-platform release builds are still evolving.
+> Familiar v0.2.0 is available for Apple Silicon macOS. The core Rust event pipeline, desktop companion, and hook integrations are usable; richer dashboards, persistence, signed distribution, and cross-platform release builds are still evolving.
 
 ## Why
 
@@ -16,7 +16,7 @@ The companion is not limited to coding tools. Familiar's hook layer can connect 
 ## Features
 
 - **Reactive desktop pet** — Pixel-art animations respond to activity without taking over your workspace.
-- **Agent state linkage** — Connect Claude Code, Codex CLI, and Google Antigravity so the companion can reflect their activity.
+- **Agent state linkage** — Connect Claude Code, Codex CLI, Qoder, and Google Antigravity so the companion can reflect their activity.
 - **Hook-based extensibility** — Adapt other agents and local workflows through the same event pipeline, including non-programming scenarios.
 - **Modular architecture** — Keep hook parsing, state management, transport, and rendering in separate layers.
 - **Local activity view** — Show the current CPU, memory, and disk state alongside the companion.
@@ -29,11 +29,12 @@ The companion is not limited to coding tools. Familiar's hook layer can connect 
 | --- | --- | --- |
 | Claude Code | Hook reporter over the local Familiar channel | Pending verification |
 | Codex CLI | Hook reporter over the local Familiar channel | Available |
+| Qoder | Hook reporter over the local Familiar channel | Available |
 | Google Antigravity | Native hook adapter with transcript extraction | Available |
 
 ## Quick Start
 
-Familiar does not publish installable release artifacts yet. Build it from source with Rust, Node.js, and the platform desktop prerequisites.
+Apple Silicon macOS builds are available from [GitHub Releases](https://github.com/Monster12138/familiar/releases). The current builds are not signed with an Apple Developer ID or notarized, so macOS may require explicit approval before first launch. Builds for other platforms can be created from source with Rust, Node.js, and the platform desktop prerequisites.
 
 ### Prerequisites
 
@@ -76,6 +77,22 @@ The settings window can install or remove Familiar-owned hooks. Existing agent c
 
 The primary local transport uses Unix domain sockets on Unix-like systems and loopback TCP where needed. Agent activity is currently held in process memory; the SQLite storage abstraction is experimental and is not wired into the desktop application.
 
+## Performance
+
+Familiar avoids polling work while the corresponding UI is hidden, caches slower-changing disk and configuration data, and only sends render state to the WebView when that state changes.
+
+After approximately 2 hours and 39 minutes of continuous runtime, a 30-second idle sample of the v0.2.0 Apple Silicon macOS build produced the following results:
+
+| Metric | Result |
+| --- | ---: |
+| Average CPU | 0.013% |
+| Median CPU | 0% |
+| CPU P95 | 0.1% |
+| Physical memory footprint | ~37 MiB |
+| Threads | 17–19 |
+
+No sustained CPU hotspot or obvious memory leak was observed. Results vary by hardware, visible windows, agent activity, and sprite pack.
+
 ## Privacy
 
 Familiar may read the latest task description, command text, tool names, file paths, and related local hook data to render the current state. Antigravity transcript files may be read when a hook explicitly references them.
@@ -90,6 +107,7 @@ See [docs/PRIVACY.md](docs/PRIVACY.md) for the complete data-flow, configuration
 - [Design Notes](docs/DESIGN.md) — Architecture and protocol background
 - [Backend Workflow](docs/BACKEND_WORKFLOW.md) — Rust development workflow
 - [Frontend Workflow](docs/FRONTEND_WORKFLOW.md) — UI development workflow
+- [Release Process](docs/RELEASE_PROCESS.md) — Versioning, macOS packaging, artifacts, tags, and GitHub Releases
 - [Sprite Pack Guide](docs/SPRITE_PACK_CREATION_GUIDE.md) — Create and package companions
 
 ## Project status
@@ -107,7 +125,7 @@ Planned or still experimental:
 - Persistent agent history and retention management
 - A complete statistics and activity dashboard
 - Stable public API guarantees
-- Signed release artifacts and verified Windows/Linux packaging
+- Signed and notarized macOS artifacts, plus verified Windows/Linux packaging
 
 ## Contributing
 

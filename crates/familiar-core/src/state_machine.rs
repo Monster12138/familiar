@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -11,6 +12,7 @@ pub struct StateMachine {
     event_bus: EventBus,
     celebration_secs: i64,
     sleep_timeout_secs: i64,
+    revision: Arc<AtomicU64>,
 }
 
 impl StateMachine {
@@ -20,6 +22,7 @@ impl StateMachine {
             event_bus,
             celebration_secs: celebration_secs as i64,
             sleep_timeout_secs: sleep_timeout_secs as i64,
+            revision: Arc::new(AtomicU64::new(1)),
         }
     }
 
@@ -27,20 +30,28 @@ impl StateMachine {
         self.render_state.read().await.clone()
     }
 
+    pub fn revision(&self) -> u64 {
+        self.revision.load(Ordering::SeqCst)
+    }
+
     pub async fn start_processing(&self) {
         let mut rx = self.event_bus.subscribe();
         let state_ref = self.render_state.clone();
+        let revision_ref = self.revision.clone();
 
         // Background timer to clean up completed agents and handle Idle -> Sleepy inactivity timeout
         let state_ref_cleanup = self.render_state.clone();
         let celebration_secs = self.celebration_secs;
         let sleep_timeout_secs = self.sleep_timeout_secs;
+        let revision_ref_cleanup = self.revision.clone();
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
             loop {
                 interval.tick().await;
                 let mut state = state_ref_cleanup.write().await;
                 let now = chrono::Utc::now();
+                let len_before = state.agents.len();
+                let mood_before = state.mood.clone();
 
                 // Handle cleanup of completed agents
                 state.agents.retain(|agent| {
@@ -56,6 +67,10 @@ impl StateMachine {
 
                 state.active_agent_count = state.agents.len();
                 Self::update_mood(&mut state, now, sleep_timeout_secs);
+
+                if len_before != state.agents.len() || mood_before != state.mood {
+                    revision_ref_cleanup.fetch_add(1, Ordering::SeqCst);
+                }
             }
         });
 
@@ -64,6 +79,7 @@ impl StateMachine {
             while let Ok(event) = rx.recv().await {
                 let mut state = state_ref.write().await;
                 Self::apply_event(&mut state, &event, sleep_timeout_secs);
+                revision_ref.fetch_add(1, Ordering::SeqCst);
             }
         });
     }
@@ -359,5 +375,34 @@ mod tests {
         // Should transition to Sleepy
         let state = machine.get_state().await;
         assert_eq!(state.mood, FamiliarMood::Sleepy);
+    }
+
+    #[tokio::test]
+    async fn test_state_machine_revision_increments_on_event() {
+        let bus = EventBus::new(100, 1000);
+        let machine = StateMachine::new(bus.clone(), 4, 300);
+        machine.start_processing().await;
+
+        let initial_rev = machine.revision();
+        let agent_id = Uuid::new_v4();
+
+        bus.publish(AgentEvent {
+            id: agent_id,
+            timestamp: chrono::Utc::now(),
+            source: AgentSource::Antigravity,
+            category: AgentCategory::Coding,
+            event_type: AgentEventType::Thinking,
+            metadata: None,
+        })
+        .await
+        .unwrap();
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        let new_rev = machine.revision();
+        assert!(
+            new_rev > initial_rev,
+            "Revision should increment after receiving an event"
+        );
     }
 }

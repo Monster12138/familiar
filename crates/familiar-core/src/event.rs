@@ -8,6 +8,7 @@ pub enum AgentSource {
     ClaudeCode,
     Codex,
     Antigravity,
+    Qoder,
     Custom(String),
 }
 

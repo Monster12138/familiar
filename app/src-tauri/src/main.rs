@@ -9,11 +9,13 @@ mod desktop_pet_window;
 mod tray;
 
 use serde_json::Value;
+use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 use sysinfo::System;
 use tauri::Emitter;
 use tokio::io::AsyncBufReadExt;
 
+use commands::AppConfigState;
 use familiar_core::config::FamiliarConfig;
 use familiar_core::event::AgentSource;
 use familiar_core::event_bus::EventBus;
@@ -41,6 +43,7 @@ fn main() {
 
     let event_bus = EventBus::new(100, 100);
     let config = load_config();
+    let app_config_state = Arc::new(AppConfigState::new(config.clone()));
     let state_machine = StateMachine::new(
         event_bus.clone(),
         config.renderer.desktop_pet.celebration_secs,
@@ -49,16 +52,36 @@ fn main() {
     let event_bus_for_server = event_bus.clone();
     let config_for_setup = config.clone();
 
-    let mut sys = System::new_all();
-    sys.refresh_all();
+    let mut sys = System::new();
+    sys.refresh_cpu_all();
+    sys.refresh_memory();
+    let disks = sysinfo::Disks::new_with_refreshed_list();
+    let mut max_disk_total = 0;
+    let mut max_disk_used = 0;
+    for disk in disks.list() {
+        if disk.total_space() > max_disk_total {
+            max_disk_total = disk.total_space();
+            max_disk_used = disk.total_space() - disk.available_space();
+        }
+    }
+    let sys_stats_state = crate::commands::SystemStatsState {
+        system: sys,
+        disks,
+        cached_disk_used: max_disk_used,
+        cached_disk_total: max_disk_total,
+        last_disk_refresh: Some(std::time::Instant::now()),
+    };
 
     let builder = tauri::Builder::default();
     #[cfg(target_os = "macos")]
     let builder = builder.plugin(tauri_nspanel::init());
 
+    let app_config_state_for_setup = app_config_state.clone();
+
     builder
         .manage(state_machine.clone())
-        .manage(StdMutex::new(sys))
+        .manage(app_config_state.clone())
+        .manage(StdMutex::new(sys_stats_state))
         .setup(move |app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
@@ -128,6 +151,7 @@ fn main() {
                                                                 "claude-code" => {
                                                                     AgentSource::ClaudeCode
                                                                 }
+                                                                "qoder" => AgentSource::Qoder,
                                                                 other => AgentSource::Custom(
                                                                     other.to_string(),
                                                                 ),
@@ -201,6 +225,7 @@ fn main() {
                                                             "claude-code" => {
                                                                 AgentSource::ClaudeCode
                                                             }
+                                                            "qoder" => AgentSource::Qoder,
                                                             other => AgentSource::Custom(
                                                                 other.to_string(),
                                                             ),
@@ -237,24 +262,45 @@ fn main() {
 
             let app_handle = app.handle().clone();
             let sm_for_emit = state_machine.clone();
+            let config_state_for_emit = app_config_state_for_setup.clone();
             tauri::async_runtime::spawn(async move {
                 let mut interval = tokio::time::interval(std::time::Duration::from_millis(500));
+                let mut last_main_state_rev = 0u64;
+                let mut last_main_config_rev = 0u64;
+                let mut last_settings_state_rev = 0u64;
+
                 loop {
                     interval.tick().await;
-                    let full_state = sm_for_emit.get_state().await;
+
+                    let current_state_rev = sm_for_emit.revision();
+                    let current_config_rev = config_state_for_emit
+                        .revision
+                        .load(std::sync::atomic::Ordering::SeqCst);
 
                     use tauri::Manager;
+
+                    // Emit settings state only if settings window exists AND is visible AND state changed
                     if let Some(settings_win) = app_handle.get_webview_window("settings") {
-                        let _ = settings_win.emit("settings_state_changed", &full_state);
+                        if settings_win.is_visible().unwrap_or(false)
+                            && current_state_rev != last_settings_state_rev
+                        {
+                            let full_state = sm_for_emit.get_state().await;
+                            let _ = settings_win.emit("settings_state_changed", &full_state);
+                            last_settings_state_rev = current_state_rev;
+                        }
                     }
 
-                    if let Some(main_win) = app_handle.get_webview_window("main") {
-                        let current_config = load_config();
-                        let hidden_set: std::collections::HashSet<String> = current_config
-                            .sessions
+                    // Emit main state only if state revision or config revision changed
+                    if current_state_rev != last_main_state_rev
+                        || current_config_rev != last_main_config_rev
+                    {
+                        let full_state = sm_for_emit.get_state().await;
+                        let hidden_set = config_state_for_emit
                             .hidden_sessions
-                            .into_iter()
-                            .collect();
+                            .read()
+                            .unwrap()
+                            .clone();
+
                         let mut filtered_state = full_state.clone();
                         if !hidden_set.is_empty() {
                             filtered_state
@@ -298,9 +344,15 @@ fn main() {
                                 filtered_state.mood = familiar_core::state::FamiliarMood::Idle;
                             }
                         }
-                        let _ = main_win.emit("state_changed", &filtered_state);
-                    } else {
-                        let _ = app_handle.emit("state_changed", &full_state);
+
+                        if let Some(main_win) = app_handle.get_webview_window("main") {
+                            let _ = main_win.emit("state_changed", &filtered_state);
+                        } else {
+                            let _ = app_handle.emit("state_changed", &full_state);
+                        }
+
+                        last_main_state_rev = current_state_rev;
+                        last_main_config_rev = current_config_rev;
                     }
                 }
             });
@@ -313,6 +365,7 @@ fn main() {
             use tauri::Manager;
 
             let pos_state = Arc::new(Mutex::new((None::<(i32, i32)>, Instant::now(), false)));
+            let app_config_state_for_pos = app_config_state.clone();
 
             move |window, event| {
                 if window.label() == "main" {
@@ -325,6 +378,7 @@ fn main() {
                             lock.2 = true;
                             let pos_state_clone = pos_state.clone();
                             let app_handle = window.app_handle().clone();
+                            let app_config_state_clone = app_config_state_for_pos.clone();
                             tauri::async_runtime::spawn(async move {
                                 loop {
                                     tokio::time::sleep(Duration::from_millis(500)).await;
@@ -340,12 +394,14 @@ fn main() {
 
                                     if should_save {
                                         if let Some((x, y)) = target_pos {
-                                            let mut config =
-                                                crate::commands::load_config_from_paths();
+                                            let mut config = app_config_state_clone.get_config();
                                             config.renderer.desktop_pet.position =
                                                 format!("{},{}", x, y);
-                                            let _ =
-                                                crate::commands::save_config(app_handle, config);
+                                            let _ = crate::commands::save_config_internal(
+                                                &app_handle,
+                                                &app_config_state_clone,
+                                                config,
+                                            );
                                         }
                                         break;
                                     }
