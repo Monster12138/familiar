@@ -698,7 +698,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (btnOpenSysLoginItems) {
         btnOpenSysLoginItems.addEventListener('click', async () => {
             try {
-                await invoke('open_url', { url: 'x-apple.systempreferences:com.apple.LoginItems-Settings.extension' });
+                await invoke('open_login_items_settings');
             } catch (e) {
                 console.error("Failed to open system settings:", e);
             }

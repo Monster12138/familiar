@@ -236,6 +236,44 @@ pub async fn open_url(url: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Open the platform's login-item / startup settings.
+///
+/// macOS has no public API to register login items, so deep-link into
+/// System Settings. Windows has no equivalent GUI; the per-user Startup
+/// folder is opened instead (a shortcut placed there starts at login).
+/// Linux uses the freedesktop autostart directory.
+#[tauri::command]
+pub fn open_login_items_settings() -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        open::that("x-apple.systempreferences:com.apple.LoginItems-Settings.extension")
+            .map_err(|e| e.to_string())
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let appdata = std::env::var_os("APPDATA")
+            .map(std::path::PathBuf::from)
+            .or_else(dirs::data_dir)
+            .ok_or_else(|| "Cannot resolve APPDATA".to_string())?;
+        let startup = appdata
+            .join("Microsoft")
+            .join("Windows")
+            .join("Start Menu")
+            .join("Programs")
+            .join("Startup");
+        std::fs::create_dir_all(&startup).map_err(|e| e.to_string())?;
+        open::that(&startup).map_err(|e| e.to_string())
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        let autostart = dirs::config_dir()
+            .ok_or_else(|| "Cannot resolve config dir".to_string())?
+            .join("autostart");
+        std::fs::create_dir_all(&autostart).map_err(|e| e.to_string())?;
+        open::that(&autostart).map_err(|e| e.to_string())
+    }
+}
+
 use familiar_hooks::antigravity::AntigravityHook;
 use familiar_hooks::claude_code::ClaudeCodeHook;
 use familiar_hooks::codex::CodexHook;

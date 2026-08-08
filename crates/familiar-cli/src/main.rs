@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 
 use familiar_core::event_bus::EventBus;
-use familiar_core::logger::init_logger;
+use familiar_core::logger::{default_log_dir, init_logger};
 use familiar_core::state_machine::StateMachine;
 use familiar_hooks::antigravity::AntigravityHook;
 // use familiar_hooks::hook_trait::AgentHook; removed
@@ -56,7 +56,7 @@ async fn main() -> Result<()> {
             println!("Starting Familiar headless daemon...");
 
             // Initialize logger
-            let _guard = init_logger("/tmp", "familiar_daemon.log")?;
+            let _guard = init_logger(default_log_dir(), "familiar_daemon.log")?;
 
             // Setup core
             let event_bus = EventBus::new(100, 100);
