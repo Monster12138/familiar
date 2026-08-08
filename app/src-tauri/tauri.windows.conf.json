@@ -1,0 +1,7 @@
+{
+  "bundle": {
+    "resources": {
+      "../../target/release/familiar-cli.exe": "bin/familiar-cli.exe"
+    }
+  }
+}

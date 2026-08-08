@@ -39,49 +39,6 @@ impl CodexHook {
             }
         }
     }
-    fn get_bin_path() -> String {
-        if let Ok(exe) = std::env::current_exe() {
-            if exe.file_name().and_then(|s| s.to_str()) == Some("familiar-cli") {
-                return exe.to_string_lossy().to_string();
-            }
-            if let Some(parent) = exe.parent() {
-                let cli = parent.join("familiar-cli");
-                if cli.exists() {
-                    return cli.to_string_lossy().to_string();
-                }
-                if let Some(grandparent) = parent.parent() {
-                    let bin_cli = grandparent
-                        .join("Resources")
-                        .join("bin")
-                        .join("familiar-cli");
-                    if bin_cli.exists() {
-                        return bin_cli.to_string_lossy().to_string();
-                    }
-                    let res_cli = grandparent.join("Resources").join("familiar-cli");
-                    if res_cli.exists() {
-                        return res_cli.to_string_lossy().to_string();
-                    }
-                }
-                let res_cli = parent.join("Resources").join("familiar-cli");
-                if res_cli.exists() {
-                    return res_cli.to_string_lossy().to_string();
-                }
-            }
-        }
-        if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
-            let dev_cli =
-                std::path::PathBuf::from(&manifest_dir).join("../../target/release/familiar-cli");
-            if dev_cli.exists() {
-                return dev_cli.to_string_lossy().to_string();
-            }
-            let dev_cli_debug =
-                std::path::PathBuf::from(&manifest_dir).join("../../target/debug/familiar-cli");
-            if dev_cli_debug.exists() {
-                return dev_cli_debug.to_string_lossy().to_string();
-            }
-        }
-        "familiar-cli".to_string()
-    }
 }
 
 #[async_trait]
@@ -108,15 +65,15 @@ impl AgentHook for CodexHook {
     }
 
     fn get_injection_payload(&self) -> Option<serde_json::Value> {
-        let bin_path = Self::get_bin_path();
+        let bin_path = crate::bin_path::resolve_cli_bin_path();
         Some(serde_json::json!({
             "hooks": {
-                "SessionStart": [{ "hooks": [{ "type": "command", "command": format!("{} hook --source codex --event SessionStart", bin_path) }] }],
-                "SessionEnd": [{ "hooks": [{ "type": "command", "command": format!("{} hook --source codex --event SessionEnd", bin_path) }] }],
-                "PreToolUse": [{ "hooks": [{ "type": "command", "command": format!("{} hook --source codex --event PreToolUse", bin_path) }] }],
-                "PostToolUse": [{ "hooks": [{ "type": "command", "command": format!("{} hook --source codex --event PostToolUse", bin_path) }] }],
-                "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": format!("{} hook --source codex --event UserPromptSubmit", bin_path) }] }],
-                "Stop": [{ "hooks": [{ "type": "command", "command": format!("{} hook --source codex --event Stop", bin_path) }] }]
+                "SessionStart": [{ "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source codex --event SessionStart", bin_path) }] }],
+                "SessionEnd": [{ "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source codex --event SessionEnd", bin_path) }] }],
+                "PreToolUse": [{ "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source codex --event PreToolUse", bin_path) }] }],
+                "PostToolUse": [{ "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source codex --event PostToolUse", bin_path) }] }],
+                "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source codex --event UserPromptSubmit", bin_path) }] }],
+                "Stop": [{ "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source codex --event Stop", bin_path) }] }]
             }
         }))
     }
