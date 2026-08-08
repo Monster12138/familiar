@@ -55,9 +55,10 @@ impl SpritePackManager {
     pub fn get_search_dirs() -> Vec<(PathBuf, bool)> {
         let mut dirs = Vec::new();
 
-        // Custom user sprite pack directory (~/.config/familiar/sprites) FIRST
-        if let Some(home) = dirs::home_dir() {
-            dirs.push((home.join(".config").join("familiar").join("sprites"), false));
+        // Custom user sprite pack directories FIRST (platform dir, then the
+        // legacy ~/.config/familiar/sprites location)
+        for dir in crate::platform::user_sprite_dir_candidates() {
+            dirs.push((dir, false));
         }
 
         // Built-in sprite pack locations
@@ -80,11 +81,7 @@ impl SpritePackManager {
     }
 
     pub fn get_user_sprite_dir() -> PathBuf {
-        if let Some(home) = dirs::home_dir() {
-            home.join(".config").join("familiar").join("sprites")
-        } else {
-            PathBuf::from("sprites")
-        }
+        crate::platform::user_sprite_dir()
     }
 
     pub fn discover_packs() -> Vec<SpritePackInfo> {

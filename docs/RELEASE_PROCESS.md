@@ -1,6 +1,6 @@
 # Familiar 发布流程
 
-本文档描述 Familiar 的版本升级、发布验证、macOS 打包、本地制品归档、Git 分支与 Tag，以及 GitHub Release 发布流程。
+本文档描述 Familiar 的版本升级、发布验证、macOS 与 Windows 打包、本地制品归档、Git 分支与 Tag，以及 GitHub Release 发布流程。
 
 当前自动化尚未覆盖完整的发布链路。执行发布前应确认操作者明确授权了提交、推送、创建 Tag 和发布外部制品。
 
@@ -17,6 +17,7 @@
 release-artifacts/
 └── vX.Y.Z/
     ├── Familiar_X.Y.Z_aarch64.dmg
+    ├── Familiar_X.Y.Z_x64-setup.exe
     └── SHA256SUMS
 ```
 
@@ -147,7 +148,9 @@ rustfmt --check path/to/changed.rs
 
 任何检查失败都应先定位原因。不得把聚焦检查描述成完整 workspace 检查，也不得隐瞒预先存在的失败。
 
-## 7. 构建 macOS 安装包
+## 7. 构建安装包
+
+### 7.1 macOS（Apple Silicon）
 
 当前本地发布目标为 Apple Silicon macOS：
 
@@ -179,6 +182,30 @@ file "$APP/Contents/Resources/bin/familiar-cli"
 
 两个二进制都应报告 `Mach-O 64-bit executable arm64`，两个 bundle 版本都应与发布版本一致。
 
+### 7.2 Windows（x86_64）
+
+在 Windows 机器上（需要 MSVC 构建工具、Windows SDK 和 WebView2 Runtime）：
+
+```powershell
+cd app
+npm run tauri build -- --bundles nsis
+cd ..
+```
+
+预期输出：
+
+```text
+app/src-tauri/target/release/bundle/nsis/Familiar_X.Y.Z_x64-setup.exe
+```
+
+打包前确认 `target/release/familiar-cli.exe` 存在（`beforeBuildCommand` 会构建它），
+且 `app/src-tauri/icons/icon.ico` 已生成。`familiar-cli.exe` 通过平台配置
+`tauri.windows.conf.json` 打入安装包的 `resources/bin/`。
+
+首次构建 NSIS 安装包时 Tauri 会自动下载 NSIS 工具链，需要网络访问。
+Windows 安装包当前未做代码签名，Release Notes 必须说明 SmartScreen 可能
+要求用户手动确认首次安装。
+
 ## 8. 签名与公证检查
 
 查看当前机器是否存在 Developer ID 签名身份：
@@ -206,6 +233,8 @@ spctl -a -vv -t exec "$APP"
 
 ```bash
 shasum -a 256 "$DMG"
+# Windows 机器上对应：
+# Get-FileHash "Familiar_X.Y.Z_x64-setup.exe" -Algorithm SHA256
 ```
 
 创建当前版本的本地归档目录，并复制文件：
@@ -216,9 +245,10 @@ ARTIFACT_DIR="release-artifacts/$VERSION"
 
 mkdir -p "$ARTIFACT_DIR"
 cp "$DMG" "$ARTIFACT_DIR/"
+# 如在 Windows 上构建了 NSIS 安装包，同样复制到 $ARTIFACT_DIR/
 
 cd "$ARTIFACT_DIR"
-shasum -a 256 "Familiar_${VERSION#v}_aarch64.dmg" > SHA256SUMS
+shasum -a 256 *.dmg *.exe > SHA256SUMS 2>/dev/null || shasum -a 256 *.dmg > SHA256SUMS
 shasum -a 256 -c SHA256SUMS
 cd ../..
 ```
@@ -283,11 +313,12 @@ git -c credential.helper= \
 
 ## 13. 创建 GitHub Release
 
-使用本地归档目录中的已验证文件：
+使用本地归档目录中的已验证文件（多平台发布时把 Windows 安装包一并附上）：
 
 ```bash
 gh release create "$VERSION" \
   "$ARTIFACT_DIR/Familiar_${VERSION#v}_aarch64.dmg" \
+  "$ARTIFACT_DIR/Familiar_${VERSION#v}_x64-setup.exe" \
   "$ARTIFACT_DIR/SHA256SUMS" \
   --repo Monster12138/familiar \
   --title "Familiar $VERSION" \
@@ -316,8 +347,8 @@ git ls-remote origin \
 
 - Release 不是 Draft。
 - 正式版与预发布状态正确。
-- DMG 和 `SHA256SUMS` 均为 `uploaded`。
-- GitHub 返回的 DMG digest 与本地 SHA-256 一致。
+- DMG、Windows 安装包（如有）和 `SHA256SUMS` 均为 `uploaded`。
+- GitHub 返回的制品 digest 与本地 SHA-256 一致。
 - Tag 解引用后指向预期发布提交。
 - 本地 `release-artifacts/vX.Y.Z/` 中保留同一份制品。
 

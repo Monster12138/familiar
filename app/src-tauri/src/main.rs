@@ -414,6 +414,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::greet,
+            commands::get_platform,
             commands::get_config,
             commands::save_config,
             commands::get_system_stats,

@@ -30,6 +30,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const elUdsPath = document.getElementById('setting-uds-path');
     const elTcpPort = document.getElementById('setting-tcp-port');
+
+    // Windows has no Unix domain sockets, so hide the UDS path item.
+    try {
+        const platform = await invoke('get_platform');
+        if (platform === 'windows' && elUdsPath) {
+            const udsItem = elUdsPath.closest('.setting-item');
+            if (udsItem) {
+                udsItem.style.display = 'none';
+                const prev = udsItem.previousElementSibling;
+                if (prev && prev.classList.contains('divider')) {
+                    prev.style.display = 'none';
+                }
+            }
+        }
+    } catch (e) {
+        console.error('Failed to detect platform:', e);
+    }
     const elCelebrationSecs = document.getElementById('setting-celebration-secs');
     const valCelebrationSecs = document.getElementById('val-celebration-secs');
     const elSleepTimeoutSecs = document.getElementById('setting-sleep-timeout-secs');

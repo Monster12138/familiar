@@ -111,10 +111,9 @@ pub fn get_system_stats(sys_state: tauri::State<'_, StdMutex<SystemStatsState>>)
 }
 
 pub fn get_config_search_paths() -> Vec<std::path::PathBuf> {
-    let mut paths = Vec::new();
-    if let Some(home) = dirs::home_dir() {
-        paths.push(home.join(".config").join("familiar").join("config.toml"));
-    }
+    // Platform user config locations first (on Windows the platform config
+    // dir, with the legacy ~/.config/familiar kept as fallback).
+    let mut paths = familiar_core::platform::user_config_file_candidates();
     paths.push(std::path::PathBuf::from("config/default.toml"));
     paths.push(std::path::PathBuf::from("../../config/default.toml"));
     paths
@@ -169,7 +168,7 @@ pub fn save_config_internal(
         }
     }
 
-    // Save to user configuration directory (~/.config/familiar/config.toml) if no existing file was found
+    // Save to the preferred user config location if no existing file was found
     if let Some(user_path) = search_paths.first() {
         if let Some(parent) = user_path.parent() {
             let _ = std::fs::create_dir_all(parent);
@@ -197,6 +196,13 @@ pub fn save_config(
 #[tauri::command]
 pub fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
+}
+
+/// Current operating system (`std::env::consts::OS`), used by the frontend
+/// to adapt settings UI that only applies on some platforms.
+#[tauri::command]
+pub fn get_platform() -> String {
+    std::env::consts::OS.to_string()
 }
 
 #[tauri::command]

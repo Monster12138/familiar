@@ -2,6 +2,7 @@ pub mod config;
 pub mod event;
 pub mod event_bus;
 pub mod logger;
+pub mod platform;
 pub mod plugin;
 pub mod sprite_pack;
 pub mod state;
