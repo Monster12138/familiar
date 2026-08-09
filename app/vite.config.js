@@ -10,8 +10,15 @@ const spritesDir = path.resolve(appDir, '../sprites');
 // `app/public/sprites` symlink breaks on Windows checkouts where git
 // materializes symlinks as plain text files (core.symlinks=false).
 function repoSprites() {
+  // Resolved by Vite (relative to `root`), so the copy lands next to the
+  // built frontend instead of next to this config file.
+  let outDir = '';
   return {
     name: 'repo-sprites',
+    configResolved(config) {
+      // `outDir` may be relative to `root`, resolve it to an absolute path.
+      outDir = path.resolve(config.root, config.build.outDir);
+    },
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         if (!req.url || !req.url.startsWith('/sprites/')) return next();
@@ -31,7 +38,9 @@ function repoSprites() {
       });
     },
     closeBundle() {
-      fs.cpSync(spritesDir, path.resolve(appDir, '../dist/sprites'), { recursive: true });
+      if (outDir) {
+        fs.cpSync(spritesDir, path.join(outDir, 'sprites'), { recursive: true });
+      }
     }
   };
 }
