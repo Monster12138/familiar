@@ -16,6 +16,7 @@
         "height": 500,
         "transparent": true,
         "decorations": false,
+        "shadow": false,
         "alwaysOnTop": false,
         "visibleOnAllWorkspaces": false,
         "skipTaskbar": true,
@@ -26,7 +27,6 @@
   "bundle": {
     "active": true,
     "resources": {
-      "../../target/release/familiar-cli": "bin/familiar-cli",
       "../../ASSETS.md": "ASSETS.md",
       "../../LICENSE-APACHE": "LICENSE-APACHE",
       "../../LICENSE-MIT": "LICENSE-MIT",

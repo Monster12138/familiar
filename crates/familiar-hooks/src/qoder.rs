@@ -39,50 +39,6 @@ impl QoderHook {
             }
         }
     }
-
-    fn get_bin_path() -> String {
-        if let Ok(exe) = std::env::current_exe() {
-            if exe.file_name().and_then(|s| s.to_str()) == Some("familiar-cli") {
-                return exe.to_string_lossy().to_string();
-            }
-            if let Some(parent) = exe.parent() {
-                let cli = parent.join("familiar-cli");
-                if cli.exists() {
-                    return cli.to_string_lossy().to_string();
-                }
-                if let Some(grandparent) = parent.parent() {
-                    let bin_cli = grandparent
-                        .join("Resources")
-                        .join("bin")
-                        .join("familiar-cli");
-                    if bin_cli.exists() {
-                        return bin_cli.to_string_lossy().to_string();
-                    }
-                    let res_cli = grandparent.join("Resources").join("familiar-cli");
-                    if res_cli.exists() {
-                        return res_cli.to_string_lossy().to_string();
-                    }
-                }
-                let res_cli = parent.join("Resources").join("familiar-cli");
-                if res_cli.exists() {
-                    return res_cli.to_string_lossy().to_string();
-                }
-            }
-        }
-        if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
-            let dev_cli =
-                std::path::PathBuf::from(&manifest_dir).join("../../target/release/familiar-cli");
-            if dev_cli.exists() {
-                return dev_cli.to_string_lossy().to_string();
-            }
-            let dev_cli_debug =
-                std::path::PathBuf::from(&manifest_dir).join("../../target/debug/familiar-cli");
-            if dev_cli_debug.exists() {
-                return dev_cli_debug.to_string_lossy().to_string();
-            }
-        }
-        "familiar-cli".to_string()
-    }
 }
 
 #[async_trait]
@@ -109,7 +65,7 @@ impl AgentHook for QoderHook {
     }
 
     fn get_injection_payload(&self) -> Option<serde_json::Value> {
-        let bin_path = Self::get_bin_path();
+        let bin_path = crate::bin_path::resolve_cli_bin_path();
         Some(serde_json::json!({
             "hooks": {
                 "UserPromptSubmit": [
@@ -117,7 +73,7 @@ impl AgentHook for QoderHook {
                         "hooks": [
                             {
                                 "type": "command",
-                                "command": format!("{} hook --source qoder --event UserPromptSubmit", bin_path)
+                                "command": format!("\"{}\" hook --source qoder --event UserPromptSubmit", bin_path)
                             }
                         ]
                     }
@@ -128,7 +84,7 @@ impl AgentHook for QoderHook {
                         "hooks": [
                             {
                                 "type": "command",
-                                "command": format!("{} hook --source qoder --event PreToolUse", bin_path)
+                                "command": format!("\"{}\" hook --source qoder --event PreToolUse", bin_path)
                             }
                         ]
                     }
@@ -139,7 +95,7 @@ impl AgentHook for QoderHook {
                         "hooks": [
                             {
                                 "type": "command",
-                                "command": format!("{} hook --source qoder --event PostToolUse", bin_path)
+                                "command": format!("\"{}\" hook --source qoder --event PostToolUse", bin_path)
                             }
                         ]
                     }
@@ -150,7 +106,7 @@ impl AgentHook for QoderHook {
                         "hooks": [
                             {
                                 "type": "command",
-                                "command": format!("{} hook --source qoder --event PostToolUseFailure", bin_path)
+                                "command": format!("\"{}\" hook --source qoder --event PostToolUseFailure", bin_path)
                             }
                         ]
                     }
@@ -160,7 +116,7 @@ impl AgentHook for QoderHook {
                         "hooks": [
                             {
                                 "type": "command",
-                                "command": format!("{} hook --source qoder --event Stop", bin_path)
+                                "command": format!("\"{}\" hook --source qoder --event Stop", bin_path)
                             }
                         ]
                     }

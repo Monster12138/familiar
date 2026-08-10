@@ -19,7 +19,7 @@ use commands::AppConfigState;
 use familiar_core::config::FamiliarConfig;
 use familiar_core::event::AgentSource;
 use familiar_core::event_bus::EventBus;
-use familiar_core::logger::init_logger;
+use familiar_core::logger::{default_log_dir, init_logger};
 use familiar_core::state_machine::StateMachine;
 use familiar_hooks::adapter::CliAgentHookAdapter;
 use familiar_hooks::antigravity::AntigravityHook;
@@ -39,7 +39,7 @@ fn drag_main_window(app: tauri::AppHandle) {
 }
 
 fn main() {
-    let _guard = init_logger("/tmp", "familiar_tauri.log").unwrap();
+    let _guard = init_logger(default_log_dir(), "familiar_tauri.log").unwrap();
 
     let event_bus = EventBus::new(100, 100);
     let config = load_config();
@@ -414,12 +414,14 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::greet,
+            commands::get_platform,
             commands::get_config,
             commands::save_config,
             commands::get_system_stats,
             commands::get_active_sessions,
             commands::open_settings_window,
             commands::open_url,
+            commands::open_login_items_settings,
             commands::get_hooks_status,
             commands::get_hook_payload,
             commands::inject_hook,

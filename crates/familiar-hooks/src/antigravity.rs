@@ -20,44 +20,6 @@ impl AntigravityHook {
         Self {}
     }
 
-    fn get_bin_path() -> String {
-        if let Ok(exe) = std::env::current_exe() {
-            if exe.file_name().and_then(|s| s.to_str()) == Some("familiar-cli") {
-                return exe.to_string_lossy().to_string();
-            }
-            if let Some(parent) = exe.parent() {
-                let cli_bin = parent.join("familiar-cli");
-                if cli_bin.exists() {
-                    return cli_bin.to_string_lossy().to_string();
-                }
-                if let Some(grandparent) = parent.parent() {
-                    let bin_cli = grandparent
-                        .join("Resources")
-                        .join("bin")
-                        .join("familiar-cli");
-                    if bin_cli.exists() {
-                        return bin_cli.to_string_lossy().to_string();
-                    }
-                    let res_cli = grandparent.join("Resources").join("familiar-cli");
-                    if res_cli.exists() {
-                        return res_cli.to_string_lossy().to_string();
-                    }
-                }
-                let res_cli = parent.join("Resources").join("familiar-cli");
-                if res_cli.exists() {
-                    return res_cli.to_string_lossy().to_string();
-                }
-            }
-        }
-        dirs::home_dir()
-            .map(|h| {
-                h.join(".cargo/bin/familiar-cli")
-                    .to_string_lossy()
-                    .to_string()
-            })
-            .unwrap_or_else(|| "familiar-cli".to_string())
-    }
-
     fn extract_clean_text(s: &str) -> String {
         let mut text = s.to_string();
         if let Some(start) = text.find("<USER_REQUEST>") {
@@ -341,33 +303,33 @@ impl AgentHook for AntigravityHook {
     }
 
     fn get_injection_payload(&self) -> Option<serde_json::Value> {
-        let bin_path = Self::get_bin_path();
+        let bin_path = crate::bin_path::resolve_cli_bin_path();
         Some(serde_json::json!({
             "familiar": {
                 "PreInvocation": [{
                     "type": "command",
-                    "command": format!("{} hook --source antigravity --event PreInvocation", bin_path)
+                    "command": format!("\"{}\" hook --source antigravity --event PreInvocation", bin_path)
                 }],
                 "PostInvocation": [{
                     "type": "command",
-                    "command": format!("{} hook --source antigravity --event PostInvocation", bin_path)
+                    "command": format!("\"{}\" hook --source antigravity --event PostInvocation", bin_path)
                 }],
                 "Stop": [{
                     "type": "command",
-                    "command": format!("{} hook --source antigravity --event Stop", bin_path)
+                    "command": format!("\"{}\" hook --source antigravity --event Stop", bin_path)
                 }],
                 "PreToolUse": [{
                     "matcher": "*",
                     "hooks": [{
                         "type": "command",
-                        "command": format!("{} hook --source antigravity --event PreToolUse", bin_path)
+                        "command": format!("\"{}\" hook --source antigravity --event PreToolUse", bin_path)
                     }]
                 }],
                 "PostToolUse": [{
                     "matcher": "*",
                     "hooks": [{
                         "type": "command",
-                        "command": format!("{} hook --source antigravity --event PostToolUse", bin_path)
+                        "command": format!("\"{}\" hook --source antigravity --event PostToolUse", bin_path)
                     }]
                 }]
             }

@@ -32,16 +32,22 @@ pub async fn run(source_name: &str, event_name: &str) -> Result<()> {
     let mut payload_bytes = serde_json::to_vec(&payload)?;
     payload_bytes.push(b'\n');
 
-    // 3. Send to familiar daemon (Try Unix Socket first, fallback to TCP loopback 127.0.0.1:9528)
+    // 3. Send to familiar daemon (UDS first on Unix, TCP loopback fallback).
+    // Endpoints follow the user config (`hooks.socket_path` / `hooks.tcp_port`).
+    let (socket_path, tcp_port) = load_endpoint_config();
+    let tcp_addr = tcp_endpoint(tcp_port);
     let res = async {
         #[cfg(unix)]
         {
-            if let Ok(mut stream) = tokio::net::UnixStream::connect("/tmp/familiar.sock").await {
+            let sock = socket_path.unwrap_or_else(|| "/tmp/familiar.sock".to_string());
+            if let Ok(mut stream) = tokio::net::UnixStream::connect(&sock).await {
                 stream.write_all(&payload_bytes).await?;
                 return Ok::<(), anyhow::Error>(());
             }
         }
-        let mut stream = tokio::net::TcpStream::connect("127.0.0.1:9528").await?;
+        #[cfg(not(unix))]
+        let _ = socket_path;
+        let mut stream = tokio::net::TcpStream::connect(&tcp_addr).await?;
         stream.write_all(&payload_bytes).await?;
         Ok::<(), anyhow::Error>(())
     }
@@ -50,6 +56,24 @@ pub async fn run(source_name: &str, event_name: &str) -> Result<()> {
     let output_json = get_hook_response_json(source_name, event_name, res.is_err());
     println!("{}", output_json);
     Ok(())
+}
+
+/// Best-effort lookup of hook endpoints from the user config file.
+///
+/// The hook CLI runs from any working directory on behalf of coding agents,
+/// so only absolute user config locations are consulted. Missing entries fall
+/// back to the historical defaults (`/tmp/familiar.sock`, port 9528).
+fn load_endpoint_config() -> (Option<String>, Option<u16>) {
+    for path in familiar_core::platform::user_config_file_candidates() {
+        if let Ok(config) = familiar_core::config::FamiliarConfig::load_from_file(&path) {
+            return (config.hooks.socket_path, config.hooks.tcp_port);
+        }
+    }
+    (None, None)
+}
+
+fn tcp_endpoint(tcp_port: Option<u16>) -> String {
+    format!("127.0.0.1:{}", tcp_port.unwrap_or(9528))
 }
 
 fn get_hook_response_json(source_name: &str, event_name: &str, offline: bool) -> String {
@@ -107,6 +131,12 @@ fn get_hook_response_json(source_name: &str, event_name: &str, offline: bool) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_tcp_endpoint_falls_back_to_default_port() {
+        assert_eq!(tcp_endpoint(None), "127.0.0.1:9528");
+        assert_eq!(tcp_endpoint(Some(1234)), "127.0.0.1:1234");
+    }
 
     #[test]
     fn test_qoder_hook_response_json() {

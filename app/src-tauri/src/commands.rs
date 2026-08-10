@@ -111,10 +111,9 @@ pub fn get_system_stats(sys_state: tauri::State<'_, StdMutex<SystemStatsState>>)
 }
 
 pub fn get_config_search_paths() -> Vec<std::path::PathBuf> {
-    let mut paths = Vec::new();
-    if let Some(home) = dirs::home_dir() {
-        paths.push(home.join(".config").join("familiar").join("config.toml"));
-    }
+    // Platform user config locations first (on Windows the platform config
+    // dir, with the legacy ~/.config/familiar kept as fallback).
+    let mut paths = familiar_core::platform::user_config_file_candidates();
     paths.push(std::path::PathBuf::from("config/default.toml"));
     paths.push(std::path::PathBuf::from("../../config/default.toml"));
     paths
@@ -169,7 +168,7 @@ pub fn save_config_internal(
         }
     }
 
-    // Save to user configuration directory (~/.config/familiar/config.toml) if no existing file was found
+    // Save to the preferred user config location if no existing file was found
     if let Some(user_path) = search_paths.first() {
         if let Some(parent) = user_path.parent() {
             let _ = std::fs::create_dir_all(parent);
@@ -197,6 +196,13 @@ pub fn save_config(
 #[tauri::command]
 pub fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
+}
+
+/// Current operating system (`std::env::consts::OS`), used by the frontend
+/// to adapt settings UI that only applies on some platforms.
+#[tauri::command]
+pub fn get_platform() -> String {
+    std::env::consts::OS.to_string()
 }
 
 #[tauri::command]
@@ -234,6 +240,44 @@ pub async fn open_settings_window(app_handle: tauri::AppHandle) -> Result<(), St
 pub async fn open_url(url: String) -> Result<(), String> {
     let _ = open::that(url);
     Ok(())
+}
+
+/// Open the platform's login-item / startup settings.
+///
+/// macOS has no public API to register login items, so deep-link into
+/// System Settings. Windows has no equivalent GUI; the per-user Startup
+/// folder is opened instead (a shortcut placed there starts at login).
+/// Linux uses the freedesktop autostart directory.
+#[tauri::command]
+pub fn open_login_items_settings() -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        open::that("x-apple.systempreferences:com.apple.LoginItems-Settings.extension")
+            .map_err(|e| e.to_string())
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let appdata = std::env::var_os("APPDATA")
+            .map(std::path::PathBuf::from)
+            .or_else(dirs::data_dir)
+            .ok_or_else(|| "Cannot resolve APPDATA".to_string())?;
+        let startup = appdata
+            .join("Microsoft")
+            .join("Windows")
+            .join("Start Menu")
+            .join("Programs")
+            .join("Startup");
+        std::fs::create_dir_all(&startup).map_err(|e| e.to_string())?;
+        open::that(&startup).map_err(|e| e.to_string())
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        let autostart = dirs::config_dir()
+            .ok_or_else(|| "Cannot resolve config dir".to_string())?
+            .join("autostart");
+        std::fs::create_dir_all(&autostart).map_err(|e| e.to_string())?;
+        open::that(&autostart).map_err(|e| e.to_string())
+    }
 }
 
 use familiar_hooks::antigravity::AntigravityHook;

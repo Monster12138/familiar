@@ -30,6 +30,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const elUdsPath = document.getElementById('setting-uds-path');
     const elTcpPort = document.getElementById('setting-tcp-port');
+
+    // Hide settings that only apply on some platforms: UDS has no Unix
+    // domain sockets on Windows, and "follow desktop switching" only has
+    // an effect on macOS (Spaces / full-screen behavior).
+    const hideSettingItem = (input) => {
+        if (!input) return;
+        const item = input.closest('.setting-item');
+        if (!item) return;
+        item.style.display = 'none';
+        const next = item.nextElementSibling;
+        const prev = item.previousElementSibling;
+        if (next && next.classList.contains('divider')) next.style.display = 'none';
+        else if (prev && prev.classList.contains('divider')) prev.style.display = 'none';
+    };
+
+    try {
+        const platform = await invoke('get_platform');
+        if (platform === 'windows') hideSettingItem(elUdsPath);
+        if (platform !== 'darwin') hideSettingItem(elPetAllDesktops);
+    } catch (e) {
+        console.error('Failed to detect platform:', e);
+    }
     const elCelebrationSecs = document.getElementById('setting-celebration-secs');
     const valCelebrationSecs = document.getElementById('val-celebration-secs');
     const elSleepTimeoutSecs = document.getElementById('setting-sleep-timeout-secs');
@@ -698,7 +720,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (btnOpenSysLoginItems) {
         btnOpenSysLoginItems.addEventListener('click', async () => {
             try {
-                await invoke('open_url', { url: 'x-apple.systempreferences:com.apple.LoginItems-Settings.extension' });
+                await invoke('open_login_items_settings');
             } catch (e) {
                 console.error("Failed to open system settings:", e);
             }
