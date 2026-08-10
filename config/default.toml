@@ -17,7 +17,7 @@ enabled = [
 ]
 
 [renderer.desktop-pet]
-sprite = "british-blue"
+sprite = "tabby-cat"
 scale = 1.3
 position = "bottom-right"
 always_on_top = true
