@@ -31,19 +31,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     const elUdsPath = document.getElementById('setting-uds-path');
     const elTcpPort = document.getElementById('setting-tcp-port');
 
-    // Windows has no Unix domain sockets, so hide the UDS path item.
+    // Hide settings that only apply on some platforms: UDS has no Unix
+    // domain sockets on Windows, and "follow desktop switching" only has
+    // an effect on macOS (Spaces / full-screen behavior).
+    const hideSettingItem = (input) => {
+        if (!input) return;
+        const item = input.closest('.setting-item');
+        if (!item) return;
+        item.style.display = 'none';
+        const next = item.nextElementSibling;
+        const prev = item.previousElementSibling;
+        if (next && next.classList.contains('divider')) next.style.display = 'none';
+        else if (prev && prev.classList.contains('divider')) prev.style.display = 'none';
+    };
+
     try {
         const platform = await invoke('get_platform');
-        if (platform === 'windows' && elUdsPath) {
-            const udsItem = elUdsPath.closest('.setting-item');
-            if (udsItem) {
-                udsItem.style.display = 'none';
-                const prev = udsItem.previousElementSibling;
-                if (prev && prev.classList.contains('divider')) {
-                    prev.style.display = 'none';
-                }
-            }
-        }
+        if (platform === 'windows') hideSettingItem(elUdsPath);
+        if (platform !== 'darwin') hideSettingItem(elPetAllDesktops);
     } catch (e) {
         console.error('Failed to detect platform:', e);
     }
