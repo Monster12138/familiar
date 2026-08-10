@@ -119,8 +119,29 @@ pub fn get_config_search_paths() -> Vec<std::path::PathBuf> {
     paths
 }
 
+// Candidate locations of the packaged default config shipped with the
+// installer (next to the executable on Windows, inside the app bundle on
+// macOS). Load-only: saving must never rewrite the bundled default file.
+fn bundled_default_config_candidates() -> Vec<std::path::PathBuf> {
+    let mut paths = Vec::new();
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            paths.push(dir.join("config/default.toml"));
+            paths.push(dir.join("../Resources/config/default.toml"));
+        }
+    }
+    paths
+}
+
 pub fn load_config_from_paths() -> FamiliarConfig {
     for p in get_config_search_paths() {
+        if p.exists() {
+            if let Ok(c) = FamiliarConfig::load_from_file(&p) {
+                return c;
+            }
+        }
+    }
+    for p in bundled_default_config_candidates() {
         if p.exists() {
             if let Ok(c) = FamiliarConfig::load_from_file(&p) {
                 return c;
@@ -426,7 +447,7 @@ pub fn get_active_sprite_pack(
         return Ok(pack.clone());
     }
 
-    if let Some(pack) = packs.iter().find(|p| p.manifest.id == "british-blue") {
+    if let Some(pack) = packs.iter().find(|p| p.manifest.id == "tabby-cat") {
         return Ok(pack.clone());
     }
 

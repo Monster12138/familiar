@@ -38,6 +38,7 @@
       "../../ASSETS.md": "ASSETS.md",
       "../../LICENSE-APACHE": "LICENSE-APACHE",
       "../../LICENSE-MIT": "LICENSE-MIT",
+      "../../config/default.toml": "config/default.toml",
       "../../sprites": "sprites"
     }
   },
