@@ -72,8 +72,8 @@ async fn main() -> Result<()> {
                 .route("/api/v1/notify", post(notify_handler))
                 .with_state(state);
 
-            let listener = TcpListener::bind("127.0.0.1:9528").await?;
-            println!("Listening on 127.0.0.1:9528");
+            let listener = TcpListener::bind("127.0.0.1:19527").await?;
+            println!("Listening on 127.0.0.1:19527");
             axum::serve(listener, app).await?;
         }
     }
