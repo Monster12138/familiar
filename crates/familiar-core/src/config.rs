@@ -54,6 +54,14 @@ pub struct DesktopPetConfig {
     pub show_pet: bool,
     #[serde(default = "default_true")]
     pub show_dashboard: bool,
+    #[serde(default)]
+    pub dashboard_style: DashboardStyle,
+    #[serde(default)]
+    pub dashboard_position: DashboardPosition,
+    #[serde(default)]
+    pub dashboard_layout: DashboardLayout,
+    #[serde(default)]
+    pub dashboard_alignment: DashboardAlignment,
     #[serde(default = "default_celebration_secs")]
     pub celebration_secs: u32,
     #[serde(default = "default_sleep_timeout_secs")]
@@ -62,6 +70,43 @@ pub struct DesktopPetConfig {
 
 fn default_true() -> bool {
     true
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DashboardStyle {
+    Minimal,
+    #[default]
+    #[serde(other)]
+    Classic,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DashboardPosition {
+    Left,
+    #[default]
+    Bottom,
+    Right,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DashboardLayout {
+    Horizontal,
+    #[default]
+    #[serde(other)]
+    Vertical,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DashboardAlignment {
+    Top,
+    Center,
+    #[default]
+    #[serde(other)]
+    Bottom,
 }
 
 fn serialize_one_decimal<S>(value: &f32, serializer: S) -> Result<S::Ok, S::Error>
@@ -139,6 +184,10 @@ impl Default for FamiliarConfig {
                     show_task_bubble: true,
                     show_pet: true,
                     show_dashboard: true,
+                    dashboard_style: DashboardStyle::Classic,
+                    dashboard_position: DashboardPosition::Bottom,
+                    dashboard_layout: DashboardLayout::Vertical,
+                    dashboard_alignment: DashboardAlignment::Bottom,
                     celebration_secs: 4,
                     sleep_timeout_secs: 300,
                 },

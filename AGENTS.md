@@ -105,6 +105,11 @@ cover the change and report the unrelated failure clearly.
   architectural change. Use ES modules and the existing renderer abstractions.
 - Update both Chinese and English entries in `app/src/i18n.js` when adding or
   changing user-facing text.
+- Within each settings-panel group, order controls by user intent: visibility
+  toggles first, visual-style selectors second, display-detail controls (such
+  as position, layout, alignment, opacity, and behavior) next, and size or
+  scale adjustments last. Omit categories that do not apply, while preserving
+  this relative order.
 - Prefer focused comments that explain platform constraints or non-obvious
   behavior; do not narrate straightforward code.
 

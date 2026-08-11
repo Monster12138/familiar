@@ -194,6 +194,8 @@ function updateWindowSize() {
     }
 }
 
+window.requestDashboardResize = updateWindowSize;
+
 async function applyConfigToWindow(config) {
     if (!config) return;
 
@@ -237,6 +239,21 @@ async function applyConfigToWindow(config) {
     
     const statsContainer = document.getElementById('stats-container');
     if (statsContainer) {
+        window.setDashboardStyle?.(petConf.dashboard_style || 'classic');
+        window.setDashboardLayout?.(petConf.dashboard_layout || 'vertical');
+        const dashboardPosition = ['left', 'bottom', 'right'].includes(petConf.dashboard_position)
+            ? petConf.dashboard_position
+            : 'bottom';
+        const petStage = document.getElementById('pet-stage');
+        if (petStage) {
+            petStage.dataset.dashboardPosition = dashboardPosition;
+            petStage.dataset.dashboardLayout = ['horizontal', 'vertical'].includes(petConf.dashboard_layout)
+                ? petConf.dashboard_layout
+                : 'vertical';
+            petStage.dataset.dashboardAlignment = ['top', 'center', 'bottom'].includes(petConf.dashboard_alignment)
+                ? petConf.dashboard_alignment
+                : 'bottom';
+        }
         const isShow = petConf.show_dashboard !== false;
         statsContainer.style.display = isShow ? 'block' : 'none';
         if (isShow) {

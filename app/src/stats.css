@@ -1,53 +1,161 @@
 #stats-container {
-    background: rgba(20, 20, 20, 0.85);
-    border: none !important;
-    outline: none !important;
-    border-radius: 12px;
+    --dashboard-bg: rgba(20, 20, 22, 0.72);
+    --dashboard-text: rgba(255, 255, 255, 0.9);
+    --dashboard-label: rgba(255, 255, 255, 0.48);
+    --dashboard-track: rgba(255, 255, 255, 0.12);
+    --dashboard-fill: rgba(255, 255, 255, 0.7);
+    --dashboard-warning: #e7a94b;
+    --dashboard-critical: #e56b6f;
+    background: var(--dashboard-bg);
+    border: 0;
+    outline: 0;
+    border-radius: 10px;
     padding: 10px;
     display: none;
-    flex-direction: column;
-    gap: 8px;
-    font-family: 'Courier New', Courier, monospace;
-    color: #0f0; /* Cyberpunk Green */
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    color: var(--dashboard-text);
     width: 128px;
     box-sizing: border-box;
-    pointer-events: auto; /* Clickable if we want to drag it later */
-    box-shadow: none !important;
+    pointer-events: auto;
+    box-shadow: none;
 }
 
 .stat-row {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
-    font-weight: bold;
+    margin-bottom: 7px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.stat-row:last-child {
+    margin-bottom: 0;
 }
 
 .stat-label {
-    width: 30px;
-    text-shadow: 0 0 2px #0f0;
+    width: 28px;
+    color: var(--dashboard-label);
+    font-size: 9px;
 }
 
 .stat-bar-bg {
     flex: 1;
-    height: 10px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
+    height: 2px;
+    background: var(--dashboard-track);
+    border-radius: 1px;
     overflow: hidden;
     position: relative;
-    border: 1px solid #333;
+    border: 0;
 }
 
 .stat-bar-fill {
     height: 100%;
     width: 0%;
-    background: linear-gradient(90deg, #0a0, #0f0);
-    box-shadow: 0 0 5px #0f0;
-    transition: width 0.5s ease-out;
+    background: var(--dashboard-fill);
+    transition: width 0.35s ease-out, background-color 0.2s ease;
 }
 
 .stat-val {
-    width: 35px;
+    width: 32px;
     text-align: right;
-    text-shadow: 0 0 2px #0f0;
+}
+
+/* Minimal numbers: no gauges, only short labels and integer percentages. */
+#stats-container[data-dashboard-style="minimal"] {
+    width: max-content;
+    padding: 6px 9px;
+    border-radius: 8px;
+    white-space: nowrap;
+}
+
+#stats-container[data-dashboard-style="minimal"] .stat-row {
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+#stats-container[data-dashboard-style="minimal"] .stat-label {
+    width: auto;
+    color: var(--dashboard-label);
+    font-size: 0;
+}
+
+#stats-container[data-dashboard-style="minimal"] .stat-label::after {
+    content: attr(data-short-label);
+    font-size: 10px;
+}
+
+#stats-container[data-dashboard-style="minimal"] .stat-bar-bg {
+    display: none;
+}
+
+#stats-container[data-dashboard-style="minimal"] .stat-val {
+    width: auto;
+    color: inherit;
+}
+
+/* Layout controls metric flow independently from the selected visual style. */
+#stats-container[data-dashboard-layout="horizontal"] {
+    width: max-content;
+    padding: 8px 10px;
+    white-space: nowrap;
+}
+
+#stats-container[data-dashboard-layout="horizontal"] .stat-row {
+    display: inline-flex;
+    width: 92px;
+    margin-right: 10px;
+    margin-bottom: 0;
+    gap: 6px;
+}
+
+#stats-container[data-dashboard-layout="horizontal"] .stat-row:last-child {
+    margin-right: 0;
+}
+
+#stats-container[data-dashboard-layout="horizontal"] .stat-label {
+    width: 22px;
+}
+
+#stats-container[data-dashboard-layout="horizontal"] .stat-val {
+    width: 28px;
+}
+
+#stats-container[data-dashboard-layout="horizontal"][data-dashboard-style="minimal"] .stat-row {
+    width: auto;
+    gap: 4px;
+}
+
+#stats-container[data-dashboard-layout="horizontal"][data-dashboard-style="minimal"] .stat-label,
+#stats-container[data-dashboard-layout="horizontal"][data-dashboard-style="minimal"] .stat-val {
+    width: auto;
+}
+
+#stats-container[data-dashboard-layout="vertical"][data-dashboard-style="minimal"] .stat-row {
+    display: flex;
+    margin-right: 0;
+    margin-bottom: 7px;
+}
+
+#stats-container[data-dashboard-layout="vertical"][data-dashboard-style="minimal"] .stat-row:last-child {
+    margin-bottom: 0;
+}
+
+.stat-row.is-warning,
+.stat-row.is-warning .stat-val {
+    color: var(--dashboard-warning);
+}
+
+.stat-row.is-critical,
+.stat-row.is-critical .stat-val {
+    color: var(--dashboard-critical);
+}
+
+.stat-row.is-warning .stat-bar-fill {
+    background: var(--dashboard-warning);
+}
+
+.stat-row.is-critical .stat-bar-fill {
+    background: var(--dashboard-critical);
 }
