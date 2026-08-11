@@ -113,89 +113,24 @@ fn main() {
                     let bus = event_bus_for_server.clone();
                     tauri::async_runtime::spawn(async move {
                         let _ = std::fs::remove_file(&socket_path);
-                        if let Ok(listener) = tokio::net::UnixListener::bind(&socket_path) {
-                            println!("Listening on UDS: {}", socket_path);
-                            tracing::info!(
-                                "Familiar desktop app started, listening on UDS: {}",
-                                socket_path
-                            );
-                            loop {
-                                if let Ok((stream, _)) = listener.accept().await {
-                                    let bus_clone = bus.clone();
-                                    tokio::spawn(async move {
-                                        let (reader, _) = tokio::io::split(stream);
-                                        let mut reader = tokio::io::BufReader::new(reader);
-                                        let mut line = String::new();
-                                        while let Ok(bytes) = reader.read_line(&mut line).await {
-                                            if bytes == 0 {
-                                                break;
-                                            }
-                                            if let Ok(val) = serde_json::from_str::<Value>(&line) {
-                                                if let Some(source) = val
-                                                    .get("source_client")
-                                                    .and_then(|s| s.as_str())
-                                                {
-                                                    if let Some(payload) = val.get("payload") {
-                                                        let event_name = val
-                                                            .get("hook_event_name")
-                                                            .and_then(|s| s.as_str())
-                                                            .unwrap_or("");
-                                                        let parsed_event = if source
-                                                            == "antigravity"
-                                                        {
-                                                            let hook = AntigravityHook::new();
-                                                            hook.parse(event_name, payload)
-                                                        } else {
-                                                            let agent_source = match source {
-                                                                "codex" => AgentSource::Codex,
-                                                                "claude-code" => {
-                                                                    AgentSource::ClaudeCode
-                                                                }
-                                                                "qoder" => AgentSource::Qoder,
-                                                                other => AgentSource::Custom(
-                                                                    other.to_string(),
-                                                                ),
-                                                            };
-                                                            let adapter = CliAgentHookAdapter::new(
-                                                                agent_source,
-                                                            );
-                                                            let mut full_payload = payload.clone();
-                                                            if let Some(obj) =
-                                                                full_payload.as_object_mut()
-                                                            {
-                                                                obj.insert(
-                                                                    "hook_event_name".to_string(),
-                                                                    Value::String(
-                                                                        event_name.to_string(),
-                                                                    ),
-                                                                );
-                                                            }
-                                                            adapter.parse_hook_input(&full_payload)
-                                                        };
-                                                        if let Ok(event) = parsed_event {
-                                                            let _ = bus_clone.publish(event).await;
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                            line.clear();
-                                        }
-                                    });
-                                }
+                        let listener = match tokio::net::UnixListener::bind(&socket_path) {
+                            Ok(listener) => listener,
+                            Err(error) => {
+                                // Do not fail silently: without this listener
+                                // hook reports from coding agents never arrive.
+                                tracing::error!(
+                                    "failed to bind hook UDS listener on {}: {}",
+                                    socket_path,
+                                    error
+                                );
+                                return;
                             }
-                        }
-                    });
-                }
-            }
-
-            // Enable TCP listener on all platforms as fallback
-            if let Some(port) = config.hooks.tcp_port {
-                let bus = event_bus_for_server.clone();
-                tauri::async_runtime::spawn(async move {
-                    let addr = format!("127.0.0.1:{}", port);
-                    if let Ok(listener) = tokio::net::TcpListener::bind(&addr).await {
-                        println!("Listening on TCP: {}", addr);
-                        tracing::info!("Familiar desktop app listening on TCP: {}", addr);
+                        };
+                        println!("Listening on UDS: {}", socket_path);
+                        tracing::info!(
+                            "Familiar desktop app started, listening on UDS: {}",
+                            socket_path
+                        );
                         loop {
                             if let Ok((stream, _)) = listener.accept().await {
                                 let bus_clone = bus.clone();
@@ -255,6 +190,86 @@ fn main() {
                                     }
                                 });
                             }
+                        }
+                    });
+                }
+            }
+
+            // Enable TCP listener on all platforms as fallback
+            if let Some(port) = config.hooks.tcp_port {
+                let bus = event_bus_for_server.clone();
+                tauri::async_runtime::spawn(async move {
+                    let addr = format!("127.0.0.1:{}", port);
+                    let listener = match tokio::net::TcpListener::bind(&addr).await {
+                        Ok(listener) => listener,
+                        Err(error) => {
+                            // Do not fail silently: without this listener hook
+                            // reports from coding agents never arrive. On
+                            // Windows the port may fall into a Hyper-V/WSL
+                            // excluded port range and bind with EACCES.
+                            tracing::error!(
+                                "failed to bind hook TCP listener on {}: {}",
+                                addr,
+                                error
+                            );
+                            return;
+                        }
+                    };
+                    println!("Listening on TCP: {}", addr);
+                    tracing::info!("Familiar desktop app listening on TCP: {}", addr);
+                    loop {
+                        if let Ok((stream, _)) = listener.accept().await {
+                            let bus_clone = bus.clone();
+                            tokio::spawn(async move {
+                                let (reader, _) = tokio::io::split(stream);
+                                let mut reader = tokio::io::BufReader::new(reader);
+                                let mut line = String::new();
+                                while let Ok(bytes) = reader.read_line(&mut line).await {
+                                    if bytes == 0 {
+                                        break;
+                                    }
+                                    if let Ok(val) = serde_json::from_str::<Value>(&line) {
+                                        if let Some(source) =
+                                            val.get("source_client").and_then(|s| s.as_str())
+                                        {
+                                            if let Some(payload) = val.get("payload") {
+                                                let event_name = val
+                                                    .get("hook_event_name")
+                                                    .and_then(|s| s.as_str())
+                                                    .unwrap_or("");
+                                                let parsed_event = if source == "antigravity" {
+                                                    let hook = AntigravityHook::new();
+                                                    hook.parse(event_name, payload)
+                                                } else {
+                                                    let agent_source = match source {
+                                                        "codex" => AgentSource::Codex,
+                                                        "claude-code" => AgentSource::ClaudeCode,
+                                                        "qoder" => AgentSource::Qoder,
+                                                        other => {
+                                                            AgentSource::Custom(other.to_string())
+                                                        }
+                                                    };
+                                                    let adapter =
+                                                        CliAgentHookAdapter::new(agent_source);
+                                                    let mut full_payload = payload.clone();
+                                                    if let Some(obj) = full_payload.as_object_mut()
+                                                    {
+                                                        obj.insert(
+                                                            "hook_event_name".to_string(),
+                                                            Value::String(event_name.to_string()),
+                                                        );
+                                                    }
+                                                    adapter.parse_hook_input(&full_payload)
+                                                };
+                                                if let Ok(event) = parsed_event {
+                                                    let _ = bus_clone.publish(event).await;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    line.clear();
+                                }
+                            });
                         }
                     }
                 });

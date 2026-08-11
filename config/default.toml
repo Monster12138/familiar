@@ -8,7 +8,7 @@ enabled = [
     "codex",
 ]
 socket_path = "/tmp/familiar.sock"
-tcp_port = 9528
+tcp_port = 19527
 
 [renderer]
 enabled = [
@@ -38,7 +38,7 @@ port = 9527
 
 [api]
 enabled = true
-port = 9528
+port = 19527
 
 [notifications]
 dnd_start = "22:00"

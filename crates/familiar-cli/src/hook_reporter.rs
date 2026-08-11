@@ -62,7 +62,7 @@ pub async fn run(source_name: &str, event_name: &str) -> Result<()> {
 ///
 /// The hook CLI runs from any working directory on behalf of coding agents,
 /// so only absolute user config locations are consulted. Missing entries fall
-/// back to the historical defaults (`/tmp/familiar.sock`, port 9528).
+/// back to the defaults (`/tmp/familiar.sock`, port 19527).
 fn load_endpoint_config() -> (Option<String>, Option<u16>) {
     for path in familiar_core::platform::user_config_file_candidates() {
         if let Ok(config) = familiar_core::config::FamiliarConfig::load_from_file(&path) {
@@ -73,7 +73,7 @@ fn load_endpoint_config() -> (Option<String>, Option<u16>) {
 }
 
 fn tcp_endpoint(tcp_port: Option<u16>) -> String {
-    format!("127.0.0.1:{}", tcp_port.unwrap_or(9528))
+    format!("127.0.0.1:{}", tcp_port.unwrap_or(19527))
 }
 
 fn get_hook_response_json(source_name: &str, event_name: &str, offline: bool) -> String {
@@ -134,7 +134,7 @@ mod tests {
 
     #[test]
     fn test_tcp_endpoint_falls_back_to_default_port() {
-        assert_eq!(tcp_endpoint(None), "127.0.0.1:9528");
+        assert_eq!(tcp_endpoint(None), "127.0.0.1:19527");
         assert_eq!(tcp_endpoint(Some(1234)), "127.0.0.1:1234");
     }
 

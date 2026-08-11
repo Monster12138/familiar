@@ -125,7 +125,7 @@ impl Default for FamiliarConfig {
             hooks: HooksConfig {
                 enabled: vec!["claude-code".to_string(), "codex".to_string()],
                 socket_path: Some("/tmp/familiar.sock".to_string()),
-                tcp_port: Some(9528),
+                tcp_port: Some(19527),
             },
             renderer: RendererConfig {
                 enabled: vec!["desktop-pet".to_string(), "menu-bar".to_string()],
@@ -150,7 +150,7 @@ impl Default for FamiliarConfig {
             },
             api: ApiConfig {
                 enabled: true,
-                port: 9528,
+                port: 19527,
             },
             notifications: NotificationsConfig {
                 dnd_start: "22:00".to_string(),

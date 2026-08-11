@@ -504,7 +504,7 @@ port = 9527
 # ─── API ──────────────────────────────
 [api]
 enabled = true
-port = 9528
+port = 19527
 
 # ─── Notifications ────────────────────
 [notifications]
