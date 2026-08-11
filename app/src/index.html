@@ -58,8 +58,27 @@
       #pet-container > * {
         pointer-events: auto;
       }
-      #stats-container {
-        margin-top: 10px;
+      #pet-stage {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: max-content;
+      }
+      #pet-stage[data-dashboard-position="bottom"] {
+        flex-direction: column;
+      }
+      #pet-stage[data-dashboard-position="left"] #stats-container {
+        order: -1;
+      }
+      #pet-stage[data-dashboard-alignment="top"]:is([data-dashboard-position="left"], [data-dashboard-position="right"]) {
+        align-items: flex-start;
+      }
+      #pet-stage[data-dashboard-alignment="center"]:is([data-dashboard-position="left"], [data-dashboard-position="right"]) {
+        align-items: center;
+      }
+      #pet-stage[data-dashboard-alignment="bottom"]:is([data-dashboard-position="left"], [data-dashboard-position="right"]) {
+        align-items: flex-end;
       }
     </style>
   </head>
@@ -68,31 +87,32 @@
       <!-- 1. Bubble -->
       <div id="bubble-container"></div>
       
-      <!-- 2. Pet -->
-      <div id="pet-container"></div>
-      
-      <!-- 3. Stats -->
-      <div id="stats-container">
-        <div class="stat-row">
-          <div class="stat-label" data-short-label="C" data-capsule-label="CPU">CPU</div>
-          <div class="stat-bar-bg">
-            <div class="stat-bar-fill" id="bar-cpu"></div>
+      <!-- 2. Pet + dashboard stage -->
+      <div id="pet-stage" data-dashboard-position="bottom" data-dashboard-layout="vertical" data-dashboard-alignment="bottom">
+        <div id="pet-container"></div>
+
+        <div id="stats-container" data-dashboard-style="classic" data-dashboard-layout="vertical">
+          <div class="stat-row">
+            <div class="stat-label" data-short-label="C">CPU</div>
+            <div class="stat-bar-bg">
+              <div class="stat-bar-fill" id="bar-cpu"></div>
+            </div>
+            <div class="stat-val" id="val-cpu">0%</div>
           </div>
-          <div class="stat-val" id="val-cpu">0%</div>
-        </div>
-        <div class="stat-row">
-          <div class="stat-label" data-short-label="M" data-capsule-label="MEM">RAM</div>
-          <div class="stat-bar-bg">
-            <div class="stat-bar-fill" id="bar-ram"></div>
+          <div class="stat-row">
+            <div class="stat-label" data-short-label="M">RAM</div>
+            <div class="stat-bar-bg">
+              <div class="stat-bar-fill" id="bar-ram"></div>
+            </div>
+            <div class="stat-val" id="val-ram">0%</div>
           </div>
-          <div class="stat-val" id="val-ram">0%</div>
-        </div>
-        <div class="stat-row">
-          <div class="stat-label" data-short-label="D" data-capsule-label="DISK">DSK</div>
-          <div class="stat-bar-bg">
-            <div class="stat-bar-fill" id="bar-disk"></div>
+          <div class="stat-row">
+            <div class="stat-label" data-short-label="D">DSK</div>
+            <div class="stat-bar-bg">
+              <div class="stat-bar-fill" id="bar-disk"></div>
+            </div>
+            <div class="stat-val" id="val-disk">0%</div>
           </div>
-          <div class="stat-val" id="val-disk">0%</div>
         </div>
       </div>
     </div>

@@ -61,19 +61,18 @@
                 
                 <!-- 显示配置 -->
                 <section class="settings-group" id="section-pet">
-                    <h2 data-i18n="group_pet">外观与行为</h2>
+                    <h2 data-i18n="group_pet">宠物</h2>
                     <div class="settings-card">
-                            <div class="setting-item horizontal">
-                                <div class="setting-info">
-                                    <div class="setting-title" data-i18n="lbl_pet_scale">桌宠缩放比例</div>
-                                    <div class="setting-desc" data-i18n="desc_pet_scale">调整桌面宠物的显示大小 (1.0 - 5.0)</div>
-                                </div>
-                                <div class="setting-control range-control">
-                                    <input type="range" id="setting-pet-scale" min="1" max="5" step="0.1" value="2.0">
-                                    <span class="range-value" id="val-pet-scale">2.0</span>
-                                </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <div class="setting-title" data-i18n="lbl_show_pet">显示宠物</div>
+                                <div class="setting-desc" data-i18n="desc_show_pet">是否显示桌面宠物本体</div>
                             </div>
-
+                            <label class="switch">
+                                <input type="checkbox" id="setting-show-pet" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
                         <div class="divider"></div>
                         <div class="setting-item">
                             <div class="setting-info">
@@ -108,53 +107,6 @@
                             </div>
                         </div>
                         <div class="divider"></div>
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <div class="setting-title" data-i18n="lbl_show_bubble">显示任务气泡</div>
-                                <div class="setting-desc" data-i18n="desc_show_bubble">是否显示顶部的任务对话气泡</div>
-                            </div>
-                            <label class="switch">
-                                <input type="checkbox" id="setting-show-bubble" checked>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                        <div class="divider"></div>
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <div class="setting-title" data-i18n="lbl_show_pet">显示宠物</div>
-                                <div class="setting-desc" data-i18n="desc_show_pet">是否显示桌面宠物本体</div>
-                            </div>
-                            <label class="switch">
-                                <input type="checkbox" id="setting-show-pet" checked>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                        <div class="divider"></div>
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <div class="setting-title" data-i18n="lbl_show_stats">显示仪表栏</div>
-                                <div class="setting-desc" data-i18n="desc_show_stats">是否显示底部的系统状态仪表栏</div>
-                            </div>
-                            <label class="switch">
-                                <input type="checkbox" id="setting-show-stats" checked>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                        <div class="divider"></div>
-                        <div class="setting-item horizontal">
-                            <div class="setting-info">
-                                <div class="setting-title" data-i18n="lbl_dashboard_style">仪表栏样式</div>
-                                <div class="setting-desc" data-i18n="desc_dashboard_style">选择系统状态仪表栏的显示方式</div>
-                            </div>
-                            <div class="custom-select">
-                                <select id="setting-dashboard-style">
-                                    <option value="classic" data-i18n="dashboard_style_classic">经典仪表</option>
-                                    <option value="capsule" data-i18n="dashboard_style_capsule">单行胶囊</option>
-                                    <option value="minimal" data-i18n="dashboard_style_minimal">极简数字</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="divider"></div>
                         <div class="setting-item horizontal">
                             <div class="setting-info">
                                 <div class="setting-title" data-i18n="lbl_celebration_secs">庆祝动作时长</div>
@@ -175,6 +127,99 @@
                                 <input type="range" id="setting-sleep-timeout-secs" min="10" max="3600" step="10" value="300">
                                 <span class="range-value" id="val-sleep-timeout-secs">300s</span>
                             </div>
+                        </div>
+                        <div class="divider"></div>
+                        <div class="setting-item horizontal">
+                            <div class="setting-info">
+                                <div class="setting-title" data-i18n="lbl_pet_scale">桌宠缩放比例</div>
+                                <div class="setting-desc" data-i18n="desc_pet_scale">调整桌面宠物的显示大小 (1.0 - 5.0)</div>
+                            </div>
+                            <div class="setting-control range-control">
+                                <input type="range" id="setting-pet-scale" min="1" max="5" step="0.1" value="2.0">
+                                <span class="range-value" id="val-pet-scale">2.0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h2 data-i18n="group_dashboard">仪表</h2>
+                    <div class="settings-card">
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <div class="setting-title" data-i18n="lbl_show_stats">显示仪表栏</div>
+                                <div class="setting-desc" data-i18n="desc_show_stats">是否显示系统状态仪表栏</div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-show-stats" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="divider"></div>
+                        <div class="setting-item horizontal">
+                            <div class="setting-info">
+                                <div class="setting-title" data-i18n="lbl_dashboard_style">仪表栏样式</div>
+                                <div class="setting-desc" data-i18n="desc_dashboard_style">选择系统状态仪表栏的显示方式</div>
+                            </div>
+                            <div class="custom-select">
+                                <select id="setting-dashboard-style">
+                                    <option value="classic" data-i18n="dashboard_style_classic">经典仪表</option>
+                                    <option value="minimal" data-i18n="dashboard_style_minimal">极简数字</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="divider"></div>
+                        <div class="setting-item horizontal">
+                            <div class="setting-info">
+                                <div class="setting-title" data-i18n="lbl_dashboard_position">仪表栏位置</div>
+                                <div class="setting-desc" data-i18n="desc_dashboard_position">选择仪表栏相对于宠物的显示位置</div>
+                            </div>
+                            <div class="custom-select">
+                                <select id="setting-dashboard-position">
+                                    <option value="left" data-i18n="dashboard_position_left">宠物左侧</option>
+                                    <option value="bottom" data-i18n="dashboard_position_bottom">宠物下方</option>
+                                    <option value="right" data-i18n="dashboard_position_right">宠物右侧</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="divider"></div>
+                        <div class="setting-item horizontal">
+                            <div class="setting-info">
+                                <div class="setting-title" data-i18n="lbl_dashboard_layout">布局方式</div>
+                                <div class="setting-desc" data-i18n="desc_dashboard_layout">选择资源指标水平排列或纵向排列</div>
+                            </div>
+                            <div class="custom-select">
+                                <select id="setting-dashboard-layout">
+                                    <option value="horizontal" data-i18n="dashboard_layout_horizontal">水平布局</option>
+                                    <option value="vertical" data-i18n="dashboard_layout_vertical">纵向布局</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="divider"></div>
+                        <div class="setting-item horizontal">
+                            <div class="setting-info">
+                                <div class="setting-title" data-i18n="lbl_dashboard_alignment">对齐方式</div>
+                                <div class="setting-desc" data-i18n="desc_dashboard_alignment">仪表位于宠物两侧时的垂直对齐方式</div>
+                            </div>
+                            <div class="custom-select">
+                                <select id="setting-dashboard-alignment">
+                                    <option value="top" data-i18n="dashboard_alignment_top">顶部对齐</option>
+                                    <option value="center" data-i18n="dashboard_alignment_center">居中对齐</option>
+                                    <option value="bottom" data-i18n="dashboard_alignment_bottom">底部对齐</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h2 data-i18n="group_bubble">气泡</h2>
+                    <div class="settings-card">
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <div class="setting-title" data-i18n="lbl_show_bubble">显示任务气泡</div>
+                                <div class="setting-desc" data-i18n="desc_show_bubble">是否显示顶部的任务对话气泡</div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-show-bubble" checked>
+                                <span class="slider"></span>
+                            </label>
                         </div>
                     </div>
                 </section>

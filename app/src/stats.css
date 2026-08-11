@@ -61,56 +61,6 @@
     text-align: right;
 }
 
-/* Single-line capsule: compact, quiet by default, colored only under pressure. */
-#stats-container[data-dashboard-style="capsule"] {
-    width: max-content;
-    min-width: 210px;
-    padding: 8px 10px;
-    border-radius: 10px;
-    white-space: nowrap;
-}
-
-#stats-container[data-dashboard-style="capsule"] .stat-row {
-    display: inline-grid;
-    grid-template-columns: auto auto;
-    grid-template-rows: auto 2px;
-    gap: 3px 6px;
-    width: 58px;
-    margin-right: 8px;
-    margin-bottom: 0;
-    font-size: 11px;
-    font-weight: 500;
-}
-
-#stats-container[data-dashboard-style="capsule"] .stat-row:last-child {
-    margin-right: 0;
-}
-
-#stats-container[data-dashboard-style="capsule"] .stat-label {
-    width: auto;
-    color: var(--dashboard-label);
-    font-size: 0;
-}
-
-#stats-container[data-dashboard-style="capsule"] .stat-label::after {
-    content: attr(data-capsule-label);
-    font-size: 9px;
-}
-
-#stats-container[data-dashboard-style="capsule"] .stat-val {
-    width: auto;
-    color: inherit;
-}
-
-#stats-container[data-dashboard-style="capsule"] .stat-bar-bg {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    height: 2px;
-    border: 0;
-    border-radius: 1px;
-    background: var(--dashboard-track);
-}
-
 /* Minimal numbers: no gauges, only short labels and integer percentages. */
 #stats-container[data-dashboard-style="minimal"] {
     width: max-content;
@@ -120,16 +70,9 @@
 }
 
 #stats-container[data-dashboard-style="minimal"] .stat-row {
-    display: inline-flex;
     gap: 4px;
-    margin-right: 10px;
-    margin-bottom: 0;
     font-size: 11px;
     font-weight: 500;
-}
-
-#stats-container[data-dashboard-style="minimal"] .stat-row:last-child {
-    margin-right: 0;
 }
 
 #stats-container[data-dashboard-style="minimal"] .stat-label {
@@ -150,6 +93,53 @@
 #stats-container[data-dashboard-style="minimal"] .stat-val {
     width: auto;
     color: inherit;
+}
+
+/* Layout controls metric flow independently from the selected visual style. */
+#stats-container[data-dashboard-layout="horizontal"] {
+    width: max-content;
+    padding: 8px 10px;
+    white-space: nowrap;
+}
+
+#stats-container[data-dashboard-layout="horizontal"] .stat-row {
+    display: inline-flex;
+    width: 92px;
+    margin-right: 10px;
+    margin-bottom: 0;
+    gap: 6px;
+}
+
+#stats-container[data-dashboard-layout="horizontal"] .stat-row:last-child {
+    margin-right: 0;
+}
+
+#stats-container[data-dashboard-layout="horizontal"] .stat-label {
+    width: 22px;
+}
+
+#stats-container[data-dashboard-layout="horizontal"] .stat-val {
+    width: 28px;
+}
+
+#stats-container[data-dashboard-layout="horizontal"][data-dashboard-style="minimal"] .stat-row {
+    width: auto;
+    gap: 4px;
+}
+
+#stats-container[data-dashboard-layout="horizontal"][data-dashboard-style="minimal"] .stat-label,
+#stats-container[data-dashboard-layout="horizontal"][data-dashboard-style="minimal"] .stat-val {
+    width: auto;
+}
+
+#stats-container[data-dashboard-layout="vertical"][data-dashboard-style="minimal"] .stat-row {
+    display: flex;
+    margin-right: 0;
+    margin-bottom: 7px;
+}
+
+#stats-container[data-dashboard-layout="vertical"][data-dashboard-style="minimal"] .stat-row:last-child {
+    margin-bottom: 0;
 }
 
 .stat-row.is-warning,

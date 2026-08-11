@@ -220,6 +220,10 @@ body {
     font-weight: 500;
 }
 
+.settings-card + h2 {
+    margin-top: 24px;
+}
+
 .settings-card {
     background-color: var(--bg-card);
     border-radius: 10px;

@@ -27,6 +27,9 @@ show_task_bubble = true
 show_pet = true
 show_dashboard = true
 dashboard_style = "classic"
+dashboard_position = "bottom"
+dashboard_layout = "vertical"
+dashboard_alignment = "bottom"
 celebration_secs = 10
 sleep_timeout_secs = 300
 

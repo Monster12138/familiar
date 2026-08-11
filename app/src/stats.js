@@ -4,12 +4,20 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 let statsInterval = null;
 let isFetching = false;
-const DASHBOARD_STYLES = new Set(['classic', 'capsule', 'minimal']);
+const DASHBOARD_STYLES = new Set(['classic', 'minimal']);
+const DASHBOARD_LAYOUTS = new Set(['horizontal', 'vertical']);
 
 export function setDashboardStyle(style) {
     const statsContainer = document.getElementById('stats-container');
     if (!statsContainer) return;
     statsContainer.dataset.dashboardStyle = DASHBOARD_STYLES.has(style) ? style : 'classic';
+    requestAnimationFrame(() => window.requestDashboardResize?.());
+}
+
+export function setDashboardLayout(layout) {
+    const statsContainer = document.getElementById('stats-container');
+    if (!statsContainer) return;
+    statsContainer.dataset.dashboardLayout = DASHBOARD_LAYOUTS.has(layout) ? layout : 'vertical';
     requestAnimationFrame(() => window.requestDashboardResize?.());
 }
 
@@ -79,6 +87,7 @@ if (typeof window !== "undefined") {
     window.startStatsPolling = startStatsPolling;
     window.stopStatsPolling = stopStatsPolling;
     window.setDashboardStyle = setDashboardStyle;
+    window.setDashboardLayout = setDashboardLayout;
 
     window.addEventListener("DOMContentLoaded", async () => {
         // Make stats drag the main window
@@ -86,16 +95,19 @@ if (typeof window !== "undefined") {
         if (statsContainer) {
             try {
                 const config = await invoke('get_config');
-                setDashboardStyle(config?.renderer?.['desktop-pet']?.dashboard_style || 'classic');
+                const petConfig = config?.renderer?.['desktop-pet'];
+                setDashboardStyle(petConfig?.dashboard_style || 'classic');
+                setDashboardLayout(petConfig?.dashboard_layout || 'vertical');
             } catch (e) {
-                console.error('Failed to load dashboard style:', e);
+                console.error('Failed to load dashboard appearance:', e);
                 setDashboardStyle('classic');
+                setDashboardLayout('vertical');
             }
 
             listen('config_changed', (event) => {
-                setDashboardStyle(
-                    event.payload?.renderer?.['desktop-pet']?.dashboard_style || 'classic'
-                );
+                const petConfig = event.payload?.renderer?.['desktop-pet'];
+                setDashboardStyle(petConfig?.dashboard_style || 'classic');
+                setDashboardLayout(petConfig?.dashboard_layout || 'vertical');
             }).catch(console.error);
 
             statsContainer.addEventListener('mousedown', (e) => {
