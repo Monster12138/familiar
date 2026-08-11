@@ -1,4 +1,4 @@
-use familiar_core::config::FamiliarConfig;
+use familiar_core::config::{DashboardStyle, FamiliarConfig};
 
 #[test]
 fn legacy_config_defaults_to_showing_on_all_desktops() {
@@ -43,4 +43,38 @@ fn legacy_config_defaults_empty_hidden_sessions() {
     std::fs::remove_file(path).expect("remove legacy config");
 
     assert!(config.sessions.hidden_sessions.is_empty());
+}
+
+#[test]
+fn legacy_config_defaults_to_classic_dashboard_style() {
+    let legacy_config =
+        include_str!("../../../config/default.toml").replace("dashboard_style = \"classic\"\n", "");
+    let path = std::env::temp_dir().join(format!(
+        "familiar-legacy-dashboard-style-{}.toml",
+        std::process::id()
+    ));
+
+    std::fs::write(&path, legacy_config).expect("write legacy config");
+    let config = FamiliarConfig::load_from_file(&path).expect("load legacy config");
+    std::fs::remove_file(path).expect("remove legacy config");
+
+    assert_eq!(
+        config.renderer.desktop_pet.dashboard_style,
+        DashboardStyle::Classic
+    );
+}
+
+#[test]
+fn dashboard_style_serializes_as_kebab_case_string() {
+    let mut config = FamiliarConfig::default();
+    config.renderer.desktop_pet.dashboard_style = DashboardStyle::Capsule;
+
+    let serialized = toml::to_string_pretty(&config).expect("serialize config");
+
+    assert!(
+        serialized
+            .lines()
+            .any(|line| line == "dashboard_style = \"capsule\""),
+        "unexpected serialized dashboard style:\n{serialized}"
+    );
 }

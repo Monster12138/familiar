@@ -26,6 +26,7 @@ opacity = 1.0
 show_task_bubble = true
 show_pet = true
 show_dashboard = true
+dashboard_style = "classic"
 celebration_secs = 10
 sleep_timeout_secs = 300
 

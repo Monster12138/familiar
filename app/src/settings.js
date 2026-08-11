@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const elShowBubble = document.getElementById('setting-show-bubble');
     const elShowPet = document.getElementById('setting-show-pet');
     const elShowStats = document.getElementById('setting-show-stats');
+    const elDashboardStyle = document.getElementById('setting-dashboard-style');
 
     const elUdsPath = document.getElementById('setting-uds-path');
     const elTcpPort = document.getElementById('setting-tcp-port');
@@ -339,6 +340,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentConfig.renderer['desktop-pet'].show_task_bubble = elShowBubble.checked;
         currentConfig.renderer['desktop-pet'].show_pet = elShowPet.checked;
         currentConfig.renderer['desktop-pet'].show_dashboard = elShowStats.checked;
+        currentConfig.renderer['desktop-pet'].dashboard_style = elDashboardStyle.value;
         currentConfig.renderer['desktop-pet'].celebration_secs = parseInt(elCelebrationSecs.value, 10);
         if (elSleepTimeoutSecs) {
             currentConfig.renderer['desktop-pet'].sleep_timeout_secs = parseInt(elSleepTimeoutSecs.value, 10);
@@ -404,6 +406,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (petConf.show_task_bubble !== undefined) elShowBubble.checked = petConf.show_task_bubble;
             if (petConf.show_pet !== undefined) elShowPet.checked = petConf.show_pet;
             if (petConf.show_dashboard !== undefined) elShowStats.checked = petConf.show_dashboard;
+            elDashboardStyle.value = petConf.dashboard_style || 'classic';
             if (petConf.celebration_secs !== undefined && elCelebrationSecs) {
                 elCelebrationSecs.value = petConf.celebration_secs;
                 if (valCelebrationSecs) valCelebrationSecs.textContent = petConf.celebration_secs + 's';
@@ -729,7 +732,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Bind all controls for auto-save
     const autoSaveControls = [
-        elPetAlwaysTop, elPetAllDesktops, elShowBubble, elShowPet, elShowStats
+        elPetAlwaysTop, elPetAllDesktops, elShowBubble, elShowPet, elShowStats, elDashboardStyle
     ];
     autoSaveControls.forEach(el => {
         if (el) el.addEventListener('change', scheduleAutoSave);

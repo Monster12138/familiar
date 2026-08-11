@@ -54,6 +54,8 @@ pub struct DesktopPetConfig {
     pub show_pet: bool,
     #[serde(default = "default_true")]
     pub show_dashboard: bool,
+    #[serde(default)]
+    pub dashboard_style: DashboardStyle,
     #[serde(default = "default_celebration_secs")]
     pub celebration_secs: u32,
     #[serde(default = "default_sleep_timeout_secs")]
@@ -62,6 +64,15 @@ pub struct DesktopPetConfig {
 
 fn default_true() -> bool {
     true
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DashboardStyle {
+    #[default]
+    Classic,
+    Capsule,
+    Minimal,
 }
 
 fn serialize_one_decimal<S>(value: &f32, serializer: S) -> Result<S::Ok, S::Error>
@@ -139,6 +150,7 @@ impl Default for FamiliarConfig {
                     show_task_bubble: true,
                     show_pet: true,
                     show_dashboard: true,
+                    dashboard_style: DashboardStyle::Classic,
                     celebration_secs: 4,
                     sleep_timeout_secs: 300,
                 },

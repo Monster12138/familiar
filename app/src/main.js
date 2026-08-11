@@ -194,6 +194,8 @@ function updateWindowSize() {
     }
 }
 
+window.requestDashboardResize = updateWindowSize;
+
 async function applyConfigToWindow(config) {
     if (!config) return;
 
@@ -237,6 +239,7 @@ async function applyConfigToWindow(config) {
     
     const statsContainer = document.getElementById('stats-container');
     if (statsContainer) {
+        window.setDashboardStyle?.(petConf.dashboard_style || 'classic');
         const isShow = petConf.show_dashboard !== false;
         statsContainer.style.display = isShow ? 'block' : 'none';
         if (isShow) {

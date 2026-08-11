@@ -28,7 +28,8 @@
         align-items: center;
         justify-content: flex-start;
         transform-origin: top left;
-        width: 160px;
+        width: max-content;
+        min-width: 160px;
       }
       #bubble-container {
         display: flex;
@@ -37,7 +38,7 @@
         align-items: center;
         padding: 4px;
         gap: 6px;
-        width: 100%;
+        width: 160px;
         box-sizing: border-box;
         height: max-content;
         min-height: 80px;
@@ -73,21 +74,21 @@
       <!-- 3. Stats -->
       <div id="stats-container">
         <div class="stat-row">
-          <div class="stat-label">CPU</div>
+          <div class="stat-label" data-short-label="C" data-capsule-label="CPU">CPU</div>
           <div class="stat-bar-bg">
             <div class="stat-bar-fill" id="bar-cpu"></div>
           </div>
           <div class="stat-val" id="val-cpu">0%</div>
         </div>
         <div class="stat-row">
-          <div class="stat-label">RAM</div>
+          <div class="stat-label" data-short-label="M" data-capsule-label="MEM">RAM</div>
           <div class="stat-bar-bg">
             <div class="stat-bar-fill" id="bar-ram"></div>
           </div>
           <div class="stat-val" id="val-ram">0%</div>
         </div>
         <div class="stat-row">
-          <div class="stat-label">DSK</div>
+          <div class="stat-label" data-short-label="D" data-capsule-label="DISK">DSK</div>
           <div class="stat-bar-bg">
             <div class="stat-bar-fill" id="bar-disk"></div>
           </div>
