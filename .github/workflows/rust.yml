@@ -16,6 +16,14 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    # Tauri app crate 依赖 GTK/WebKitGTK 系统库，缺失会导致 gobject-sys 构建失败
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+    # tauri-build 要求 bundle 资源 target/release/familiar-cli 存在，需先构建
+    - name: Build familiar-cli (bundle resource)
+      run: cargo build --release -p familiar-cli
     - name: Build
       run: cargo build --verbose
     - name: Run tests

@@ -18,6 +18,7 @@ release-artifacts/
 └── vX.Y.Z/
     ├── Familiar_X.Y.Z_aarch64.dmg
     ├── Familiar_X.Y.Z_x64-setup.exe
+    ├── familiar_X.Y.Z_amd64.deb
     └── SHA256SUMS
 ```
 
@@ -206,6 +207,38 @@ app/src-tauri/target/release/bundle/nsis/Familiar_X.Y.Z_x64-setup.exe
 Windows 安装包当前未做代码签名，Release Notes 必须说明 SmartScreen 可能
 要求用户手动确认首次安装。
 
+### 7.3 Linux（x86_64）
+
+在 Linux 机器或 WSL2 Ubuntu 上（需要 GCC、pkg-config、`libwebkit2gtk-4.1-dev`、
+`libgtk-3-dev`、`libayatana-appindicator3-dev`、`librsvg2-dev` 等开发包）：
+
+```bash
+cd app
+npm run tauri build -- --bundles deb,appimage
+cd ..
+```
+
+预期输出：
+
+```text
+app/src-tauri/target/release/bundle/deb/familiar_X.Y.Z_amd64.deb
+app/src-tauri/target/release/bundle/appimage/familiar_X.Y.Z_amd64.AppImage
+```
+
+打包前确认 `target/release/familiar-cli` 存在（`beforeBuildCommand` 会构建它）。
+`familiar-cli` 通过平台配置 `tauri.linux.conf.json` 打入安装包的
+`resources/bin/`，运行时路径解析复用 `resolve_cli_bin_path` 的跨平台候选逻辑。
+
+首次构建 AppImage 时 Tauri 会自动下载 linuxdeploy 工具链，需要网络访问；
+生成 AppImage 的运行环境还需要 FUSE（缺少时可改用 deb，或用
+`--appimage-extract-and-run` 方式启动验证）。deb 的运行期依赖
+（`libwebkit2gtk-4.1-0` 等）由 Tauri 自动写入包元数据。
+Linux 安装包当前未做签名，Release Notes 应说明安装来源未经分发渠道签名。
+
+WSL 下开发调试启动 GUI 时可能需要 `WEBKIT_DISABLE_DMABUF_RENDERER=1
+LIBGL_ALWAYS_SOFTWARE=1 GDK_BACKEND=x11` 规避 WSLg 的渲染问题；
+打包构建本身不受影响。
+
 ## 8. 签名与公证检查
 
 查看当前机器是否存在 Developer ID 签名身份：
@@ -246,9 +279,10 @@ ARTIFACT_DIR="release-artifacts/$VERSION"
 mkdir -p "$ARTIFACT_DIR"
 cp "$DMG" "$ARTIFACT_DIR/"
 # 如在 Windows 上构建了 NSIS 安装包，同样复制到 $ARTIFACT_DIR/
+# 如在 Linux/WSL 上构建了 deb/AppImage，同样复制到 $ARTIFACT_DIR/
 
 cd "$ARTIFACT_DIR"
-shasum -a 256 *.dmg *.exe > SHA256SUMS 2>/dev/null || shasum -a 256 *.dmg > SHA256SUMS
+shasum -a 256 *.dmg *.exe *.deb *.AppImage > SHA256SUMS 2>/dev/null || shasum -a 256 *.dmg > SHA256SUMS
 shasum -a 256 -c SHA256SUMS
 cd ../..
 ```
