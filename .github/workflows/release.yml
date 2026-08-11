@@ -1,6 +1,12 @@
 name: Publish Tauri release
 
 on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build, for example v0.4.1
+        required: true
+        type: string
   push:
     tags:
       - "v*"
@@ -15,6 +21,8 @@ jobs:
   publish-tauri:
     name: Build ${{ matrix.name }}
     runs-on: ${{ matrix.platform }}
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
     strategy:
       fail-fast: false
       matrix:
@@ -43,6 +51,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Install Linux system dependencies
         if: matrix.platform == 'ubuntu-22.04'
@@ -85,10 +95,10 @@ jobs:
           APPLE_SIGNING_IDENTITY: ${{ matrix.signing_identity }}
         with:
           projectPath: app
-          tagName: v__VERSION__
-          releaseName: Familiar v__VERSION__
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: Familiar ${{ env.RELEASE_TAG }}
           releaseBody: |
-            Multi-platform bundles generated from ${{ github.ref_name }}.
+            Multi-platform bundles generated from ${{ env.RELEASE_TAG }}.
 
             Review platform signing status and checksums before publishing this draft.
           releaseDraft: true
