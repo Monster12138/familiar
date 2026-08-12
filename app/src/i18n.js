@@ -138,6 +138,16 @@ export const translations = {
         'btn_copy': '复制',
         'btn_copied': '已复制',
         'btn_close': '关闭',
+        'btn_test_eventbus': '测试',
+        'btn_copy_command': '复制命令',
+        'lbl_hook_event': '事件名称',
+        'lbl_hook_command': '测试命令(含模拟输入)',
+        'lbl_hook_matcher': '匹配器',
+        'lbl_hook_points': 'Hook 点列表',
+        'lbl_no_hook_points': '暂无 Hook 点',
+        'msg_test_success': '测试事件已发送',
+        'msg_test_failed': '测试失败',
+        'msg_loading_details': '加载中...',
     },
     'en-US': {
         'nav_close': 'Close Settings',
@@ -273,6 +283,16 @@ export const translations = {
         'btn_copy': 'Copy',
         'btn_copied': 'Copied',
         'btn_close': 'Close',
+        'btn_test_eventbus': 'Test',
+        'btn_copy_command': 'Copy Command',
+        'lbl_hook_event': 'Event Name',
+        'lbl_hook_command': 'Test Command (mocked input)',
+        'lbl_hook_matcher': 'Matcher',
+        'lbl_hook_points': 'Hook Points',
+        'lbl_no_hook_points': 'No hook points',
+        'msg_test_success': 'Test event published',
+        'msg_test_failed': 'Test failed',
+        'msg_loading_details': 'Loading...',
     }
 };
 

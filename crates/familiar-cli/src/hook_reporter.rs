@@ -5,20 +5,21 @@ use tokio::io::AsyncWriteExt;
 
 // This would typically use UnixStream for IPC, but for MVP let's just print to stdout
 // or we can simulate it. The Familiar API crate will listen on a port or socket.
-pub async fn run(source_name: &str, event_name: &str) -> Result<()> {
-    // 1. Read JSON from stdin (non-blocking or timeout?)
-    // Actually, if we just read to EOF, and the framework didn't send anything, it'll just be empty.
-    let mut buffer = String::new();
-    io::stdin()
-        .read_to_string(&mut buffer)
-        .context("Failed to read stdin")?;
-
-    let json: Value = if buffer.trim().is_empty() {
-        serde_json::json!({})
+pub async fn run(source_name: &str, event_name: &str, stdin_json: Option<&str>) -> Result<()> {
+    // 1. Resolve the JSON payload: `--stdin-json` wins (manual testing,
+    //    single-quoted for cmd/PowerShell/sh), otherwise read from stdin.
+    //    If stdin is empty, treat it as an empty object.
+    let json: Value = if let Some(input) = stdin_json {
+        parse_payload(input.trim().trim_matches('\''))
     } else {
-        match serde_json::from_str(&buffer) {
-            Ok(v) => v,
-            Err(_) => serde_json::json!({"raw_payload": buffer}),
+        let mut buffer = String::new();
+        io::stdin()
+            .read_to_string(&mut buffer)
+            .context("Failed to read stdin")?;
+        if buffer.trim().is_empty() {
+            serde_json::json!({})
+        } else {
+            parse_payload(&buffer)
         }
     };
 
@@ -56,6 +57,15 @@ pub async fn run(source_name: &str, event_name: &str) -> Result<()> {
     let output_json = get_hook_response_json(source_name, event_name, res.is_err());
     println!("{}", output_json);
     Ok(())
+}
+
+/// Parse a JSON payload string, falling back to a `raw_payload` wrapper
+/// when the string is not valid JSON (e.g. pasted plain text).
+fn parse_payload(input: &str) -> Value {
+    match serde_json::from_str(input) {
+        Ok(v) => v,
+        Err(_) => serde_json::json!({ "raw_payload": input }),
+    }
 }
 
 /// Best-effort lookup of hook endpoints from the user config file.
