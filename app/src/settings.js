@@ -81,6 +81,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     let autoSaveTimer = null;
     let currentActiveAgents = [];
 
+    // Session card action icons (Feather-style, stroke=currentColor)
+    const ICON_EYE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+    const ICON_EYE_OFF = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+    const ICON_TRASH = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+
     function getSourceBadgeHtml(source) {
         const srcStr = typeof source === 'string' ? source : (source?.Custom || 'Agent');
         if (srcStr === 'Codex') {
@@ -162,47 +167,82 @@ document.addEventListener('DOMContentLoaded', async () => {
                 info.appendChild(headerRow);
                 info.appendChild(instructionEl);
 
-                const switchLabel = document.createElement('label');
-                switchLabel.className = 'switch';
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.checked = isVisible;
-                const slider = document.createElement('span');
-                slider.className = 'slider';
+                // Action buttons: hide (eye toggle) and delete (trash)
+                const actions = document.createElement('div');
+                actions.className = 'session-actions';
 
-                checkbox.addEventListener('change', () => {
+                const btnHide = document.createElement('button');
+                btnHide.type = 'button';
+                btnHide.className = 'session-icon-btn btn-session-hide' + (isVisible ? '' : ' active');
+                btnHide.title = isVisible
+                    ? t('lbl_session_hide', elLanguage ? elLanguage.value : 'zh-CN')
+                    : t('lbl_session_show', elLanguage ? elLanguage.value : 'zh-CN');
+                btnHide.innerHTML = isVisible ? ICON_EYE : ICON_EYE_OFF;
+
+                btnHide.addEventListener('click', () => {
                     if (!currentConfig.sessions) currentConfig.sessions = { hidden_sessions: [] };
                     if (!Array.isArray(currentConfig.sessions.hidden_sessions)) {
                         currentConfig.sessions.hidden_sessions = [];
                     }
 
-                    if (checkbox.checked) {
-                        currentConfig.sessions.hidden_sessions = currentConfig.sessions.hidden_sessions.filter(id => id !== agent.id);
-                        card.style.opacity = '1.0';
-                        const badge = card.querySelector('.session-status-badge');
-                        if (badge) {
-                            badge.textContent = agent.status;
-                            badge.style.color = '';
-                        }
-                    } else {
-                        if (!currentConfig.sessions.hidden_sessions.includes(agent.id)) {
-                            currentConfig.sessions.hidden_sessions.push(agent.id);
-                        }
+                    const willHide = !currentConfig.sessions.hidden_sessions.includes(agent.id);
+                    const badge = card.querySelector('.session-status-badge');
+                    if (willHide) {
+                        currentConfig.sessions.hidden_sessions.push(agent.id);
                         card.style.opacity = '0.75';
-                        const badge = card.querySelector('.session-status-badge');
+                        btnHide.classList.add('active');
+                        btnHide.title = t('lbl_session_show', elLanguage ? elLanguage.value : 'zh-CN');
+                        btnHide.innerHTML = ICON_EYE_OFF;
                         if (badge) {
                             badge.textContent = `${agent.status} (${t('lbl_session_hidden', elLanguage ? elLanguage.value : 'zh-CN')})`;
                             badge.style.color = 'var(--text-muted)';
+                        }
+                    } else {
+                        currentConfig.sessions.hidden_sessions = currentConfig.sessions.hidden_sessions.filter(id => id !== agent.id);
+                        card.style.opacity = '1.0';
+                        btnHide.classList.remove('active');
+                        btnHide.title = t('lbl_session_hide', elLanguage ? elLanguage.value : 'zh-CN');
+                        btnHide.innerHTML = ICON_EYE;
+                        if (badge) {
+                            badge.textContent = agent.status;
+                            badge.style.color = '';
                         }
                     }
                     scheduleAutoSave();
                 });
 
-                switchLabel.appendChild(checkbox);
-                switchLabel.appendChild(slider);
+                const btnDelete = document.createElement('button');
+                btnDelete.type = 'button';
+                btnDelete.className = 'session-icon-btn danger';
+                btnDelete.title = t('lbl_session_delete', elLanguage ? elLanguage.value : 'zh-CN');
+                btnDelete.innerHTML = ICON_TRASH;
+
+                btnDelete.addEventListener('click', async () => {
+                    const lang = elLanguage ? elLanguage.value : 'zh-CN';
+                    try {
+                        const removed = await invoke('delete_session', { agentId: agent.id });
+                        if (removed) {
+                            card.remove();
+                            currentActiveAgents = currentActiveAgents.filter(a => a.id !== agent.id);
+                            // Forget any hide state so a future session is shown by default
+                            if (Array.isArray(currentConfig.sessions?.hidden_sessions)) {
+                                currentConfig.sessions.hidden_sessions = currentConfig.sessions.hidden_sessions.filter(id => id !== agent.id);
+                            }
+                            showToast(t('msg_session_deleted', lang), 'success');
+                        } else {
+                            showToast(t('msg_session_not_found', lang), 'error');
+                        }
+                    } catch (e) {
+                        console.error('Failed to delete session', e);
+                        showToast(t('msg_session_delete_failed', lang), 'error');
+                    }
+                });
+
+                actions.appendChild(btnHide);
+                actions.appendChild(btnDelete);
 
                 card.appendChild(info);
-                card.appendChild(switchLabel);
+                card.appendChild(actions);
                 sessionListContainer.appendChild(card);
             } else {
                 // Update existing card in place without destroying DOM elements
@@ -219,9 +259,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     instructionEl.textContent = instructionText;
                 }
 
-                const checkbox = card.querySelector('input[type="checkbox"]');
-                if (checkbox && checkbox.checked !== isVisible) {
-                    checkbox.checked = isVisible;
+                // Sync hide-button state with current visibility
+                const btnHide = card.querySelector('.btn-session-hide');
+                if (btnHide) {
+                    const hidden = !isVisible;
+                    btnHide.classList.toggle('active', hidden);
+                    btnHide.title = hidden
+                        ? t('lbl_session_show', elLanguage ? elLanguage.value : 'zh-CN')
+                        : t('lbl_session_hide', elLanguage ? elLanguage.value : 'zh-CN');
+                    btnHide.innerHTML = hidden ? ICON_EYE_OFF : ICON_EYE;
                 }
             }
         });

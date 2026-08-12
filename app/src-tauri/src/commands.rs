@@ -59,6 +59,14 @@ pub async fn get_active_sessions(
     Ok(state.agents)
 }
 
+#[tauri::command]
+pub async fn delete_session(
+    sm: tauri::State<'_, StateMachine>,
+    agent_id: String,
+) -> Result<bool, String> {
+    Ok(sm.remove_agent(&agent_id).await)
+}
+
 #[derive(Clone, serde::Serialize)]
 pub struct SystemStats {
     pub cpu_usage: f32,

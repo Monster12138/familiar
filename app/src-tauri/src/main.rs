@@ -435,6 +435,7 @@ fn main() {
             commands::save_config,
             commands::get_system_stats,
             commands::get_active_sessions,
+            commands::delete_session,
             commands::open_settings_window,
             commands::open_url,
             commands::open_login_items_settings,
