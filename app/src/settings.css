@@ -351,6 +351,17 @@ input:checked + .slider:before {
     border-color: var(--accent-blue);
 }
 
+/* Windows native dropdown panels default to a light background, and options inherit the select's light text color making them unreadable, so explicitly specify the option's background and text color */
+.custom-select select option {
+    background-color: var(--bg-card);
+    color: var(--text-main);
+}
+
+.custom-select select option:hover,
+.custom-select select option:checked {
+    background-color: var(--item-active);
+}
+
 .large-input input {
     width: 250px;
 }
