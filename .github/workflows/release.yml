@@ -136,6 +136,11 @@ jobs:
             const version = process.env.RELEASE_TAG.replace(/^v/, "");
             for (const artifact of paths) {
               const base = path.basename(artifact);
+              // macOS .app bundles are directories; only files are uploaded, so skip them
+              if (!fs.statSync(artifact).isFile()) {
+                console.log(`skipping non-file artifact: ${base}`);
+                continue;
+              }
               const renamed = base.replace(`_${version}_`, `_${version}_${process.env.PLATFORM_SLUG}_`);
               fs.copyFileSync(artifact, path.join("renamed-artifacts", renamed));
               console.log(`${base} -> ${renamed}`);
