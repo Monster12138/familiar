@@ -151,4 +151,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
+          # softprops/action-gh-release defaults to draft:false, which would publish an existing draft release while uploading assets; keep releases in draft until manually published
+          draft: true
           files: renamed-artifacts/*
