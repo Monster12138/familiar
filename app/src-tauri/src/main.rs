@@ -82,6 +82,7 @@ fn main() {
         .manage(state_machine.clone())
         .manage(app_config_state.clone())
         .manage(StdMutex::new(sys_stats_state))
+        .manage(event_bus.clone())
         .setup(move |app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
@@ -434,16 +435,19 @@ fn main() {
             commands::save_config,
             commands::get_system_stats,
             commands::get_active_sessions,
+            commands::delete_session,
             commands::open_settings_window,
             commands::open_url,
             commands::open_login_items_settings,
             commands::get_hooks_status,
             commands::get_hook_payload,
+            commands::get_hook_details,
             commands::inject_hook,
             commands::uninstall_hook,
             commands::get_config_content,
             commands::preview_inject_hook,
             commands::preview_uninstall_hook,
+            commands::test_hook_point,
             commands::get_sprite_packs,
             commands::import_sprite_pack,
             commands::get_active_sprite_pack,

@@ -62,9 +62,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const valSleepTimeoutSecs = document.getElementById('val-sleep-timeout-secs');
 
     const saveBtn = document.getElementById('save-btn');
-    const statusMsg = document.getElementById('save-status');
-    const autoSaveIndicator = document.getElementById('auto-save-indicator');
-    const autoSaveText = document.getElementById('auto-save-text');
     const sessionListContainer = document.getElementById('session-list-container');
 
     // Sprite pack UI elements
@@ -83,6 +80,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentConfig = {};
     let autoSaveTimer = null;
     let currentActiveAgents = [];
+
+    // Session card action icons (Feather-style, stroke=currentColor)
+    const ICON_EYE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+    const ICON_EYE_OFF = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+    const ICON_TRASH = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
 
     function getSourceBadgeHtml(source) {
         const srcStr = typeof source === 'string' ? source : (source?.Custom || 'Agent');
@@ -165,47 +167,82 @@ document.addEventListener('DOMContentLoaded', async () => {
                 info.appendChild(headerRow);
                 info.appendChild(instructionEl);
 
-                const switchLabel = document.createElement('label');
-                switchLabel.className = 'switch';
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.checked = isVisible;
-                const slider = document.createElement('span');
-                slider.className = 'slider';
+                // Action buttons: hide (eye toggle) and delete (trash)
+                const actions = document.createElement('div');
+                actions.className = 'session-actions';
 
-                checkbox.addEventListener('change', () => {
+                const btnHide = document.createElement('button');
+                btnHide.type = 'button';
+                btnHide.className = 'session-icon-btn btn-session-hide' + (isVisible ? '' : ' active');
+                btnHide.title = isVisible
+                    ? t('lbl_session_hide', elLanguage ? elLanguage.value : 'zh-CN')
+                    : t('lbl_session_show', elLanguage ? elLanguage.value : 'zh-CN');
+                btnHide.innerHTML = isVisible ? ICON_EYE : ICON_EYE_OFF;
+
+                btnHide.addEventListener('click', () => {
                     if (!currentConfig.sessions) currentConfig.sessions = { hidden_sessions: [] };
                     if (!Array.isArray(currentConfig.sessions.hidden_sessions)) {
                         currentConfig.sessions.hidden_sessions = [];
                     }
 
-                    if (checkbox.checked) {
-                        currentConfig.sessions.hidden_sessions = currentConfig.sessions.hidden_sessions.filter(id => id !== agent.id);
-                        card.style.opacity = '1.0';
-                        const badge = card.querySelector('.session-status-badge');
-                        if (badge) {
-                            badge.textContent = agent.status;
-                            badge.style.color = '';
-                        }
-                    } else {
-                        if (!currentConfig.sessions.hidden_sessions.includes(agent.id)) {
-                            currentConfig.sessions.hidden_sessions.push(agent.id);
-                        }
+                    const willHide = !currentConfig.sessions.hidden_sessions.includes(agent.id);
+                    const badge = card.querySelector('.session-status-badge');
+                    if (willHide) {
+                        currentConfig.sessions.hidden_sessions.push(agent.id);
                         card.style.opacity = '0.75';
-                        const badge = card.querySelector('.session-status-badge');
+                        btnHide.classList.add('active');
+                        btnHide.title = t('lbl_session_show', elLanguage ? elLanguage.value : 'zh-CN');
+                        btnHide.innerHTML = ICON_EYE_OFF;
                         if (badge) {
                             badge.textContent = `${agent.status} (${t('lbl_session_hidden', elLanguage ? elLanguage.value : 'zh-CN')})`;
                             badge.style.color = 'var(--text-muted)';
+                        }
+                    } else {
+                        currentConfig.sessions.hidden_sessions = currentConfig.sessions.hidden_sessions.filter(id => id !== agent.id);
+                        card.style.opacity = '1.0';
+                        btnHide.classList.remove('active');
+                        btnHide.title = t('lbl_session_hide', elLanguage ? elLanguage.value : 'zh-CN');
+                        btnHide.innerHTML = ICON_EYE;
+                        if (badge) {
+                            badge.textContent = agent.status;
+                            badge.style.color = '';
                         }
                     }
                     scheduleAutoSave();
                 });
 
-                switchLabel.appendChild(checkbox);
-                switchLabel.appendChild(slider);
+                const btnDelete = document.createElement('button');
+                btnDelete.type = 'button';
+                btnDelete.className = 'session-icon-btn danger';
+                btnDelete.title = t('lbl_session_delete', elLanguage ? elLanguage.value : 'zh-CN');
+                btnDelete.innerHTML = ICON_TRASH;
+
+                btnDelete.addEventListener('click', async () => {
+                    const lang = elLanguage ? elLanguage.value : 'zh-CN';
+                    try {
+                        const removed = await invoke('delete_session', { agentId: agent.id });
+                        if (removed) {
+                            card.remove();
+                            currentActiveAgents = currentActiveAgents.filter(a => a.id !== agent.id);
+                            // Forget any hide state so a future session is shown by default
+                            if (Array.isArray(currentConfig.sessions?.hidden_sessions)) {
+                                currentConfig.sessions.hidden_sessions = currentConfig.sessions.hidden_sessions.filter(id => id !== agent.id);
+                            }
+                            showToast(t('msg_session_deleted', lang), 'success');
+                        } else {
+                            showToast(t('msg_session_not_found', lang), 'error');
+                        }
+                    } catch (e) {
+                        console.error('Failed to delete session', e);
+                        showToast(t('msg_session_delete_failed', lang), 'error');
+                    }
+                });
+
+                actions.appendChild(btnHide);
+                actions.appendChild(btnDelete);
 
                 card.appendChild(info);
-                card.appendChild(switchLabel);
+                card.appendChild(actions);
                 sessionListContainer.appendChild(card);
             } else {
                 // Update existing card in place without destroying DOM elements
@@ -222,9 +259,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     instructionEl.textContent = instructionText;
                 }
 
-                const checkbox = card.querySelector('input[type="checkbox"]');
-                if (checkbox && checkbox.checked !== isVisible) {
-                    checkbox.checked = isVisible;
+                // Sync hide-button state with current visibility
+                const btnHide = card.querySelector('.btn-session-hide');
+                if (btnHide) {
+                    const hidden = !isVisible;
+                    btnHide.classList.toggle('active', hidden);
+                    btnHide.title = hidden
+                        ? t('lbl_session_show', elLanguage ? elLanguage.value : 'zh-CN')
+                        : t('lbl_session_hide', elLanguage ? elLanguage.value : 'zh-CN');
+                    btnHide.innerHTML = hidden ? ICON_EYE_OFF : ICON_EYE;
                 }
             }
         });
@@ -301,25 +344,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Auto-Save Logic ---
 
     function showAutoSaveState(state) {
-        // state: 'saving' | 'saved' | 'error'
-        if (!autoSaveIndicator || !autoSaveText) return;
-        autoSaveIndicator.className = 'auto-save-indicator auto-save-' + state;
-        autoSaveIndicator.style.opacity = '1';
+        // state: 'saving' | 'saved' | 'error' — surfaced through the
+        // standard toast notification channel.
+        const lang = elLanguage ? elLanguage.value : 'zh-CN';
         if (state === 'saving') {
-            autoSaveText.setAttribute('data-i18n', 'msg_auto_saving');
-            autoSaveText.textContent = t('msg_auto_saving', elLanguage.value);
+            showToast(t('msg_auto_saving', lang));
         } else if (state === 'saved') {
-            autoSaveText.setAttribute('data-i18n', 'msg_auto_saved');
-            autoSaveText.textContent = t('msg_auto_saved', elLanguage.value);
-            setTimeout(() => {
-                autoSaveIndicator.style.opacity = '0';
-            }, 2500);
+            showToast(t('msg_auto_saved', lang), 'success');
         } else if (state === 'error') {
-            autoSaveText.setAttribute('data-i18n', 'msg_auto_save_error');
-            autoSaveText.textContent = t('msg_auto_save_error', elLanguage.value);
-            setTimeout(() => {
-                autoSaveIndicator.style.opacity = '0';
-            }, 3000);
+            showToast(t('msg_auto_save_error', lang), 'error');
         }
     }
 
@@ -758,17 +791,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Manual save button (fires immediately, cancels any pending auto-save)
     saveBtn.addEventListener('click', async () => {
         if (autoSaveTimer) { clearTimeout(autoSaveTimer); autoSaveTimer = null; }
-        const lang = elLanguage.value;
         saveBtn.disabled = true;
         showAutoSaveState('saving');
         const ok = await performSave();
         showAutoSaveState(ok ? 'saved' : 'error');
-        if (!ok) {
-            statusMsg.textContent = t('msg_failed', lang);
-            statusMsg.style.color = '#FF3B30';
-            statusMsg.style.opacity = '1';
-            setTimeout(() => { statusMsg.style.opacity = '0'; }, 3000);
-        }
         saveBtn.disabled = false;
     });
 
@@ -776,8 +802,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const hookModal = document.getElementById('hook-modal');
     const btnModalCancel = document.getElementById('btn-modal-cancel');
     const btnModalConfirm = document.getElementById('btn-modal-confirm');
-    const hookPreviewCode = document.getElementById('hook-preview-code');
-    const hookModalPath = document.getElementById('hook-modal-path');
     const injectBeforeCode = document.getElementById('inject-before-code');
     const injectAfterCode = document.getElementById('inject-after-code');
     const uninstallModal = document.getElementById('uninstall-modal');
@@ -788,12 +812,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const configViewerModal = document.getElementById('config-viewer-modal');
     const btnConfigViewerClose = document.getElementById('btn-config-viewer-close');
-    const configViewerPath = document.getElementById('config-viewer-path');
     const configViewerCode = document.getElementById('config-viewer-code');
     
     let currentInjectingAgent = null;
     let currentUninstallingAgent = null;
     let hooksStatusCache = {};
+    let hookDetailsCache = {};     // agent -> AgentHookDetail (lazy)
+    let expandedAgents = new Set(); // track which agent cards are expanded
 
     function syntaxHighlightJSON(json) {
         if (typeof json != 'string') {
@@ -824,7 +849,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         let beforeHTML = '';
         let afterHTML = '';
         
-        // Simple line-by-line diff with forced alignment
         let maxLines = Math.max(beforeLines.length, afterLines.length);
         for(let i=0; i<maxLines; i++) {
             const bLine = i < beforeLines.length ? beforeLines[i] : null;
@@ -848,46 +872,118 @@ document.addEventListener('DOMContentLoaded', async () => {
         elAfter.innerHTML = afterHTML;
     }
 
-    async function fetchHooksStatus() {
-        try {
-            const status = await invoke('get_hooks_status');
-            if (status) {
-                hooksStatusCache = status;
-                const agents = ['antigravity', 'claude-code', 'codex', 'qoder'];
-                agents.forEach(agent => {
-                    if (status[agent]) {
-                        const isInj = status[agent].injected;
-                        const badge = document.getElementById(`badge-${agent}`);
-                        const btnInject = document.getElementById(`btn-inject-${agent}`);
-                        const btnViewConfig = document.getElementById(`btn-view-config-${agent}`);
-                        const btnUninstall = document.getElementById(`btn-uninstall-${agent}`);
-                        
-                        if (badge) {
-                            badge.className = isInj ? 'badge badge-injected' : 'badge badge-not-injected';
-                            badge.textContent = isInj ? t('badge_injected', elLanguage.value) : t('badge_not_injected', elLanguage.value);
-                        }
-                        if (btnInject) btnInject.style.display = isInj ? 'none' : 'inline-block';
-                        if (btnViewConfig) btnViewConfig.style.display = isInj ? 'inline-block' : 'none';
-                        if (btnUninstall) btnUninstall.style.display = isInj ? 'inline-block' : 'none';
-                    }
-                });
-            }
-        } catch (e) {
-            console.error("Failed to fetch hooks status", e);
-        }
-    }
+    const AGENT_DISPLAY = {
+        'antigravity': 'Antigravity',
+        'claude-code': 'Claude Code',
+        'codex': 'Codex',
+        'qoder': 'Qoder',
+    };
 
     const AGENTS = ['antigravity', 'claude-code', 'codex', 'qoder'];
-    AGENTS.forEach(agent => {
-        const btnViewConfig = document.getElementById(`btn-view-config-${agent}`);
-        const btnInject = document.getElementById(`btn-inject-${agent}`);
-        const btnUninstall = document.getElementById(`btn-uninstall-${agent}`);
-        
-        if (btnViewConfig) {
-            btnViewConfig.addEventListener('click', async () => {
+
+    function renderAgentCards() {
+        const container = document.getElementById('hook-status-list');
+        if (!container) return;
+
+        const lang = elLanguage ? elLanguage.value : 'zh-CN';
+
+        container.innerHTML = '';
+
+        AGENTS.forEach(agent => {
+            const status = hooksStatusCache[agent];
+            const isInjected = status ? status.injected : false;
+            const isExpanded = expandedAgents.has(agent);
+
+            // Build card
+            const card = document.createElement('div');
+            card.className = 'hook-agent-card';
+            card.setAttribute('data-agent', agent);
+
+            // --- Header row ---
+            const header = document.createElement('div');
+            header.className = 'hook-agent-header';
+
+            const left = document.createElement('div');
+            left.className = 'hook-agent-left';
+
+            const expandIcon = document.createElement('span');
+            expandIcon.className = 'hook-expand-icon' + (isExpanded ? ' expanded' : '');
+            expandIcon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>';
+
+            const nameEl = document.createElement('span');
+            nameEl.className = 'hook-agent-name';
+            nameEl.textContent = AGENT_DISPLAY[agent] || agent;
+
+            const badge = document.createElement('span');
+            badge.id = `badge-${agent}`;
+            if (status) {
+                badge.className = isInjected ? 'badge badge-injected' : 'badge badge-not-injected';
+                badge.textContent = isInjected ? t('badge_injected', lang) : t('badge_not_injected', lang);
+            } else {
+                badge.className = 'badge badge-loading';
+                badge.textContent = t('badge_loading', lang);
+            }
+
+            left.appendChild(expandIcon);
+            left.appendChild(nameEl);
+            left.appendChild(badge);
+
+            const actions = document.createElement('div');
+            actions.className = 'hook-agent-actions';
+
+            const btnInject = document.createElement('button');
+            btnInject.className = 'secondary-btn btn-sm';
+            btnInject.id = `btn-inject-${agent}`;
+            btnInject.textContent = t('btn_inject', lang);
+            btnInject.style.display = isInjected ? 'none' : 'inline-block';
+
+            const btnViewConfig = document.createElement('button');
+            btnViewConfig.className = 'secondary-btn btn-sm';
+            btnViewConfig.id = `btn-view-config-${agent}`;
+            btnViewConfig.textContent = t('btn_view_config', lang);
+            btnViewConfig.style.display = isInjected ? 'inline-block' : 'none';
+
+            const btnUninstall = document.createElement('button');
+            btnUninstall.className = 'danger-btn btn-sm';
+            btnUninstall.id = `btn-uninstall-${agent}`;
+            btnUninstall.textContent = t('btn_uninstall', lang);
+            btnUninstall.style.display = isInjected ? 'inline-block' : 'none';
+
+            actions.appendChild(btnInject);
+            actions.appendChild(btnViewConfig);
+            actions.appendChild(btnUninstall);
+
+            header.appendChild(left);
+            header.appendChild(actions);
+
+            // Click on header (except buttons) toggles expand
+            header.addEventListener('click', (e) => {
+                if (e.target.closest('button')) return;
+                toggleAgentExpand(agent);
+            });
+
+            card.appendChild(header);
+
+            // --- Detail panel (rendered on expand) ---
+            const detail = document.createElement('div');
+            detail.className = 'hook-agent-detail';
+            detail.id = `hook-detail-${agent}`;
+            if (isExpanded) {
+                detail.classList.add('expanded');
+                if (hookDetailsCache[agent]) {
+                    renderHookPointsTable(detail, hookDetailsCache[agent], agent);
+                } else {
+                    detail.innerHTML = `<div class="hook-detail-loading">${t('msg_loading_details', lang)}</div>`;
+                }
+            }
+            card.appendChild(detail);
+
+            // --- Bind button handlers ---
+            btnViewConfig.addEventListener('click', async (e) => {
+                e.stopPropagation();
                 try {
                     const content = await invoke('get_config_content', { agent });
-                    if (hooksStatusCache && hooksStatusCache[agent] && hooksStatusCache[agent].config_path) {
+                    if (hooksStatusCache[agent] && hooksStatusCache[agent].config_path) {
                         document.getElementById('config-viewer-path-text').textContent = hooksStatusCache[agent].config_path;
                         document.getElementById('config-viewer-path-bar').style.display = 'flex';
                     } else {
@@ -896,54 +992,204 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                     configViewerCode.innerHTML = syntaxHighlightJSON(content || "{}");
                     configViewerModal.style.display = 'flex';
-                } catch (e) {
-                    console.error(e);
+                } catch (err) {
+                    console.error(err);
                 }
             });
-        }
-        
-        if (btnInject) {
-            btnInject.addEventListener('click', async () => {
+
+            btnInject.addEventListener('click', async (e) => {
+                e.stopPropagation();
                 try {
                     const diff = await invoke('preview_inject_hook', { agent });
                     renderDiff(diff.before, diff.after, injectBeforeCode, injectAfterCode);
-                    
-                    if (hooksStatusCache && hooksStatusCache[agent] && hooksStatusCache[agent].config_path) {
+                    if (hooksStatusCache[agent] && hooksStatusCache[agent].config_path) {
                         document.getElementById('inject-path-text').textContent = hooksStatusCache[agent].config_path;
                         document.getElementById('inject-path-bar').style.display = 'flex';
                     } else {
                         document.getElementById('inject-path-bar').style.display = 'none';
                     }
-                    
                     currentInjectingAgent = agent;
                     hookModal.style.display = 'flex';
-                } catch(e) {
-                    alert("Preview failed: " + e);
+                } catch (err) {
+                    alert("Preview failed: " + err);
                 }
             });
-        }
-        
-        if (btnUninstall) {
-            btnUninstall.addEventListener('click', async () => {
+
+            btnUninstall.addEventListener('click', async (e) => {
+                e.stopPropagation();
                 try {
                     const diff = await invoke('preview_uninstall_hook', { agent });
                     renderDiff(diff.before, diff.after, uninstallBeforeCode, uninstallAfterCode);
-                    
-                    if (hooksStatusCache && hooksStatusCache[agent] && hooksStatusCache[agent].config_path) {
+                    if (hooksStatusCache[agent] && hooksStatusCache[agent].config_path) {
                         document.getElementById('uninstall-path-text').textContent = hooksStatusCache[agent].config_path;
                         document.getElementById('uninstall-path-bar').style.display = 'flex';
                     } else {
                         document.getElementById('uninstall-path-bar').style.display = 'none';
                     }
-                    
                     currentUninstallingAgent = agent;
                     uninstallModal.style.display = 'flex';
-                } catch(e) {
-                    alert("Preview uninstall failed: " + e);
+                } catch (err) {
+                    alert("Preview uninstall failed: " + err);
                 }
             });
+
+            container.appendChild(card);
+        });
+    }
+
+    function renderHookPointsTable(detailEl, hookDetail, agent) {
+        const lang = elLanguage ? elLanguage.value : 'zh-CN';
+        const points = hookDetail.hook_points || [];
+
+        if (points.length === 0) {
+            detailEl.innerHTML = `<div class="hook-detail-empty">${t('lbl_no_hook_points', lang)}</div>`;
+            return;
         }
-    });
+
+        let html = '<div class="hook-points-table">';
+        html += '<div class="hook-points-header">';
+        html += `<span class="hook-col-event">${t('lbl_hook_event', lang)}</span>`;
+        html += `<span class="hook-col-command">${t('lbl_hook_command', lang)}</span>`;
+        html += `<span class="hook-col-test"></span>`;
+        html += '</div>';
+
+        points.forEach(pt => {
+            const matcherLabel = pt.matcher ? ` (matcher: ${pt.matcher})` : '';
+            // Prefer the full copy-pasteable test command (with mocked stdin
+            // payload); fall back to the raw hook command for older payloads.
+            const displayCmd = pt.test_command || pt.command;
+            html += '<div class="hook-point-row">';
+            html += `<span class="hook-col-event"><code>${pt.event_name}</code>${matcherLabel}</span>`;
+            html += `<span class="hook-col-command"><code class="hook-cmd-text" title="${displayCmd.replace(/"/g, '&quot;')}">${displayCmd}</code></span>`;
+            html += '<span class="hook-col-test">';
+            html += `<button class="btn-test btn-test-bus" data-agent="${agent}" data-event="${pt.event_name}">${t('btn_test_eventbus', lang)}</button>`;
+            html += `<button class="btn-test btn-copy-cmd">${t('btn_copy_command', lang)}</button>`;
+            html += '</span>';
+            html += '</div>';
+        });
+
+        html += '</div>';
+        detailEl.innerHTML = html;
+
+        // Bind event-bus test button handlers
+        detailEl.querySelectorAll('.btn-test-bus').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const evt = btn.getAttribute('data-event');
+                await testHookPoint(agent, evt);
+            });
+        });
+
+        // Bind copy-command button handlers (copies the full command text
+        // from the same row so users can run it manually in their terminal)
+        detailEl.querySelectorAll('.btn-copy-cmd').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const row = btn.closest('.hook-point-row');
+                const cmdEl = row ? row.querySelector('.hook-cmd-text') : null;
+                const cmd = cmdEl ? cmdEl.textContent : '';
+                const origText = btn.textContent;
+                try {
+                    await navigator.clipboard.writeText(cmd);
+                    btn.textContent = t('btn_copied', lang);
+                    btn.classList.add('copied');
+                } catch (err) {
+                    console.error('Failed to copy command', err);
+                }
+                setTimeout(() => {
+                    btn.textContent = origText;
+                    btn.classList.remove('copied');
+                }, 1500);
+            });
+        });
+    }
+
+    async function toggleAgentExpand(agent) {
+        const detailEl = document.getElementById(`hook-detail-${agent}`);
+        if (!detailEl) return;
+
+        const wasExpanded = expandedAgents.has(agent);
+
+        if (wasExpanded) {
+            expandedAgents.delete(agent);
+            detailEl.classList.remove('expanded');
+            // update arrow
+            const card = detailEl.closest('.hook-agent-card');
+            if (card) {
+                const icon = card.querySelector('.hook-expand-icon');
+                if (icon) icon.classList.remove('expanded');
+            }
+        } else {
+            expandedAgents.add(agent);
+            detailEl.classList.add('expanded');
+            // update arrow
+            const card = detailEl.closest('.hook-agent-card');
+            if (card) {
+                const icon = card.querySelector('.hook-expand-icon');
+                if (icon) icon.classList.add('expanded');
+            }
+
+            // Lazy-load details if not cached
+            if (!hookDetailsCache[agent]) {
+                try {
+                    hookDetailsCache[agent] = await invoke('get_hook_details', { agent });
+                } catch (e) {
+                    console.error('Failed to load hook details', e);
+                    hookDetailsCache[agent] = { hook_points: [] };
+                }
+            }
+            renderHookPointsTable(detailEl, hookDetailsCache[agent], agent);
+        }
+    }
+
+    // Standard notification channel for the settings panel: a single global
+    // toast element is created lazily and re-shown for each transient status
+    // (auto-save progress, hook test results, etc.). Types: 'success' (green),
+    // 'error' (red); omit for neutral progress messages.
+    let toastTimer = null;
+    function showToast(message, type, durationMs) {
+        let toast = document.getElementById('app-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'app-toast';
+            toast.className = 'app-toast';
+            document.body.appendChild(toast);
+        }
+        toast.textContent = message;
+        toast.className = 'app-toast show' + (type ? ' ' + type : '');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+            toast.className = 'app-toast';
+        }, durationMs || 4000);
+    }
+
+    async function testHookPoint(agent, eventName) {
+        const lang = elLanguage ? elLanguage.value : 'zh-CN';
+
+        try {
+            const result = await invoke('test_hook_point', { agent, eventName, mode: 'event_bus' });
+            if (result.success) {
+                showToast(t('msg_test_success', lang), 'success');
+            } else {
+                showToast(t('msg_test_failed', lang), 'error');
+            }
+        } catch (e) {
+            console.error('Hook test invoke failed', e);
+            showToast(t('msg_test_failed', lang), 'error');
+        }
+    }
+
+    async function fetchHooksStatus() {
+        try {
+            const status = await invoke('get_hooks_status');
+            if (status) {
+                hooksStatusCache = status;
+                renderAgentCards();
+            }
+        } catch (e) {
+            console.error("Failed to fetch hooks status", e);
+        }
+    }
 
     btnConfigViewerClose.addEventListener('click', () => {
         configViewerModal.style.display = 'none';

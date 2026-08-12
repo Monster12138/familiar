@@ -11,7 +11,7 @@ publish.workspace = true
 [dependencies]
 familiar-core = { path = "../../crates/familiar-core" }
 familiar-api = { path = "../../crates/familiar-api" }
-tauri = { version = "2.0.0-rc", features = ["macos-private-api", "tray-icon"] }
+tauri = { version = "2.0.0-rc", features = ["macos-private-api", "tray-icon", "image-png"] }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

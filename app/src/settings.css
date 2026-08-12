@@ -155,54 +155,6 @@ body {
     font-weight: 600;
 }
 
-/* Auto-save indicator */
-.auto-save-indicator {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    font-weight: 500;
-    padding: 5px 10px;
-    border-radius: 20px;
-    transition: opacity 0.4s ease;
-    flex-shrink: 0;
-}
-
-/* hide all icons by default */
-.auto-save-indicator svg { display: none; }
-
-/* saving state */
-.auto-save-saving {
-    background: rgba(255, 204, 0, 0.12);
-    color: #FFCC00;
-    border: 1px solid rgba(255, 204, 0, 0.25);
-}
-.auto-save-saving #auto-save-icon-saving { display: block; }
-
-/* saved state */
-.auto-save-saved {
-    background: rgba(52, 199, 89, 0.12);
-    color: #34C759;
-    border: 1px solid rgba(52, 199, 89, 0.25);
-}
-.auto-save-saved #auto-save-icon-saved { display: block; }
-
-/* error state */
-.auto-save-error {
-    background: rgba(255, 59, 48, 0.12);
-    color: #FF3B30;
-    border: 1px solid rgba(255, 59, 48, 0.25);
-}
-.auto-save-error #auto-save-icon-error { display: block; }
-
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-.auto-save-spin {
-    animation: spin 0.9s linear infinite;
-}
-
 .content-scroll {
     flex: 1;
     overflow-y: auto;
@@ -351,6 +303,17 @@ input:checked + .slider:before {
     border-color: var(--accent-blue);
 }
 
+/* Windows native dropdown panels default to a light background, and options inherit the select's light text color making them unreadable, so explicitly specify the option's background and text color */
+.custom-select select option {
+    background-color: var(--bg-card);
+    color: var(--text-main);
+}
+
+.custom-select select option:hover,
+.custom-select select option:checked {
+    background-color: var(--item-active);
+}
+
 .large-input input {
     width: 250px;
 }
@@ -379,12 +342,6 @@ input:checked + .slider:before {
     background-color: var(--accent-hover);
 }
 
-.status-msg {
-    font-size: 13px;
-    color: #34C759;
-    opacity: 0;
-    transition: opacity 0.3s;
-}
 
 /* Range Sliders */
 .custom-range {
@@ -497,6 +454,226 @@ input:checked + .slider:before {
 .danger-btn:hover {
     background-color: rgba(255, 59, 48, 0.2);
 }
+/* --- Hook Agent Collapsible Cards --- */
+.hook-agent-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+}
+.hook-agent-card:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.hook-agent-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.15s;
+}
+.hook-agent-header:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.hook-agent-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+
+.hook-expand-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    color: var(--text-muted);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.hook-expand-icon svg {
+    display: block;
+}
+.hook-expand-icon.expanded {
+    transform: rotate(90deg);
+}
+
+/* --- Hook Detail Panel (expandable) --- */
+.hook-agent-detail {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    border-top: 1px solid transparent;
+}
+.hook-agent-detail.expanded {
+    max-height: 600px;
+    border-top-color: var(--border-color);
+}
+
+.hook-detail-loading,
+.hook-detail-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+/* --- Hook Points Table --- */
+.hook-points-table {
+    padding: 8px 0;
+}
+
+.hook-points-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.hook-point-row {
+    display: flex;
+    align-items: flex-start;
+    padding: 10px 16px;
+    font-size: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    transition: background-color 0.15s;
+}
+.hook-point-row:last-child {
+    border-bottom: none;
+}
+.hook-point-row:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.hook-col-event {
+    flex: 0 0 180px;
+    min-width: 0;
+    padding-right: 12px;
+    word-break: break-word;
+}
+.hook-col-event code {
+    font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+    font-size: 11px;
+    color: #9CDCFE;
+    background: rgba(156, 220, 254, 0.08);
+    padding: 1px 6px;
+    border-radius: 3px;
+}
+
+.hook-col-command {
+    flex: 1;
+    min-width: 0;
+    padding-right: 12px;
+}
+.hook-cmd-text {
+    font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: default;
+}
+
+.hook-col-test {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+/* --- Test Buttons --- */
+.btn-test {
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid;
+    background: transparent;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+.btn-test:active {
+    transform: scale(0.96);
+}
+
+.btn-test-bus {
+    color: #0A84FF;
+    border-color: rgba(10, 132, 255, 0.35);
+}
+.btn-test-bus:hover {
+    background: rgba(10, 132, 255, 0.12);
+    border-color: rgba(10, 132, 255, 0.55);
+}
+
+.btn-copy-cmd {
+    color: #34C759;
+    border-color: rgba(52, 199, 89, 0.35);
+}
+.btn-copy-cmd:hover {
+    background: rgba(52, 199, 89, 0.12);
+    border-color: rgba(52, 199, 89, 0.55);
+}
+.btn-copy-cmd.copied {
+    background: rgba(52, 199, 89, 0.25);
+    border-color: #34C759;
+}
+
+/* --- Standard Toast Notification Channel --- */
+.app-toast {
+    position: fixed;
+    bottom: 36px;
+    left: 50%;
+    transform: translateX(-50%) translateY(16px);
+    max-width: 75vw;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 13px;
+    color: var(--text-main);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    z-index: 2000;
+    opacity: 0;
+    pointer-events: none;
+    word-break: break-word;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.app-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+.app-toast.success {
+    border-color: rgba(52, 199, 89, 0.5);
+    color: #34C759;
+}
+.app-toast.error {
+    border-color: rgba(255, 59, 48, 0.5);
+    color: #FF3B30;
+}
+/* --- Hooks Status List (wrapper) --- */
+#hook-status-list {
+    padding: 12px;
+}
+
 .modal-overlay {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -684,6 +861,45 @@ input:checked + .slider:before {
     flex: 1;
     min-width: 0;
     margin-right: 16px;
+}
+
+.session-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.session-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+}
+
+.session-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-main);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.session-icon-btn.active {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+}
+
+.session-icon-btn.danger:hover {
+    background: rgba(255, 59, 48, 0.12);
+    color: #FF3B30;
+    border-color: rgba(255, 59, 48, 0.4);
 }
 
 .session-header-row {

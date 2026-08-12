@@ -28,6 +28,12 @@ pub enum Commands {
         source: String,
         #[arg(long, default_value = "unknown")]
         event: String,
+        /// Optional JSON payload that overrides reading stdin. Useful for
+        /// manual testing from a terminal, e.g.
+        /// `--stdin-json '{"prompt":"hi"}'` (works in cmd, PowerShell
+        /// and sh when the JSON is single-quoted).
+        #[arg(long)]
+        stdin_json: Option<String>,
     },
     /// Status subcommand
     Status,
@@ -46,8 +52,12 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match &cli.command {
-        Commands::Hook { source, event } => {
-            crate::hook_reporter::run(source, event).await?;
+        Commands::Hook {
+            source,
+            event,
+            stdin_json,
+        } => {
+            crate::hook_reporter::run(source, event, stdin_json.as_deref()).await?;
         }
         Commands::Status => {
             println!("Running status subcommand");

@@ -34,6 +34,36 @@ impl StateMachine {
         self.revision.load(Ordering::SeqCst)
     }
 
+    /// Removes an agent session from the render state. Returns `true` if an
+    /// agent with the given id was present. A later event for the same id
+    /// (e.g. the agent is still active) will re-create it.
+    pub async fn remove_agent(&self, id: &str) -> bool {
+        let mut state = self.render_state.write().await;
+        let len_before = state.agents.len();
+        state.agents.retain(|a| a.id != id);
+        if state.agents.len() == len_before {
+            return false;
+        }
+
+        // Recompute aggregates (mirrors the tail of apply_event). Clone the
+        // agent list first: the guard's Deref hides field-level borrows, so
+        // iterating `state.agents` while writing `state.agents_by_category`
+        // would otherwise conflict.
+        state.active_agent_count = state.agents.len();
+        state.agents_by_category.clear();
+        let agents = state.agents.clone();
+        for agent in &agents {
+            state
+                .agents_by_category
+                .entry(agent.category.clone())
+                .or_default()
+                .push(agent.clone());
+        }
+        Self::update_mood(&mut state, chrono::Utc::now(), self.sleep_timeout_secs);
+        self.revision.fetch_add(1, Ordering::SeqCst);
+        true
+    }
+
     pub async fn start_processing(&self) {
         let mut rx = self.event_bus.subscribe();
         let state_ref = self.render_state.clone();
@@ -375,6 +405,41 @@ mod tests {
         // Should transition to Sleepy
         let state = machine.get_state().await;
         assert_eq!(state.mood, FamiliarMood::Sleepy);
+    }
+
+    #[tokio::test]
+    async fn test_remove_agent_drops_session_and_recomputes_state() {
+        let bus = EventBus::new(100, 1000);
+        let machine = StateMachine::new(bus.clone(), 4, 300);
+        machine.start_processing().await;
+
+        let agent_id = Uuid::new_v4();
+        bus.publish(AgentEvent {
+            id: agent_id,
+            timestamp: chrono::Utc::now(),
+            source: AgentSource::Antigravity,
+            category: AgentCategory::Coding,
+            event_type: AgentEventType::AgentStarted {
+                instruction: Some("Do a task".into()),
+            },
+            metadata: None,
+        })
+        .await
+        .unwrap();
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let state = machine.get_state().await;
+        assert_eq!(state.agents.len(), 1);
+
+        // Unknown id leaves the state untouched
+        assert!(!machine.remove_agent("missing").await);
+
+        // Known id is removed and aggregates are recomputed
+        assert!(machine.remove_agent(&agent_id.to_string()).await);
+        let state = machine.get_state().await;
+        assert!(state.agents.is_empty());
+        assert_eq!(state.active_agent_count, 0);
+        assert!(state.agents_by_category.is_empty());
     }
 
     #[tokio::test]

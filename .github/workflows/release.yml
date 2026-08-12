@@ -18,8 +18,27 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  create-release:
+    name: Create draft release
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Create draft release if missing
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; build jobs will upload assets to it."
+          else
+            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+              --title "Familiar $RELEASE_TAG" \
+              --draft \
+              --notes "Multi-platform bundles generated from $RELEASE_TAG. Review platform signing status and checksums before publishing this draft."
+          fi
+
   publish-tauri:
     name: Build ${{ matrix.name }}
+    needs: create-release
     runs-on: ${{ matrix.platform }}
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
@@ -29,21 +48,25 @@ jobs:
         include:
           - name: macOS arm64
             platform: macos-latest
+            platform_slug: macos
             args: --target aarch64-apple-darwin --bundles app,dmg
             rust_targets: aarch64-apple-darwin
             signing_identity: "-"
           - name: macOS x64
             platform: macos-15-intel
+            platform_slug: macos
             args: --bundles app,dmg
             rust_targets: ""
             signing_identity: "-"
           - name: Linux x64
             platform: ubuntu-22.04
+            platform_slug: linux
             args: --bundles deb,appimage
             rust_targets: ""
             signing_identity: ""
           - name: Windows x64
             platform: windows-latest
+            platform_slug: windows
             args: --bundles nsis
             rust_targets: ""
             signing_identity: ""
@@ -88,19 +111,46 @@ jobs:
         working-directory: app
         run: npm ci
 
-      - name: Build and upload Tauri bundles
+      - name: Build Tauri bundles
+        id: build
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_SIGNING_IDENTITY: ${{ matrix.signing_identity }}
         with:
           projectPath: app
-          tagName: ${{ env.RELEASE_TAG }}
-          releaseName: Familiar ${{ env.RELEASE_TAG }}
-          releaseBody: |
-            Multi-platform bundles generated from ${{ env.RELEASE_TAG }}.
-
-            Review platform signing status and checksums before publishing this draft.
-          releaseDraft: true
-          prerelease: false
           args: ${{ matrix.args }}
+
+      # Tauri default artifact names only contain the architecture and not the platform, so uniformly insert the platform name after the version number to make it easier to distinguish the target system from the Release attachments
+      - name: Rename artifacts with platform name
+        shell: bash
+        env:
+          ARTIFACT_PATHS: ${{ steps.build.outputs.artifactPaths }}
+          PLATFORM_SLUG: ${{ matrix.platform_slug }}
+        run: |
+          mkdir -p renamed-artifacts
+          node -e '
+            const fs = require("fs");
+            const path = require("path");
+            const paths = JSON.parse(process.env.ARTIFACT_PATHS);
+            const version = process.env.RELEASE_TAG.replace(/^v/, "");
+            for (const artifact of paths) {
+              const base = path.basename(artifact);
+              // macOS .app bundles are directories; only files are uploaded, so skip them
+              if (!fs.statSync(artifact).isFile()) {
+                console.log(`skipping non-file artifact: ${base}`);
+                continue;
+              }
+              const renamed = base.replace(`_${version}_`, `_${version}_${process.env.PLATFORM_SLUG}_`);
+              fs.copyFileSync(artifact, path.join("renamed-artifacts", renamed));
+              console.log(`${base} -> ${renamed}`);
+            }
+          '
+
+      - name: Upload artifacts to draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          # softprops/action-gh-release defaults to draft:false, which would publish an existing draft release while uploading assets; keep releases in draft until manually published
+          draft: true
+          files: renamed-artifacts/*

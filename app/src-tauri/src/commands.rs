@@ -1,4 +1,5 @@
 use familiar_core::config::FamiliarConfig;
+use familiar_core::event_bus::EventBus;
 use familiar_core::state::AgentState;
 use familiar_core::state_machine::StateMachine;
 use std::collections::HashSet;
@@ -56,6 +57,14 @@ pub async fn get_active_sessions(
 ) -> Result<Vec<AgentState>, String> {
     let state = sm.get_state().await;
     Ok(state.agents)
+}
+
+#[tauri::command]
+pub async fn delete_session(
+    sm: tauri::State<'_, StateMachine>,
+    agent_id: String,
+) -> Result<bool, String> {
+    Ok(sm.remove_agent(&agent_id).await)
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -399,6 +408,288 @@ pub fn preview_uninstall_hook(agent: &str) -> Result<DiffPreview, String> {
         return Ok(DiffPreview { before, after });
     }
     Err("Unknown agent".into())
+}
+
+// ---------------------------------------------------------------------------
+// Hook details & test commands
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, serde::Serialize)]
+pub struct HookPointInfo {
+    pub event_name: String,
+    pub command: String,
+    /// Full shell command including a mocked stdin payload, ready to be
+    /// pasted into a terminal by the user (e.g. `echo <json> | <command>`).
+    pub test_command: String,
+    pub matcher: Option<String>,
+}
+
+#[derive(Clone, serde::Serialize)]
+pub struct AgentHookDetail {
+    pub agent: String,
+    pub config_path: String,
+    pub injected: bool,
+    pub hook_points: Vec<HookPointInfo>,
+}
+
+/// Build a minimal mocked stdin payload for a hook event, matching the shape
+/// that `CliAgentHookAdapter` / `AntigravityHook::parse` expect. Avoid
+/// single quotes inside string values so the JSON stays safe inside the
+/// shell-quoting of the generated test command.
+fn mock_payload_for_event(event_name: &str) -> serde_json::Value {
+    let base = serde_json::json!({
+        "hook_event_name": event_name,
+        "session_id": "manual-test",
+    });
+
+    match event_name {
+        "PreToolUse" | "PostToolUse" | "PostToolUseFailure" => {
+            let mut p = base;
+            p["tool_name"] = serde_json::json!("Bash");
+            p["tool_input"] = serde_json::json!({"command": "echo Familiar hook test"});
+            p
+        }
+        "UserPromptSubmit" | "SessionStart" => {
+            let mut p = base;
+            p["prompt"] = serde_json::json!("[Familiar Test] Hook point test");
+            p
+        }
+        _ => base,
+    }
+}
+
+/// Build a copy-pasteable shell command for manual testing: appends
+/// `--stdin-json '<json>'` to the hook command so the mocked payload is
+/// passed as an argument instead of stdin. Single-quoting keeps the JSON
+/// intact in cmd, PowerShell and sh alike (the CLI strips the quotes).
+fn build_test_command(event_name: &str, command: &str) -> String {
+    let json_str = mock_payload_for_event(event_name).to_string();
+    format!("{} --stdin-json '{}'", command, json_str)
+}
+
+/// Extract hook-point details from an injection payload.
+/// Payload shape:
+///   { "hooks" | "familiar": { "EventName": [ { "hooks": [{"command":"..."}] } ] } }
+fn extract_hook_points(payload: &serde_json::Value) -> Vec<HookPointInfo> {
+    let mut points = Vec::new();
+
+    let hooks_obj = payload
+        .get("hooks")
+        .or_else(|| payload.get("familiar"))
+        .and_then(|v| v.as_object());
+
+    let Some(hooks_obj) = hooks_obj else {
+        return points;
+    };
+
+    for (event_name, event_array) in hooks_obj {
+        let Some(items) = event_array.as_array() else {
+            continue;
+        };
+        for item in items {
+            let matcher = item.get("matcher").and_then(|v| v.as_str()).map(|s| s.to_string());
+
+            // Commands may be directly on the item (Antigravity style) or nested
+            // inside a "hooks" array (Claude Code / Codex / Qoder style).
+            let extract_cmd = |obj: &serde_json::Value| -> Option<String> {
+                obj.get("command")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string())
+            };
+
+            if let Some(cmd) = extract_cmd(item) {
+                points.push(HookPointInfo {
+                    event_name: event_name.clone(),
+                    test_command: build_test_command(event_name, &cmd),
+                    command: cmd,
+                    matcher,
+                });
+            } else if let Some(inner_hooks) = item.get("hooks").and_then(|v| v.as_array()) {
+                for inner in inner_hooks {
+                    if let Some(cmd) = extract_cmd(inner) {
+                        points.push(HookPointInfo {
+                            event_name: event_name.clone(),
+                            test_command: build_test_command(event_name, &cmd),
+                            command: cmd,
+                            matcher: matcher.clone(),
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    points
+}
+
+#[tauri::command]
+pub fn get_hook_details(agent: &str) -> Result<AgentHookDetail, String> {
+    let hook = get_hook_by_name(agent).ok_or_else(|| "Unknown agent".to_string())?;
+    let payload = hook
+        .get_injection_payload()
+        .unwrap_or(serde_json::json!({}));
+    let hook_points = extract_hook_points(&payload);
+
+    Ok(AgentHookDetail {
+        agent: agent.to_string(),
+        config_path: hook
+            .config_path()
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_default(),
+        injected: hook.is_injected(),
+        hook_points,
+    })
+}
+
+#[derive(serde::Serialize)]
+pub struct TestHookResult {
+    pub success: bool,
+    pub message: String,
+    pub stdout: String,
+    pub stderr: String,
+    pub exit_code: Option<i32>,
+}
+
+#[tauri::command]
+pub async fn test_hook_point(
+    agent: &str,
+    event_name: &str,
+    mode: &str,
+    event_bus: tauri::State<'_, EventBus>,
+) -> Result<TestHookResult, String> {
+    match mode {
+        "event_bus" => test_via_event_bus(agent, event_name, &event_bus).await,
+        "command" => test_via_shell(agent, event_name),
+        _ => Err("Unknown mode, expected 'event_bus' or 'command'".into()),
+    }
+}
+
+async fn test_via_event_bus(
+    agent: &str,
+    event_name: &str,
+    event_bus: &EventBus,
+) -> Result<TestHookResult, String> {
+    use familiar_core::event::AgentSource;
+    use familiar_hooks::adapter::CliAgentHookAdapter;
+    use familiar_hooks::antigravity::AntigravityHook;
+
+    // Simple unique session id without depending on external crates.
+    let test_session_id = format!(
+        "test-{}-{}-{:?}",
+        agent,
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis()
+    );
+
+    // Build a minimal test payload that the adapter can parse.
+    let base_payload = serde_json::json!({
+        "hook_event_name": event_name,
+        "session_id": test_session_id,
+    });
+
+    let payload = match event_name {
+        "PreToolUse" | "PostToolUse" | "PostToolUseFailure" => {
+            let mut p = base_payload;
+            p["tool_name"] = serde_json::json!("Bash");
+            p["tool_input"] = serde_json::json!({"command": "echo Familiar hook test"});
+            p
+        }
+        "UserPromptSubmit" | "SessionStart" => {
+            let mut p = base_payload;
+            p["prompt"] = serde_json::json!("[Familiar Test] Hook point test");
+            p
+        }
+        _ => base_payload,
+    };
+
+    let parsed = if agent == "antigravity" {
+        let hook = AntigravityHook::new();
+        hook.parse(event_name, &payload)
+            .map_err(|e| e.to_string())
+    } else {
+        let source = match agent {
+            "codex" => AgentSource::Codex,
+            "claude-code" => AgentSource::ClaudeCode,
+            "qoder" => AgentSource::Qoder,
+            other => AgentSource::Custom(other.to_string()),
+        };
+        let adapter = CliAgentHookAdapter::new(source);
+        adapter
+            .parse_hook_input(&payload)
+            .map_err(|e| e.to_string())
+    }?;
+
+    event_bus
+        .publish(parsed)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(TestHookResult {
+        success: true,
+        message: format!(
+            "Test event '{}' for '{}' published via event bus",
+            event_name, agent
+        ),
+        stdout: String::new(),
+        stderr: String::new(),
+        exit_code: None,
+    })
+}
+
+fn test_via_shell(agent: &str, event_name: &str) -> Result<TestHookResult, String> {
+    let hook = get_hook_by_name(agent).ok_or_else(|| "Unknown agent".to_string())?;
+    let payload = hook
+        .get_injection_payload()
+        .unwrap_or(serde_json::json!({}));
+    let hook_points = extract_hook_points(&payload);
+
+    let target = hook_points
+        .iter()
+        .find(|p| p.event_name == event_name)
+        .ok_or_else(|| {
+            format!(
+                "Event '{}' not found in injection payload for '{}'",
+                event_name, agent
+            )
+        })?;
+
+    // The command is stored as `"path/to/cli" hook --source ...` inside the
+    // payload. Pass it through as-is: both `cmd /C` and `sh -c` strip the
+    // surrounding quotes themselves, and trimming them here would leave an
+    // unbalanced quote that breaks execution on Windows.
+    let cmd_str = target.command.as_str();
+
+    let output = if cfg!(target_os = "windows") {
+        std::process::Command::new("cmd")
+            .args(["/C", cmd_str])
+            .output()
+            .map_err(|e| format!("Failed to execute: {}", e))?
+    } else {
+        std::process::Command::new("sh")
+            .args(["-c", cmd_str])
+            .output()
+            .map_err(|e| format!("Failed to execute: {}", e))?
+    };
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    let exit_code = output.status.code();
+    let success = output.status.success();
+
+    Ok(TestHookResult {
+        success,
+        message: if success {
+            format!("Command executed successfully (exit code: {})", exit_code.unwrap_or(-1))
+        } else {
+            format!("Command failed (exit code: {})", exit_code.unwrap_or(-1))
+        },
+        stdout,
+        stderr,
+        exit_code,
+    })
 }
 
 use familiar_core::sprite_pack::{SpritePackInfo, SpritePackManager};

@@ -103,6 +103,15 @@ cover the change and report the unrelated failure clearly.
   non-macOS behavior.
 - Keep the frontend framework-free unless the user explicitly requests an
   architectural change. Use ES modules and the existing renderer abstractions.
+- Use the global toast as the standard notification channel for transient
+  status in the settings panel: `showToast(message, type, durationMs)` in
+  `app/src/settings.js`, styled as `.app-toast` (fixed bottom-center, auto-
+  dismiss). Surface one-shot feedback there — auto-save progress
+  ("Saving..."/"Auto-saved"/"Save failed"), hook test results, copy
+  confirmations — instead of adding new inline status labels or corner
+  indicators, which truncate and break the unified design language. Reserve
+  inline text for persistent state only. Toast types: `success` (green) and
+  `error` (red); omit the type for neutral progress messages.
 - Update both Chinese and English entries in `app/src/i18n.js` when adding or
   changing user-facing text.
 - Within each settings-panel group, order controls by user intent: visibility
@@ -137,6 +146,73 @@ the exact failing command and cause when verification is incomplete.
 - Summaries should state the behavior changed, the checks run, and any known
   limitations or pre-existing failures.
 
-For a release, follow [`docs/RELEASE_PROCESS.md`](docs/RELEASE_PROCESS.md).
-Keep local release binaries under the ignored `release-artifacts/<version>/`
-directory, and never move or overwrite a tag that has already been pushed.
+For a release, follow the [Release Process](#release-process) below; the full
+workflow lives in [`docs/RELEASE_PROCESS.md`](docs/RELEASE_PROCESS.md).
+
+## Release Process
+
+Releasing changes external state: only create tags or publish releases when the
+user explicitly asks. Do not publish automatically just because a build passed.
+
+### 1. Sync version metadata
+
+Set the target version (X.Y.Z, no `v` prefix) in:
+
+- `[workspace.package].version` in the root `Cargo.toml`.
+- Every Familiar workspace package in `Cargo.lock`.
+- `app/package.json` and both version fields in `app/package-lock.json`.
+
+Verify with `cargo metadata --no-deps --format-version 1` that all `familiar-*`
+crates report the new version; never bump third-party packages.
+
+### 2. Write bilingual release notes
+
+Create `docs/releases/vX.Y.Z.md` before tagging. Release notes MUST be written
+in both Chinese and English — Chinese first, English second — with a
+`[中文](#中文) | [English](#english)` navigation header. Cover at minimum:
+
+- major features and fixes
+- compatibility and config-migration notes
+- privacy impact
+- supported platforms and architectures
+- signing and notarization status (Gatekeeper, SmartScreen)
+- reproducible performance data with sampling conditions, when applicable
+
+Fill in SHA-256 checksums only after artifacts are built; never fabricate
+checksums or performance data.
+
+### 3. Validate
+
+```bash
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
+cd app && npm run build
+git diff --check
+```
+
+### 4. Commit and push
+
+Stage only release files, then commit with Conventional Commit style, e.g.
+`chore: prepare vX.Y.Z release` for metadata and
+`docs: add vX.Y.Z release notes` for the notes. Push the branch.
+
+### 5. Create and push the tag
+
+Tag only after version, notes, and validation are complete:
+
+```bash
+git tag -a vX.Y.Z -m "Familiar vX.Y.Z"
+git push origin refs/tags/vX.Y.Z
+```
+
+Pushing a `v*` tag triggers `.github/workflows/release.yml`, which builds all
+platform bundles and uploads assets to the release; the upload step keeps it in
+draft state (`draft: true`).
+
+### 6. Publish and archive
+
+After the user explicitly requests a release: confirm CI succeeded and the
+release notes carry final checksums, then publish the draft on GitHub. Archive
+local binaries under the ignored `release-artifacts/vX.Y.Z/` with a
+`SHA256SUMS` file. Never move or overwrite a pushed tag; fix forward with a
+patch bump.
