@@ -103,6 +103,15 @@ cover the change and report the unrelated failure clearly.
   non-macOS behavior.
 - Keep the frontend framework-free unless the user explicitly requests an
   architectural change. Use ES modules and the existing renderer abstractions.
+- Use the global toast as the standard notification channel for transient
+  status in the settings panel: `showToast(message, type, durationMs)` in
+  `app/src/settings.js`, styled as `.app-toast` (fixed bottom-center, auto-
+  dismiss). Surface one-shot feedback there — auto-save progress
+  ("Saving..."/"Auto-saved"/"Save failed"), hook test results, copy
+  confirmations — instead of adding new inline status labels or corner
+  indicators, which truncate and break the unified design language. Reserve
+  inline text for persistent state only. Toast types: `success` (green) and
+  `error` (red); omit the type for neutral progress messages.
 - Update both Chinese and English entries in `app/src/i18n.js` when adding or
   changing user-facing text.
 - Within each settings-panel group, order controls by user intent: visibility

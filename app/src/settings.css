@@ -155,54 +155,6 @@ body {
     font-weight: 600;
 }
 
-/* Auto-save indicator */
-.auto-save-indicator {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    font-weight: 500;
-    padding: 5px 10px;
-    border-radius: 20px;
-    transition: opacity 0.4s ease;
-    flex-shrink: 0;
-}
-
-/* hide all icons by default */
-.auto-save-indicator svg { display: none; }
-
-/* saving state */
-.auto-save-saving {
-    background: rgba(255, 204, 0, 0.12);
-    color: #FFCC00;
-    border: 1px solid rgba(255, 204, 0, 0.25);
-}
-.auto-save-saving #auto-save-icon-saving { display: block; }
-
-/* saved state */
-.auto-save-saved {
-    background: rgba(52, 199, 89, 0.12);
-    color: #34C759;
-    border: 1px solid rgba(52, 199, 89, 0.25);
-}
-.auto-save-saved #auto-save-icon-saved { display: block; }
-
-/* error state */
-.auto-save-error {
-    background: rgba(255, 59, 48, 0.12);
-    color: #FF3B30;
-    border: 1px solid rgba(255, 59, 48, 0.25);
-}
-.auto-save-error #auto-save-icon-error { display: block; }
-
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-.auto-save-spin {
-    animation: spin 0.9s linear infinite;
-}
-
 .content-scroll {
     flex: 1;
     overflow-y: auto;
@@ -390,12 +342,6 @@ input:checked + .slider:before {
     background-color: var(--accent-hover);
 }
 
-.status-msg {
-    font-size: 13px;
-    color: #34C759;
-    opacity: 0;
-    transition: opacity 0.3s;
-}
 
 /* Range Sliders */
 .custom-range {
@@ -691,8 +637,8 @@ input:checked + .slider:before {
     border-color: #34C759;
 }
 
-/* --- Test Result Toast --- */
-.test-toast {
+/* --- Standard Toast Notification Channel --- */
+.app-toast {
     position: fixed;
     bottom: 36px;
     left: 50%;
@@ -711,19 +657,18 @@ input:checked + .slider:before {
     word-break: break-word;
     transition: opacity 0.25s ease, transform 0.25s ease;
 }
-.test-toast.show {
+.app-toast.show {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
 }
-.test-toast.success {
+.app-toast.success {
     border-color: rgba(52, 199, 89, 0.5);
     color: #34C759;
 }
-.test-toast.error {
+.app-toast.error {
     border-color: rgba(255, 59, 48, 0.5);
     color: #FF3B30;
 }
-
 /* --- Hooks Status List (wrapper) --- */
 #hook-status-list {
     padding: 12px;

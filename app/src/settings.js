@@ -62,9 +62,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const valSleepTimeoutSecs = document.getElementById('val-sleep-timeout-secs');
 
     const saveBtn = document.getElementById('save-btn');
-    const statusMsg = document.getElementById('save-status');
-    const autoSaveIndicator = document.getElementById('auto-save-indicator');
-    const autoSaveText = document.getElementById('auto-save-text');
     const sessionListContainer = document.getElementById('session-list-container');
 
     // Sprite pack UI elements
@@ -301,25 +298,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Auto-Save Logic ---
 
     function showAutoSaveState(state) {
-        // state: 'saving' | 'saved' | 'error'
-        if (!autoSaveIndicator || !autoSaveText) return;
-        autoSaveIndicator.className = 'auto-save-indicator auto-save-' + state;
-        autoSaveIndicator.style.opacity = '1';
+        // state: 'saving' | 'saved' | 'error' — surfaced through the
+        // standard toast notification channel.
+        const lang = elLanguage ? elLanguage.value : 'zh-CN';
         if (state === 'saving') {
-            autoSaveText.setAttribute('data-i18n', 'msg_auto_saving');
-            autoSaveText.textContent = t('msg_auto_saving', elLanguage.value);
+            showToast(t('msg_auto_saving', lang));
         } else if (state === 'saved') {
-            autoSaveText.setAttribute('data-i18n', 'msg_auto_saved');
-            autoSaveText.textContent = t('msg_auto_saved', elLanguage.value);
-            setTimeout(() => {
-                autoSaveIndicator.style.opacity = '0';
-            }, 2500);
+            showToast(t('msg_auto_saved', lang), 'success');
         } else if (state === 'error') {
-            autoSaveText.setAttribute('data-i18n', 'msg_auto_save_error');
-            autoSaveText.textContent = t('msg_auto_save_error', elLanguage.value);
-            setTimeout(() => {
-                autoSaveIndicator.style.opacity = '0';
-            }, 3000);
+            showToast(t('msg_auto_save_error', lang), 'error');
         }
     }
 
@@ -758,17 +745,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Manual save button (fires immediately, cancels any pending auto-save)
     saveBtn.addEventListener('click', async () => {
         if (autoSaveTimer) { clearTimeout(autoSaveTimer); autoSaveTimer = null; }
-        const lang = elLanguage.value;
         saveBtn.disabled = true;
         showAutoSaveState('saving');
         const ok = await performSave();
         showAutoSaveState(ok ? 'saved' : 'error');
-        if (!ok) {
-            statusMsg.textContent = t('msg_failed', lang);
-            statusMsg.style.color = '#FF3B30';
-            statusMsg.style.opacity = '1';
-            setTimeout(() => { statusMsg.style.opacity = '0'; }, 3000);
-        }
         saveBtn.disabled = false;
     });
 
@@ -1116,24 +1096,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Global toast for hook-test feedback. A single reusable element is
-    // created lazily and re-shown for each result, avoiding truncation that
-    // would occur in a cramped in-row label.
-    let testToastTimer = null;
-    function showTestToast(message, type) {
-        let toast = document.getElementById('test-toast');
+    // Standard notification channel for the settings panel: a single global
+    // toast element is created lazily and re-shown for each transient status
+    // (auto-save progress, hook test results, etc.). Types: 'success' (green),
+    // 'error' (red); omit for neutral progress messages.
+    let toastTimer = null;
+    function showToast(message, type, durationMs) {
+        let toast = document.getElementById('app-toast');
         if (!toast) {
             toast = document.createElement('div');
-            toast.id = 'test-toast';
-            toast.className = 'test-toast';
+            toast.id = 'app-toast';
+            toast.className = 'app-toast';
             document.body.appendChild(toast);
         }
         toast.textContent = message;
-        toast.className = 'test-toast show' + (type ? ' ' + type : '');
-        clearTimeout(testToastTimer);
-        testToastTimer = setTimeout(() => {
-            toast.className = 'test-toast';
-        }, 4000);
+        toast.className = 'app-toast show' + (type ? ' ' + type : '');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+            toast.className = 'app-toast';
+        }, durationMs || 4000);
     }
 
     async function testHookPoint(agent, eventName) {
@@ -1142,13 +1123,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const result = await invoke('test_hook_point', { agent, eventName, mode: 'event_bus' });
             if (result.success) {
-                showTestToast(t('msg_test_success', lang), 'success');
+                showToast(t('msg_test_success', lang), 'success');
             } else {
-                showTestToast(t('msg_test_failed', lang), 'error');
+                showToast(t('msg_test_failed', lang), 'error');
             }
         } catch (e) {
             console.error('Hook test invoke failed', e);
-            showTestToast(t('msg_test_failed', lang), 'error');
+            showToast(t('msg_test_failed', lang), 'error');
         }
     }
 
