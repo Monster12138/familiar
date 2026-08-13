@@ -231,7 +231,7 @@ impl StateMachine {
                     agent.current_activity = Some(error.clone());
                 }
                 AgentEventType::WaitingForInput => {
-                    agent.status = resolve("WaitingForInput", AgentStatus::WaitingInput);
+                    agent.status = resolve("WaitingForInput", AgentStatus::Pending);
                     agent.current_activity = Some("Waiting for user input...".to_string());
                 }
                 _ => {
@@ -303,7 +303,7 @@ impl StateMachine {
                         new_agent.current_activity = Some(error.clone());
                     }
                     AgentEventType::WaitingForInput => {
-                        new_agent.status = resolve("WaitingForInput", AgentStatus::WaitingInput);
+                        new_agent.status = resolve("WaitingForInput", AgentStatus::Pending);
                         new_agent.current_activity = Some("Waiting for user input...".to_string());
                     }
                     _ => {
@@ -370,7 +370,7 @@ impl StateMachine {
         } else if state
             .agents
             .iter()
-            .any(|a| a.status == AgentStatus::WaitingInput)
+            .any(|a| a.status == AgentStatus::Pending)
         {
             state.mood = FamiliarMood::Watching;
         } else {

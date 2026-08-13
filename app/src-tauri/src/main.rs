@@ -358,9 +358,11 @@ fn main() {
                             {
                                 filtered_state.mood =
                                     familiar_core::state::FamiliarMood::Celebrating;
-                            } else if filtered_state.agents.iter().any(|a| {
-                                a.status == familiar_core::state::AgentStatus::WaitingInput
-                            }) {
+                            } else if filtered_state
+                                .agents
+                                .iter()
+                                .any(|a| a.status == familiar_core::state::AgentStatus::Pending)
+                            {
                                 filtered_state.mood = familiar_core::state::FamiliarMood::Watching;
                             } else {
                                 filtered_state.mood = familiar_core::state::FamiliarMood::Idle;

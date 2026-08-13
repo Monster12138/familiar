@@ -136,7 +136,7 @@ pub enum EventStatus {
     Idle,
     Thinking,
     Working,
-    WaitingInput,
+    Pending,
     Completed,
     Failed,
     #[serde(other)]
@@ -149,7 +149,7 @@ impl EventStatus {
             Self::Idle => Some(AgentStatus::Idle),
             Self::Thinking => Some(AgentStatus::Thinking),
             Self::Working => Some(AgentStatus::Working),
-            Self::WaitingInput => Some(AgentStatus::WaitingInput),
+            Self::Pending => Some(AgentStatus::Pending),
             Self::Completed => Some(AgentStatus::Completed),
             Self::Failed => Some(AgentStatus::Failed),
             Self::Unknown => None,

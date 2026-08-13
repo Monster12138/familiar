@@ -8,7 +8,7 @@ pub enum AgentStatus {
     Idle,
     Thinking,
     Working,
-    WaitingInput,
+    Pending,
     Completed,
     Failed,
 }

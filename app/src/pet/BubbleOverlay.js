@@ -156,7 +156,7 @@ export class BubbleOverlay {
 
             let statusType = 'working';
             if (agent.status === 'Completed') statusType = 'completed';
-            else if (agent.status === 'WaitingInput' || agent.status === 'Idle') statusType = 'idle';
+            else if (agent.status === 'Pending' || agent.status === 'Idle') statusType = 'idle';
 
             if (statusType === 'completed') {
                 ui.iconEl.innerHTML = this.getCheckmarkIcon();

@@ -232,7 +232,7 @@ fn event_status_map_serializes_known_statuses() {
         .renderer
         .desktop_pet
         .event_status_map
-        .insert("WaitingForInput".to_string(), EventStatus::WaitingInput);
+        .insert("WaitingForInput".to_string(), EventStatus::Pending);
 
     let serialized = toml::to_string_pretty(&config).expect("serialize config");
 
@@ -245,7 +245,7 @@ fn event_status_map_serializes_known_statuses() {
     assert!(
         serialized
             .lines()
-            .any(|line| line == "WaitingForInput = \"waiting-input\""),
+            .any(|line| line == "WaitingForInput = \"pending\""),
         "unexpected serialized event status map:\n{serialized}"
     );
 }

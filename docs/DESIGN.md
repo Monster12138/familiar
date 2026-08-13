@@ -349,7 +349,7 @@ pub struct AgentState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AgentStatus {
-    Idle, Thinking, Working, WaitingInput, Completed, Failed,
+    Idle, Thinking, Working, Pending, Completed, Failed,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

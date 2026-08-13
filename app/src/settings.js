@@ -11,7 +11,7 @@ const EVENT_KINDS = [
     'TaskFailed', 'WaitingForInput', 'SubagentStarted', 'SubagentStopped'
 ];
 // AgentStatus values in config TOML (kebab-case).
-const EVENT_STATUS_OPTIONS = ['idle', 'thinking', 'working', 'waiting-input', 'completed', 'failed'];
+const EVENT_STATUS_OPTIONS = ['idle', 'thinking', 'working', 'pending', 'completed', 'failed'];
 
 // Built-in (fallback) status per event kind, mirroring StateMachine::apply_event.
 // `null` means the event is a no-op by default (keeps the agent's current status).
@@ -26,7 +26,7 @@ const EVENT_DEFAULT_STATUS = {
     'BrowsingWeb': 'working',
     'TaskCompleted': 'completed',
     'TaskFailed': 'failed',
-    'WaitingForInput': 'waiting-input',
+    'WaitingForInput': 'pending',
     'SubagentStarted': null,
     'SubagentStopped': null,
 };
@@ -1164,6 +1164,56 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // Raw hook event name → AgentEventType kind, mirroring the adapter
+    // (adapter.rs map_event_type) and Antigravity (antigravity.rs
+    // map_native_hook) parsers. Only used to display the status a hook event
+    // leads to. PreToolUse's kind depends on the tool, which a hook point does
+    // not carry, so it resolves generically to Processing (Working by default).
+    function hookEventKind(eventName, agent) {
+        if (agent === 'antigravity') {
+            switch (eventName) {
+                case 'SessionStart': return 'AgentStarted';
+                case 'PreToolUse': return 'Processing';
+                case 'PostToolUse': return 'Processing';
+                case 'PreInvocation':
+                case 'PostInvocation': return 'Thinking';
+                case 'Stop':
+                case 'SessionEnd': return 'TaskCompleted';
+                default: return null;
+            }
+        }
+        switch (eventName) {
+            case 'SessionStart':
+            case 'start':
+            case 'USER_INPUT':
+            case 'UserPromptSubmit': return 'AgentStarted';
+            case 'Stop':
+            case 'stop':
+            case 'exit':
+            case 'SessionEnd': return 'TaskCompleted';
+            case 'StopFailure': return 'TaskFailed';
+            case 'PreToolUse':
+            case 'tool_call': return 'Processing';
+            case 'PostToolUse':
+            case 'tool_result': return 'Processing';
+            case 'PostToolUseFailure': return 'Processing';
+            case 'PermissionRequest': return 'WaitingForInput';
+            case 'SubagentStart': return 'SubagentStarted';
+            case 'SubagentStop': return 'SubagentStopped';
+            default: return null;
+        }
+    }
+
+    // Effective pet status a hook event produces: the user's override from the
+    // event-status mapping if set, else the built-in default (or null for the
+    // no-op Subagent events).
+    function hookEventStatus(eventName, agent) {
+        const kind = hookEventKind(eventName, agent);
+        if (!kind) return null;
+        const map = currentConfig?.renderer?.['desktop-pet']?.event_status_map || {};
+        return map[kind] || EVENT_DEFAULT_STATUS[kind] || null;
+    }
+
     function renderHookPointsTable(detailEl, hookDetail, agent) {
         const lang = elLanguage ? elLanguage.value : 'zh-CN';
         const points = hookDetail.hook_points || [];
@@ -1176,21 +1226,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         let html = '<div class="hook-points-table">';
         html += '<div class="hook-points-header">';
         html += `<span class="hook-col-event">${t('lbl_hook_event', lang)}</span>`;
-        html += `<span class="hook-col-command">${t('lbl_hook_command', lang)}</span>`;
+        html += `<span class="hook-col-status">${t('lbl_hook_status', lang)}</span>`;
         html += `<span class="hook-col-test"></span>`;
         html += '</div>';
 
         points.forEach(pt => {
             const matcherLabel = pt.matcher ? ` (matcher: ${pt.matcher})` : '';
-            // Prefer the full copy-pasteable test command (with mocked stdin
-            // payload); fall back to the raw hook command for older payloads.
-            const displayCmd = pt.test_command || pt.command;
+            const statusKey = hookEventStatus(pt.event_name, agent);
+            const statusLabel = statusKey
+                ? t('status_' + statusKey.replace(/-/g, '_'), lang)
+                : t('status_default_noop', lang);
+            // The command is only kept for copying (data-cmd), not displayed.
+            const copyCmd = pt.test_command || pt.command;
             html += '<div class="hook-point-row">';
             html += `<span class="hook-col-event"><code>${pt.event_name}</code>${matcherLabel}</span>`;
-            html += `<span class="hook-col-command"><code class="hook-cmd-text" title="${displayCmd.replace(/"/g, '&quot;')}">${displayCmd}</code></span>`;
+            html += `<span class="hook-col-status"><span class="hook-status-badge">${statusLabel}</span></span>`;
             html += '<span class="hook-col-test">';
             html += `<button class="btn-test btn-test-bus" data-agent="${agent}" data-event="${pt.event_name}">${t('btn_test_eventbus', lang)}</button>`;
-            html += `<button class="btn-test btn-copy-cmd">${t('btn_copy_command', lang)}</button>`;
+            html += `<button class="btn-test btn-copy-cmd" data-cmd="${copyCmd.replace(/"/g, '&quot;')}">${t('btn_copy_command', lang)}</button>`;
             html += '</span>';
             html += '</div>';
         });
@@ -1207,14 +1260,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
-        // Bind copy-command button handlers (copies the full command text
-        // from the same row so users can run it manually in their terminal)
+        // Bind copy-command button handlers (the command text is not shown in
+        // the row; it is carried on the button itself for copying).
         detailEl.querySelectorAll('.btn-copy-cmd').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                const row = btn.closest('.hook-point-row');
-                const cmdEl = row ? row.querySelector('.hook-cmd-text') : null;
-                const cmd = cmdEl ? cmdEl.textContent : '';
+                const cmd = btn.getAttribute('data-cmd') || '';
                 const origText = btn.textContent;
                 try {
                     await navigator.clipboard.writeText(cmd);
