@@ -26,6 +26,10 @@
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                         Hooks
                     </a>
+                    <a href="#section-event-status" class="menu-item" data-target="section-event-status" data-i18n="nav_event_status" data-i18n-text-only>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                        事件行为
+                    </a>
                     <a href="#section-sessions" class="menu-item" data-target="section-sessions" data-i18n="nav_sessions" data-i18n-text-only>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                         会话
@@ -254,6 +258,22 @@
                         <div class="setting-item" style="flex-direction: column; align-items: stretch; padding: 0;">
                             <div class="hook-status-list" id="hook-status-list">
                                 <!-- Dynamic collapsible agent cards rendered by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 事件行为映射 -->
+                <section class="settings-group" id="section-event-status">
+                    <h2 data-i18n="group_event_status">事件行为映射</h2>
+                    <p data-i18n="desc_event_status" style="color:var(--text-muted);font-size:13px;margin: -8px 0 16px 0;">自定义各 Agent 事件对应的宠物状态，保存后立即生效。未设置的事件沿用内置行为；会话终态清理只对「完成」状态生效。</p>
+                    <div class="settings-card">
+                        <div class="setting-item" style="flex-direction: column; align-items: stretch; padding: 0;">
+                            <div class="event-status-table" id="event-status-table">
+                                <!-- Dynamic rows rendered by JS -->
+                            </div>
+                            <div style="padding: 12px 16px;">
+                                <button id="btn-reset-event-status" class="secondary-btn btn-sm" data-i18n="btn_reset_event_status">恢复默认</button>
                             </div>
                         </div>
                     </div>

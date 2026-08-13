@@ -112,6 +112,7 @@ impl AgentHook for ClaudeCodeHook {
                 "SubagentStart": [hook("SubagentStart")],
                 "SubagentStop": [hook("SubagentStop")],
                 "Stop": [hook("Stop")],
+                "StopFailure": [hook("StopFailure")],
                 "SessionEnd": [hook("SessionEnd")]
             }
         }))
@@ -404,6 +405,7 @@ mod tests {
             "SubagentStart",
             "SubagentStop",
             "Stop",
+            "StopFailure",
             "SessionEnd",
         ] {
             assert!(

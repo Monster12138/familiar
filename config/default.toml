@@ -33,6 +33,17 @@ dashboard_alignment = "bottom"
 celebration_secs = 10
 sleep_timeout_secs = 300
 
+# Optional event → pet status overrides. Keys are AgentEventType kinds
+# (AgentStarted, Thinking, Processing, ReadingFile, WritingFile,
+# RunningCommand, SearchingCode, BrowsingWeb, TaskCompleted, TaskFailed,
+# WaitingForInput, SubagentStarted, SubagentStopped); values are one of
+# idle, thinking, working, waiting-input, completed, failed. Missing
+# entries keep the built-in behavior. AgentStopped is not mappable.
+# Managed from Settings → Event Behaviors; example:
+#   [renderer.desktop-pet.event_status_map]
+#   Thinking = "working"
+#   TaskCompleted = "idle"
+
 [renderer.menu-bar]
 show_active_count = true
 show_today_stats = true
