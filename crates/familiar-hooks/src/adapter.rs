@@ -117,6 +117,16 @@ impl CliAgentHookAdapter {
         None
     }
 
+    fn extract_subagent_type(json: &Value) -> String {
+        json["subagent_type"]
+            .as_str()
+            .or_else(|| json["agent_type"].as_str())
+            .or_else(|| json["payload"]["subagent_type"].as_str())
+            .filter(|s| !s.is_empty())
+            .unwrap_or("Unknown")
+            .to_string()
+    }
+
     fn extract_clean_text(s: &str) -> String {
         let mut text = s.to_string();
         if let Some(start) = text.find("<USER_REQUEST>") {
@@ -150,10 +160,10 @@ impl CliAgentHookAdapter {
             },
             "PermissionRequest" => AgentEventType::WaitingForInput,
             "SubagentStart" => AgentEventType::SubagentStarted {
-                agent_type: "Unknown".into(),
+                agent_type: Self::extract_subagent_type(json),
             },
             "SubagentStop" => AgentEventType::SubagentStopped {
-                agent_type: "Unknown".into(),
+                agent_type: Self::extract_subagent_type(json),
             },
             _ => AgentEventType::Processing {
                 description: event_name.to_string(),
