@@ -3,6 +3,34 @@ import { applyTranslations, t } from './i18n.js';
 const { invoke } = window.__TAURI__.core;
 const { getCurrentWebviewWindow } = window.__TAURI__.webviewWindow;
 
+// AgentEventType kinds exposed in the event-status mapping table (excluding
+// the non-mappable AgentStopped). Order matches the backend kind() strings.
+const EVENT_KINDS = [
+    'AgentStarted', 'Thinking', 'Processing', 'ReadingFile', 'WritingFile',
+    'RunningCommand', 'SearchingCode', 'BrowsingWeb', 'TaskCompleted',
+    'TaskFailed', 'WaitingForInput', 'SubagentStarted', 'SubagentStopped'
+];
+// AgentStatus values in config TOML (kebab-case).
+const EVENT_STATUS_OPTIONS = ['idle', 'thinking', 'working', 'pending', 'completed', 'failed'];
+
+// Built-in (fallback) status per event kind, mirroring StateMachine::apply_event.
+// `null` means the event is a no-op by default (keeps the agent's current status).
+const EVENT_DEFAULT_STATUS = {
+    'AgentStarted': 'working',
+    'Thinking': 'thinking',
+    'Processing': 'working',
+    'ReadingFile': 'working',
+    'WritingFile': 'working',
+    'RunningCommand': 'working',
+    'SearchingCode': 'working',
+    'BrowsingWeb': 'working',
+    'TaskCompleted': 'completed',
+    'TaskFailed': 'failed',
+    'WaitingForInput': 'pending',
+    'SubagentStarted': null,
+    'SubagentStopped': null,
+};
+
 document.addEventListener('DOMContentLoaded', async () => {
     // Disable default context menu (developer tools / inspect element)
     document.addEventListener('contextmenu', (e) => {
@@ -384,6 +412,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (elSleepTimeoutSecs) {
             currentConfig.renderer['desktop-pet'].sleep_timeout_secs = parseInt(elSleepTimeoutSecs.value, 10);
         }
+        // Drop an empty mapping so no empty `[..event_status_map]` section is
+        // written to the TOML file on save.
+        if (currentConfig.renderer['desktop-pet'].event_status_map &&
+            Object.keys(currentConfig.renderer['desktop-pet'].event_status_map).length === 0) {
+            delete currentConfig.renderer['desktop-pet'].event_status_map;
+        }
 
         currentConfig.hooks.socket_path = elUdsPath.value;
         currentConfig.hooks.tcp_port = parseInt(elTcpPort.value, 10);
@@ -404,6 +438,92 @@ document.addEventListener('DOMContentLoaded', async () => {
             const ok = await performSave();
             showAutoSaveState(ok ? 'saved' : 'error');
         }, 500);
+    }
+
+    // --- Event → Pet Status Mapping ---
+    const eventStatusTable = document.getElementById('event-status-table');
+    const btnResetEventStatus = document.getElementById('btn-reset-event-status');
+
+    function eventStatusMapConfig() {
+        if (!currentConfig.renderer) currentConfig.renderer = {};
+        if (!currentConfig.renderer['desktop-pet']) currentConfig.renderer['desktop-pet'] = {};
+        if (!currentConfig.renderer['desktop-pet'].event_status_map) {
+            currentConfig.renderer['desktop-pet'].event_status_map = {};
+        }
+        return currentConfig.renderer['desktop-pet'].event_status_map;
+    }
+
+    function renderEventStatusTable() {
+        if (!eventStatusTable) return;
+        const lang = elLanguage.value;
+        const map = currentConfig.renderer?.['desktop-pet']?.event_status_map || {};
+
+        const header = document.createElement('div');
+        header.className = 'event-status-row event-status-header';
+        header.innerHTML =
+            `<span>${t('event_status_event_col', lang)}</span>` +
+            `<span>${t('event_status_state_col', lang)}</span>`;
+
+        const rows = EVENT_KINDS.map((kind) => {
+            const row = document.createElement('div');
+            row.className = 'event-status-row';
+
+            const label = document.createElement('span');
+            label.className = 'event-status-label';
+            label.textContent = t('evt_' + kind, lang);
+
+            const selectWrap = document.createElement('div');
+            selectWrap.className = 'custom-select';
+            const select = document.createElement('select');
+            // Label the "default" option with the status the built-in behavior
+            // actually resolves to, so it is not a mystery.
+            const defStatus = EVENT_DEFAULT_STATUS[kind];
+            const openParen = lang === 'zh-CN' ? '（' : ' (';
+            const closeParen = lang === 'zh-CN' ? '）' : ')';
+            const defDetail = defStatus
+                ? t('status_' + defStatus.replace(/-/g, '_'), lang)
+                : t('status_default_noop', lang);
+            const defOpt = document.createElement('option');
+            defOpt.value = 'default';
+            defOpt.textContent = t('status_default', lang) + openParen + defDetail + closeParen;
+            select.appendChild(defOpt);
+            for (const opt of EVENT_STATUS_OPTIONS) {
+                const option = document.createElement('option');
+                option.value = opt;
+                // Option values are kebab-case (matching config TOML) but i18n
+                // keys are snake_case, so normalize before looking up the label.
+                option.textContent = t('status_' + opt.replace(/-/g, '_'), lang);
+                select.appendChild(option);
+            }
+            select.value = EVENT_STATUS_OPTIONS.includes(map[kind]) ? map[kind] : 'default';
+            select.addEventListener('change', () => setEventStatus(kind, select.value));
+
+            selectWrap.appendChild(select);
+            row.appendChild(label);
+            row.appendChild(selectWrap);
+            return row;
+        });
+
+        eventStatusTable.replaceChildren(header, ...rows);
+    }
+
+    function setEventStatus(kind, value) {
+        const map = eventStatusMapConfig();
+        if (value === 'default') {
+            delete map[kind];
+        } else {
+            map[kind] = value;
+        }
+        if (Object.keys(map).length === 0) {
+            delete currentConfig.renderer['desktop-pet'].event_status_map;
+        }
+        scheduleAutoSave();
+    }
+
+    function resetEventStatus() {
+        delete currentConfig.renderer?.['desktop-pet']?.event_status_map;
+        renderEventStatusTable();
+        scheduleAutoSave();
     }
 
     // --- Config Load/Save Logic ---
@@ -458,6 +578,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (valSleepTimeoutSecs) valSleepTimeoutSecs.textContent = petConf.sleep_timeout_secs + 's';
             }
         }
+
+        renderEventStatusTable();
 
         // Hooks / IPC
         if (currentConfig.hooks) {
@@ -758,6 +880,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     elLanguage.addEventListener('change', () => {
         applyTranslations(elLanguage.value);
         loadAndRenderSpritePacks();
+        renderEventStatusTable();
         scheduleAutoSave();
     });
 
@@ -787,6 +910,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     autoSaveInputs.forEach(el => {
         if (el) el.addEventListener('change', scheduleAutoSave);
     });
+
+    if (btnResetEventStatus) {
+        btnResetEventStatus.addEventListener('click', resetEventStatus);
+    }
 
     // Manual save button (fires immediately, cancels any pending auto-save)
     saveBtn.addEventListener('click', async () => {
@@ -1037,6 +1164,56 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // Raw hook event name → AgentEventType kind, mirroring the adapter
+    // (adapter.rs map_event_type) and Antigravity (antigravity.rs
+    // map_native_hook) parsers. Only used to display the status a hook event
+    // leads to. PreToolUse's kind depends on the tool, which a hook point does
+    // not carry, so it resolves generically to Processing (Working by default).
+    function hookEventKind(eventName, agent) {
+        if (agent === 'antigravity') {
+            switch (eventName) {
+                case 'SessionStart': return 'AgentStarted';
+                case 'PreToolUse': return 'Processing';
+                case 'PostToolUse': return 'Processing';
+                case 'PreInvocation':
+                case 'PostInvocation': return 'Thinking';
+                case 'Stop':
+                case 'SessionEnd': return 'TaskCompleted';
+                default: return null;
+            }
+        }
+        switch (eventName) {
+            case 'SessionStart':
+            case 'start':
+            case 'USER_INPUT':
+            case 'UserPromptSubmit': return 'AgentStarted';
+            case 'Stop':
+            case 'stop':
+            case 'exit':
+            case 'SessionEnd': return 'TaskCompleted';
+            case 'StopFailure': return 'TaskFailed';
+            case 'PreToolUse':
+            case 'tool_call': return 'Processing';
+            case 'PostToolUse':
+            case 'tool_result': return 'Processing';
+            case 'PostToolUseFailure': return 'Processing';
+            case 'PermissionRequest': return 'WaitingForInput';
+            case 'SubagentStart': return 'SubagentStarted';
+            case 'SubagentStop': return 'SubagentStopped';
+            default: return null;
+        }
+    }
+
+    // Effective pet status a hook event produces: the user's override from the
+    // event-status mapping if set, else the built-in default (or null for the
+    // no-op Subagent events).
+    function hookEventStatus(eventName, agent) {
+        const kind = hookEventKind(eventName, agent);
+        if (!kind) return null;
+        const map = currentConfig?.renderer?.['desktop-pet']?.event_status_map || {};
+        return map[kind] || EVENT_DEFAULT_STATUS[kind] || null;
+    }
+
     function renderHookPointsTable(detailEl, hookDetail, agent) {
         const lang = elLanguage ? elLanguage.value : 'zh-CN';
         const points = hookDetail.hook_points || [];
@@ -1049,21 +1226,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         let html = '<div class="hook-points-table">';
         html += '<div class="hook-points-header">';
         html += `<span class="hook-col-event">${t('lbl_hook_event', lang)}</span>`;
-        html += `<span class="hook-col-command">${t('lbl_hook_command', lang)}</span>`;
+        html += `<span class="hook-col-status">${t('lbl_hook_status', lang)}</span>`;
         html += `<span class="hook-col-test"></span>`;
         html += '</div>';
 
         points.forEach(pt => {
             const matcherLabel = pt.matcher ? ` (matcher: ${pt.matcher})` : '';
-            // Prefer the full copy-pasteable test command (with mocked stdin
-            // payload); fall back to the raw hook command for older payloads.
-            const displayCmd = pt.test_command || pt.command;
+            const statusKey = hookEventStatus(pt.event_name, agent);
+            const statusLabel = statusKey
+                ? t('status_' + statusKey.replace(/-/g, '_'), lang)
+                : t('status_default_noop', lang);
+            // The command is only kept for copying (data-cmd), not displayed.
+            const copyCmd = pt.test_command || pt.command;
             html += '<div class="hook-point-row">';
             html += `<span class="hook-col-event"><code>${pt.event_name}</code>${matcherLabel}</span>`;
-            html += `<span class="hook-col-command"><code class="hook-cmd-text" title="${displayCmd.replace(/"/g, '&quot;')}">${displayCmd}</code></span>`;
+            html += `<span class="hook-col-status"><span class="hook-status-badge">${statusLabel}</span></span>`;
             html += '<span class="hook-col-test">';
             html += `<button class="btn-test btn-test-bus" data-agent="${agent}" data-event="${pt.event_name}">${t('btn_test_eventbus', lang)}</button>`;
-            html += `<button class="btn-test btn-copy-cmd">${t('btn_copy_command', lang)}</button>`;
+            html += `<button class="btn-test btn-copy-cmd" data-cmd="${copyCmd.replace(/"/g, '&quot;')}">${t('btn_copy_command', lang)}</button>`;
             html += '</span>';
             html += '</div>';
         });
@@ -1080,14 +1260,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
-        // Bind copy-command button handlers (copies the full command text
-        // from the same row so users can run it manually in their terminal)
+        // Bind copy-command button handlers (the command text is not shown in
+        // the row; it is carried on the button itself for copying).
         detailEl.querySelectorAll('.btn-copy-cmd').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                const row = btn.closest('.hook-point-row');
-                const cmdEl = row ? row.querySelector('.hook-cmd-text') : null;
-                const cmd = cmdEl ? cmdEl.textContent : '';
+                const cmd = btn.getAttribute('data-cmd') || '';
                 const origText = btn.textContent;
                 try {
                     await navigator.clipboard.writeText(cmd);

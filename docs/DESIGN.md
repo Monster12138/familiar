@@ -252,24 +252,46 @@ impl CliAgentHookAdapter {
 ```json
 {
   "hooks": {
+    "SessionStart": [{
+      "hooks": [{ "type": "command", "command": "familiar-hook --source claude-code --event SessionStart" }]
+    }],
+    "UserPromptSubmit": [{
+      "hooks": [{ "type": "command", "command": "familiar-hook --source claude-code --event UserPromptSubmit" }]
+    }],
     "PreToolUse": [{
-      "matcher": ".*",
-      "hooks": [{ "type": "command", "command": "familiar-hook --source claude-code" }]
+      "matcher": "*",
+      "hooks": [{ "type": "command", "command": "familiar-hook --source claude-code --event PreToolUse" }]
     }],
     "PostToolUse": [{
-      "matcher": ".*",
-      "hooks": [{ "type": "command", "command": "familiar-hook --source claude-code" }]
+      "matcher": "*",
+      "hooks": [{ "type": "command", "command": "familiar-hook --source claude-code --event PostToolUse" }]
     }],
-    "SessionStart": [{
-      "matcher": ".*",
-      "hooks": [{ "type": "command", "command": "familiar-hook --source claude-code" }]
+    "PostToolUseFailure": [{
+      "matcher": "*",
+      "hooks": [{ "type": "command", "command": "familiar-hook --source claude-code --event PostToolUseFailure" }]
+    }],
+    "PermissionRequest": [{
+      "matcher": "*",
+      "hooks": [{ "type": "command", "command": "familiar-hook --source claude-code --event PermissionRequest" }]
+    }],
+    "SubagentStart": [{
+      "hooks": [{ "type": "command", "command": "familiar-hook --source claude-code --event SubagentStart" }]
+    }],
+    "SubagentStop": [{
+      "hooks": [{ "type": "command", "command": "familiar-hook --source claude-code --event SubagentStop" }]
     }],
     "Stop": [{
-      "hooks": [{ "type": "command", "command": "familiar-hook --source claude-code" }]
+      "hooks": [{ "type": "command", "command": "familiar-hook --source claude-code --event Stop" }]
+    }],
+    "SessionEnd": [{
+      "hooks": [{ "type": "command", "command": "familiar-hook --source claude-code --event SessionEnd" }]
     }]
   }
 }
 ```
+
+All hooks report passively: the CLI always exits `0` and prints nothing, so Familiar
+never blocks the agent and never overrides the user's own permission rules.
 
 **Codex** (`~/.codex/config.toml` 或项目 `.codex/hooks.json`):
 ```json
@@ -327,7 +349,7 @@ pub struct AgentState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AgentStatus {
-    Idle, Thinking, Working, WaitingInput, Completed, Failed,
+    Idle, Thinking, Working, Pending, Completed, Failed,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

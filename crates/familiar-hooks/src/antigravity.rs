@@ -107,7 +107,9 @@ impl AntigravityHook {
                 timestamp: chrono::Utc::now(),
                 source: AgentSource::Antigravity,
                 category: AgentCategory::Coding,
-                event_type: AgentEventType::Thinking,
+                event_type: AgentEventType::Processing {
+                    description: "Tool finished".to_string(),
+                },
                 metadata: None,
             }),
             "PreInvocation" | "PostInvocation" => Some(AgentEvent {
@@ -464,5 +466,41 @@ impl AgentHook for AntigravityHook {
         }
 
         Ok((before_content, after_content))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn parse(event_name: &str) -> AgentEvent {
+        let hook = AntigravityHook::new();
+        let json = json!({
+            "conversationId": "11111111-1111-1111-1111-111111111111",
+        });
+        hook.parse(event_name, &json).unwrap()
+    }
+
+    #[test]
+    fn test_post_tool_use_maps_to_processing() {
+        // Must match the shared adapter (adapter.rs) so all agents show the
+        // same mid-round Working state instead of Antigravity-only Thinking.
+        let event = parse("PostToolUse");
+        assert!(
+            matches!(event.event_type, AgentEventType::Processing { .. }),
+            "PostToolUse should map to Processing, got {:?}",
+            event.event_type
+        );
+    }
+
+    #[test]
+    fn test_stop_maps_to_task_completed() {
+        let event = parse("Stop");
+        assert!(
+            matches!(event.event_type, AgentEventType::TaskCompleted { .. }),
+            "Stop should map to TaskCompleted, got {:?}",
+            event.event_type
+        );
     }
 }

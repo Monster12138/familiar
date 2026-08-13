@@ -154,3 +154,25 @@ jobs:
           # softprops/action-gh-release defaults to draft:false, which would publish an existing draft release while uploading assets; keep releases in draft until manually published
           draft: true
           files: renamed-artifacts/*
+
+  finalize-release:
+    name: Generate and upload SHA256SUMS
+    needs: publish-tauri
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Download release assets
+        run: gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir artifacts
+
+      - name: Generate SHA256SUMS (skip existing file for re-runs)
+        working-directory: artifacts
+        run: |
+          for f in *; do
+            [ "$f" = "SHA256SUMS" ] && continue
+            sha256sum "$f"
+          done > SHA256SUMS
+
+      - name: Upload SHA256SUMS asset
+        run: gh release upload "$RELEASE_TAG" artifacts/SHA256SUMS --clobber --repo "$GITHUB_REPOSITORY"

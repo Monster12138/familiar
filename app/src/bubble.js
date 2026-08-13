@@ -40,7 +40,7 @@ async function init() {
         const hiddenSessions = currentConfig?.sessions?.hidden_sessions || [];
         const activeAgents = state.agents.filter(a =>
             !hiddenSessions.includes(a.id) &&
-            ["Thinking", "Working", "Completed", "WaitingInput", "Idle"].includes(a.status)
+            ["Thinking", "Working", "Completed", "Pending", "Idle"].includes(a.status)
         );
         bubbleOverlay.render(activeAgents, currentLang, t);
     });

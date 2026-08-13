@@ -1,5 +1,7 @@
+use crate::state::{AgentStatus, EventStatusMap};
 use anyhow::Result;
 use serde::{Deserialize, Serialize, Serializer};
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
@@ -66,6 +68,21 @@ pub struct DesktopPetConfig {
     pub celebration_secs: u32,
     #[serde(default = "default_sleep_timeout_secs")]
     pub sleep_timeout_secs: u32,
+    #[serde(default)]
+    pub event_status_map: BTreeMap<String, EventStatus>,
+}
+
+impl DesktopPetConfig {
+    /// Build the runtime lookup map used by the state machine. Unknown values
+    /// and the non-mappable `AgentStopped` key are dropped so they fall back
+    /// to the built-in behavior.
+    pub fn event_status_agent_map(&self) -> EventStatusMap {
+        self.event_status_map
+            .iter()
+            .filter(|(k, _)| k.as_str() != "AgentStopped")
+            .filter_map(|(k, v)| v.to_agent_status().map(|s| (k.clone(), s)))
+            .collect()
+    }
 }
 
 fn default_true() -> bool {
@@ -107,6 +124,37 @@ pub enum DashboardAlignment {
     #[default]
     #[serde(other)]
     Bottom,
+}
+
+/// Config-facing pet status value (kebab-case in TOML). Distinct from
+/// `AgentStatus`, which serializes PascalCase as part of the frontend JSON
+/// contract and must not change. `Unknown` catches unrecognized config values
+/// so they fall back to the built-in behavior at runtime.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum EventStatus {
+    Idle,
+    Thinking,
+    Working,
+    Pending,
+    Completed,
+    Failed,
+    #[serde(other)]
+    Unknown,
+}
+
+impl EventStatus {
+    pub fn to_agent_status(self) -> Option<AgentStatus> {
+        match self {
+            Self::Idle => Some(AgentStatus::Idle),
+            Self::Thinking => Some(AgentStatus::Thinking),
+            Self::Working => Some(AgentStatus::Working),
+            Self::Pending => Some(AgentStatus::Pending),
+            Self::Completed => Some(AgentStatus::Completed),
+            Self::Failed => Some(AgentStatus::Failed),
+            Self::Unknown => None,
+        }
+    }
 }
 
 fn serialize_one_decimal<S>(value: &f32, serializer: S) -> Result<S::Ok, S::Error>
@@ -190,6 +238,7 @@ impl Default for FamiliarConfig {
                     dashboard_alignment: DashboardAlignment::Bottom,
                     celebration_secs: 4,
                     sleep_timeout_secs: 300,
+                    event_status_map: BTreeMap::new(),
                 },
                 menu_bar: MenuBarConfig {
                     show_active_count: true,

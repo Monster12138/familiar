@@ -100,10 +100,20 @@ impl AgentHook for ClaudeCodeHook {
 
     fn get_injection_payload(&self) -> Option<serde_json::Value> {
         let bin_path = crate::bin_path::resolve_cli_bin_path();
+        let hook = |event: &str| serde_json::json!({ "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source claude-code --event {}", bin_path, event) }] });
         Some(serde_json::json!({
             "hooks": {
-                "PreToolUse": [{ "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source claude-code --event PreToolUse", bin_path) }] }],
-                "PostToolUse": [{ "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source claude-code --event PostToolUse", bin_path) }] }]
+                "SessionStart": [hook("SessionStart")],
+                "UserPromptSubmit": [hook("UserPromptSubmit")],
+                "PreToolUse": [serde_json::json!({ "matcher": "*", "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source claude-code --event PreToolUse", bin_path) }] })],
+                "PostToolUse": [serde_json::json!({ "matcher": "*", "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source claude-code --event PostToolUse", bin_path) }] })],
+                "PostToolUseFailure": [serde_json::json!({ "matcher": "*", "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source claude-code --event PostToolUseFailure", bin_path) }] })],
+                "PermissionRequest": [serde_json::json!({ "matcher": "*", "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source claude-code --event PermissionRequest", bin_path) }] })],
+                "SubagentStart": [hook("SubagentStart")],
+                "SubagentStop": [hook("SubagentStop")],
+                "Stop": [hook("Stop")],
+                "StopFailure": [hook("StopFailure")],
+                "SessionEnd": [hook("SessionEnd")]
             }
         }))
     }
@@ -382,8 +392,55 @@ mod tests {
         let hook = ClaudeCodeHook::new();
         let payload = hook.get_injection_payload().unwrap();
         assert!(payload.get("hooks").is_some());
-        assert!(payload["hooks"].get("PreToolUse").is_some());
-        assert!(payload["hooks"].get("PostToolUse").is_some());
+
+        // All official events that the shared adapter maps must be registered
+        // so the claude-code source actually reports them.
+        for event in [
+            "SessionStart",
+            "UserPromptSubmit",
+            "PreToolUse",
+            "PostToolUse",
+            "PostToolUseFailure",
+            "PermissionRequest",
+            "SubagentStart",
+            "SubagentStop",
+            "Stop",
+            "StopFailure",
+            "SessionEnd",
+        ] {
+            assert!(
+                payload["hooks"].get(event).is_some(),
+                "expected hook entry for {}",
+                event
+            );
+        }
+
+        // Tool-scoped events carry the official matcher field.
+        for event in [
+            "PreToolUse",
+            "PostToolUse",
+            "PostToolUseFailure",
+            "PermissionRequest",
+        ] {
+            assert_eq!(
+                payload["hooks"][event][0]["matcher"].as_str(),
+                Some("*"),
+                "expected matcher on {}",
+                event
+            );
+        }
+
+        // Every entry routes through familiar-cli with the claude-code source.
+        let hooks_obj = payload["hooks"].as_object().unwrap();
+        for (event, entries) in hooks_obj {
+            let inner = entries[0]["hooks"][0]["command"].as_str().unwrap();
+            assert!(
+                inner.contains("familiar-cli") && inner.contains("--source claude-code"),
+                "hook command for {} does not reference familiar-cli claude-code: {}",
+                event,
+                inner
+            );
+        }
 
         assert_eq!(
             hook.config_path().unwrap().file_name().unwrap(),

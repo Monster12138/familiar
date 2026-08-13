@@ -77,6 +77,19 @@ impl CliAgentHookAdapter {
         })
     }
 
+    /// Pulls the human-readable error message (falling back to the short code)
+    /// from a Claude Code `StopFailure` payload.
+    fn extract_stop_failure_error(json: &Value) -> String {
+        json["error_message"]
+            .as_str()
+            .or_else(|| json["error"].as_str())
+            .or_else(|| json["payload"]["error_message"].as_str())
+            .or_else(|| json["payload"]["error"].as_str())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "API error".to_string())
+    }
+
     fn extract_instruction(json: &Value) -> Option<String> {
         let direct = json["content"]
             .as_str()
@@ -117,6 +130,16 @@ impl CliAgentHookAdapter {
         None
     }
 
+    fn extract_subagent_type(json: &Value) -> String {
+        json["subagent_type"]
+            .as_str()
+            .or_else(|| json["agent_type"].as_str())
+            .or_else(|| json["payload"]["subagent_type"].as_str())
+            .filter(|s| !s.is_empty())
+            .unwrap_or("Unknown")
+            .to_string()
+    }
+
     fn extract_clean_text(s: &str) -> String {
         let mut text = s.to_string();
         if let Some(start) = text.find("<USER_REQUEST>") {
@@ -141,6 +164,11 @@ impl CliAgentHookAdapter {
             "Stop" | "stop" | "exit" | "SessionEnd" => AgentEventType::TaskCompleted {
                 summary: "Task finished".into(),
             },
+            // Claude Code v2.1.78+: fires when a turn ends due to a model API
+            // error (rate limit, auth, billing, network, max_output_tokens...).
+            "StopFailure" => AgentEventType::TaskFailed {
+                error: Self::extract_stop_failure_error(json),
+            },
             "PreToolUse" | "tool_call" => self.parse_pre_tool_use(json),
             "PostToolUse" | "tool_result" => AgentEventType::Processing {
                 description: "Tool finished".into(),
@@ -150,10 +178,10 @@ impl CliAgentHookAdapter {
             },
             "PermissionRequest" => AgentEventType::WaitingForInput,
             "SubagentStart" => AgentEventType::SubagentStarted {
-                agent_type: "Unknown".into(),
+                agent_type: Self::extract_subagent_type(json),
             },
             "SubagentStop" => AgentEventType::SubagentStopped {
-                agent_type: "Unknown".into(),
+                agent_type: Self::extract_subagent_type(json),
             },
             _ => AgentEventType::Processing {
                 description: event_name.to_string(),
@@ -278,6 +306,61 @@ impl CliAgentHookAdapter {
             AgentSource::Antigravity => AgentCategory::Coding,
             AgentSource::Qoder => AgentCategory::Coding,
             AgentSource::Custom(_) => AgentCategory::General,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn parse(event_name: &str, payload: serde_json::Value) -> AgentEvent {
+        let adapter = CliAgentHookAdapter::new(AgentSource::ClaudeCode);
+        let mut full = payload.clone();
+        if let Some(obj) = full.as_object_mut() {
+            obj.insert(
+                "hook_event_name".to_string(),
+                Value::String(event_name.to_string()),
+            );
+        }
+        adapter.parse_hook_input(&full).unwrap()
+    }
+
+    #[test]
+    fn test_stop_failure_maps_to_task_failed_with_message() {
+        let event = parse(
+            "StopFailure",
+            json!({
+                "conversation_id": "11111111-1111-1111-1111-111111111111",
+                "error_type": "rate_limit",
+                "error": "429",
+                "error_message": "You've been rate limited"
+            }),
+        );
+        match event.event_type {
+            AgentEventType::TaskFailed { error } => {
+                assert_eq!(error, "You've been rate limited");
+            }
+            other => panic!("expected TaskFailed, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_stop_failure_falls_back_to_short_code() {
+        let event = parse(
+            "StopFailure",
+            json!({
+                "conversation_id": "11111111-1111-1111-1111-111111111111",
+                "error_type": "authentication_failed",
+                "error": "401"
+            }),
+        );
+        match event.event_type {
+            AgentEventType::TaskFailed { error } => {
+                assert_eq!(error, "401");
+            }
+            other => panic!("expected TaskFailed, got {:?}", other),
         }
     }
 }

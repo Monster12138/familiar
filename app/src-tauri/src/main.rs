@@ -20,6 +20,7 @@ use familiar_core::config::FamiliarConfig;
 use familiar_core::event::AgentSource;
 use familiar_core::event_bus::EventBus;
 use familiar_core::logger::{default_log_dir, init_logger};
+use familiar_core::state::EventStatusMap;
 use familiar_core::state_machine::StateMachine;
 use familiar_hooks::adapter::CliAgentHookAdapter;
 use familiar_hooks::antigravity::AntigravityHook;
@@ -43,11 +44,16 @@ fn main() {
 
     let event_bus = EventBus::new(100, 100);
     let config = load_config();
-    let app_config_state = Arc::new(AppConfigState::new(config.clone()));
-    let state_machine = StateMachine::new(
+    let event_status_map = Arc::new(std::sync::RwLock::new(EventStatusMap::new()));
+    let app_config_state = Arc::new(AppConfigState::new(
+        config.clone(),
+        event_status_map.clone(),
+    ));
+    let state_machine = StateMachine::with_event_map(
         event_bus.clone(),
         config.renderer.desktop_pet.celebration_secs,
         config.renderer.desktop_pet.sleep_timeout_secs,
+        event_status_map.clone(),
     );
     let event_bus_for_server = event_bus.clone();
     let config_for_setup = config.clone();
@@ -352,9 +358,11 @@ fn main() {
                             {
                                 filtered_state.mood =
                                     familiar_core::state::FamiliarMood::Celebrating;
-                            } else if filtered_state.agents.iter().any(|a| {
-                                a.status == familiar_core::state::AgentStatus::WaitingInput
-                            }) {
+                            } else if filtered_state
+                                .agents
+                                .iter()
+                                .any(|a| a.status == familiar_core::state::AgentStatus::Pending)
+                            {
                                 filtered_state.mood = familiar_core::state::FamiliarMood::Watching;
                             } else {
                                 filtered_state.mood = familiar_core::state::FamiliarMood::Idle;

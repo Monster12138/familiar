@@ -1,6 +1,8 @@
 use familiar_core::config::{
-    DashboardAlignment, DashboardLayout, DashboardPosition, DashboardStyle, FamiliarConfig,
+    DashboardAlignment, DashboardLayout, DashboardPosition, DashboardStyle, EventStatus,
+    FamiliarConfig,
 };
+use familiar_core::state::AgentStatus;
 
 #[test]
 fn legacy_config_defaults_to_showing_on_all_desktops() {
@@ -202,4 +204,99 @@ fn dashboard_alignment_serializes_as_kebab_case_string() {
             .any(|line| line == "dashboard_alignment = \"center\""),
         "unexpected serialized dashboard alignment:\n{serialized}"
     );
+}
+
+#[test]
+fn legacy_config_defaults_empty_event_status_map() {
+    // default.toml has no event_status_map section; it must deserialize empty.
+    let path = std::env::temp_dir().join(format!(
+        "familiar-legacy-event-status-{}.toml",
+        std::process::id()
+    ));
+    std::fs::write(&path, include_str!("../../../config/default.toml")).expect("write config");
+    let config = FamiliarConfig::load_from_file(&path).expect("load config");
+    std::fs::remove_file(path).expect("remove config");
+
+    assert!(config.renderer.desktop_pet.event_status_map.is_empty());
+}
+
+#[test]
+fn event_status_map_serializes_known_statuses() {
+    let mut config = FamiliarConfig::default();
+    config
+        .renderer
+        .desktop_pet
+        .event_status_map
+        .insert("Thinking".to_string(), EventStatus::Working);
+    config
+        .renderer
+        .desktop_pet
+        .event_status_map
+        .insert("WaitingForInput".to_string(), EventStatus::Pending);
+
+    let serialized = toml::to_string_pretty(&config).expect("serialize config");
+
+    assert!(
+        serialized
+            .lines()
+            .any(|line| line == "Thinking = \"working\""),
+        "unexpected serialized event status map:\n{serialized}"
+    );
+    assert!(
+        serialized
+            .lines()
+            .any(|line| line == "WaitingForInput = \"pending\""),
+        "unexpected serialized event status map:\n{serialized}"
+    );
+}
+
+#[test]
+fn event_status_map_unknown_value_falls_back_to_unknown() {
+    let content = format!(
+        "{}\n[renderer.desktop-pet.event_status_map]\nTaskCompleted = \"bogus\"\n",
+        include_str!("../../../config/default.toml")
+    );
+    let path = std::env::temp_dir().join(format!(
+        "familiar-unknown-event-status-{}.toml",
+        std::process::id()
+    ));
+    std::fs::write(&path, content).expect("write config");
+    let config = FamiliarConfig::load_from_file(&path).expect("load config");
+    std::fs::remove_file(path).expect("remove config");
+
+    assert_eq!(
+        config
+            .renderer
+            .desktop_pet
+            .event_status_map
+            .get("TaskCompleted"),
+        Some(&EventStatus::Unknown)
+    );
+}
+
+#[test]
+fn event_status_agent_map_skips_unknown_and_agent_stopped() {
+    let mut config = FamiliarConfig::default();
+    config
+        .renderer
+        .desktop_pet
+        .event_status_map
+        .insert("TaskCompleted".to_string(), EventStatus::Completed);
+    config
+        .renderer
+        .desktop_pet
+        .event_status_map
+        .insert("AgentStopped".to_string(), EventStatus::Working);
+    config
+        .renderer
+        .desktop_pet
+        .event_status_map
+        .insert("RunningCommand".to_string(), EventStatus::Unknown);
+
+    let map = config.renderer.desktop_pet.event_status_agent_map();
+    assert_eq!(map.get("TaskCompleted"), Some(&AgentStatus::Completed));
+    // AgentStopped is not mappable and Unknown values are dropped so they
+    // fall back to the built-in behavior.
+    assert!(!map.contains_key("AgentStopped"));
+    assert!(!map.contains_key("RunningCommand"));
 }

@@ -8,7 +8,7 @@ pub enum AgentStatus {
     Idle,
     Thinking,
     Working,
-    WaitingInput,
+    Pending,
     Completed,
     Failed,
 }
@@ -24,6 +24,11 @@ pub enum FamiliarMood {
     Watching,
     Idle,
 }
+
+/// Runtime lookup from an `AgentEventType::kind()` string to the `AgentStatus`
+/// that event should produce. Populated from `DesktopPetConfig.event_status_map`
+/// and hot-reloaded when the config changes.
+pub type EventStatusMap = HashMap<String, AgentStatus>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SourceStats {

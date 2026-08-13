@@ -87,6 +87,14 @@ fn tcp_endpoint(tcp_port: Option<u16>) -> String {
 }
 
 fn get_hook_response_json(source_name: &str, event_name: &str, offline: bool) -> String {
+    // Claude Code: passive observer. Exit code 0 (always) already means
+    // "proceed"; an empty stdout keeps our hooks from injecting stray JSON
+    // text into the agent's context and never overrides the user's own
+    // permission rules.
+    if source_name == "claude-code" {
+        return String::new();
+    }
+
     if source_name == "qoder" {
         match event_name {
             "PreToolUse" => {
@@ -146,6 +154,37 @@ mod tests {
     fn test_tcp_endpoint_falls_back_to_default_port() {
         assert_eq!(tcp_endpoint(None), "127.0.0.1:19527");
         assert_eq!(tcp_endpoint(Some(1234)), "127.0.0.1:1234");
+    }
+
+    #[test]
+    fn test_claude_code_hook_response_is_passive() {
+        // Claude Code hooks must never interfere: empty stdout on exit 0 means
+        // the agent proceeds through its normal permission flow.
+        for event in [
+            "PreToolUse",
+            "PermissionRequest",
+            "PostToolUse",
+            "PostToolUseFailure",
+            "SessionStart",
+            "UserPromptSubmit",
+            "SubagentStart",
+            "SubagentStop",
+            "Stop",
+            "SessionEnd",
+        ] {
+            assert_eq!(
+                get_hook_response_json("claude-code", event, false),
+                "",
+                "claude-code {} should produce empty output",
+                event
+            );
+            assert_eq!(
+                get_hook_response_json("claude-code", event, true),
+                "",
+                "claude-code {} should produce empty output even when offline",
+                event
+            );
+        }
     }
 
     #[test]

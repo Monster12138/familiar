@@ -1,6 +1,6 @@
 use familiar_core::config::FamiliarConfig;
 use familiar_core::event_bus::EventBus;
-use familiar_core::state::AgentState;
+use familiar_core::state::{AgentState, EventStatusMap};
 use familiar_core::state_machine::StateMachine;
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -13,15 +13,23 @@ use sysinfo::{Disks, System};
 pub struct AppConfigState {
     pub config: RwLock<FamiliarConfig>,
     pub hidden_sessions: RwLock<HashSet<String>>,
+    /// Shared with `StateMachine` so event→status mapping changes take effect
+    /// immediately on save (mirrors how `hidden_sessions` is kept in sync).
+    pub event_status_map: Arc<RwLock<EventStatusMap>>,
     pub revision: AtomicU64,
 }
 
 impl AppConfigState {
-    pub fn new(config: FamiliarConfig) -> Self {
+    pub fn new(config: FamiliarConfig, event_status_map: Arc<RwLock<EventStatusMap>>) -> Self {
         let hidden_sessions = config.sessions.hidden_sessions.iter().cloned().collect();
+        let map = config.renderer.desktop_pet.event_status_agent_map();
+        if let Ok(mut guard) = event_status_map.write() {
+            *guard = map;
+        }
         Self {
             config: RwLock::new(config),
             hidden_sessions: RwLock::new(hidden_sessions),
+            event_status_map,
             revision: AtomicU64::new(1),
         }
     }
@@ -37,6 +45,10 @@ impl AppConfigState {
             .iter()
             .cloned()
             .collect();
+        let new_map = new_config.renderer.desktop_pet.event_status_agent_map();
+        if let Ok(mut guard) = self.event_status_map.write() {
+            *guard = new_map;
+        }
         *self.config.write().unwrap() = new_config;
         *self.hidden_sessions.write().unwrap() = new_hidden;
         self.revision.fetch_add(1, Ordering::SeqCst);
