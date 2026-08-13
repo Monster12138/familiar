@@ -114,6 +114,16 @@ impl StateMachine {
         });
     }
 
+    /// A new prompt starts a fresh round. Clear any stale terminal state
+    /// (`Completed`/`Failed`) so the pet leaves the celebrating state and the
+    /// cleanup timer is not kept deferring removal by refreshed timestamps.
+    fn reset_stale_terminal_status(agent: &mut AgentState) {
+        if matches!(agent.status, AgentStatus::Completed | AgentStatus::Failed) {
+            agent.status = AgentStatus::Working;
+            agent.current_activity = Some("Started session".to_string());
+        }
+    }
+
     fn apply_event(state: &mut RenderState, event: &AgentEvent, sleep_timeout_secs: i64) {
         state.last_activity_at = event.timestamp;
         let agent_id = event.id.to_string(); // In a real app we might group by process/session ID
@@ -133,8 +143,11 @@ impl StateMachine {
                     instruction: Some(inst),
                 } => {
                     agent.user_instruction = Some(inst.clone());
+                    Self::reset_stale_terminal_status(agent);
                 }
-                AgentEventType::AgentStarted { instruction: None } => {}
+                AgentEventType::AgentStarted { instruction: None } => {
+                    Self::reset_stale_terminal_status(agent);
+                }
                 AgentEventType::Thinking => {
                     agent.status = AgentStatus::Thinking;
                     agent.current_activity = Some("Thinking...".to_string());
@@ -386,6 +399,58 @@ mod tests {
         assert_eq!(state.agents.len(), 1);
         assert_eq!(state.agents[0].status, AgentStatus::Completed);
         assert_eq!(state.mood, FamiliarMood::Celebrating);
+    }
+
+    #[tokio::test]
+    async fn test_new_prompt_resets_completed_to_working() {
+        let bus = EventBus::new(100, 1000);
+        let machine = StateMachine::new(bus.clone(), 4, 300);
+        machine.start_processing().await;
+
+        let agent_id = Uuid::new_v4();
+        let event = |event_type| AgentEvent {
+            id: agent_id,
+            timestamp: chrono::Utc::now(),
+            source: AgentSource::ClaudeCode,
+            category: AgentCategory::Coding,
+            event_type,
+            metadata: None,
+        };
+
+        // Round 1: prompt start, then Stop (TaskCompleted).
+        bus.publish(event(AgentEventType::AgentStarted {
+            instruction: Some("First task".into()),
+        }))
+        .await
+        .unwrap();
+        bus.publish(event(AgentEventType::TaskCompleted {
+            summary: "Task finished".into(),
+        }))
+        .await
+        .unwrap();
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let state = machine.get_state().await;
+        assert_eq!(state.agents[0].status, AgentStatus::Completed);
+        assert_eq!(state.mood, FamiliarMood::Celebrating);
+
+        // Round 2: a new prompt arrives before the completed agent is cleaned
+        // up. It must leave the stale Completed state immediately instead of
+        // staying in Celebrating for the whole round.
+        bus.publish(event(AgentEventType::AgentStarted {
+            instruction: Some("Second task".into()),
+        }))
+        .await
+        .unwrap();
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let state = machine.get_state().await;
+        assert_eq!(state.agents[0].status, AgentStatus::Working);
+        assert_eq!(
+            state.agents[0].current_activity.as_deref(),
+            Some("Started session")
+        );
+        assert_eq!(state.mood, FamiliarMood::Busy);
     }
 
     #[tokio::test]
