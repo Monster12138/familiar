@@ -262,15 +262,11 @@ spctl -a -vv -t exec "$APP"
 
 ## 9. 生成并归档制品
 
-计算校验和：
+SHA-256 校验和由 CI（`release.yml` 的 `finalize-release` job）在构建完成后自动
+计算，并以 `SHA256SUMS` 附件上传到 Release；Release Notes 不再包含校验和段落。
+如需本地核验，可下载 `SHA256SUMS` 后用 `shasum -a 256 -c SHA256SUMS` 校验。
 
-```bash
-shasum -a 256 "$DMG"
-# Windows 机器上对应：
-# Get-FileHash "Familiar_X.Y.Z_x64-setup.exe" -Algorithm SHA256
-```
-
-创建当前版本的本地归档目录，并复制文件：
+本地归档（可选）：创建当前版本的本地归档目录，并复制文件：
 
 ```bash
 VERSION=v0.2.0
