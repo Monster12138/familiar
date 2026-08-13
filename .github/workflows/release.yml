@@ -164,7 +164,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Download release assets
-        run: gh release download "$RELEASE_TAG" --dir artifacts
+        run: gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir artifacts
 
       - name: Generate SHA256SUMS (skip existing file for re-runs)
         working-directory: artifacts
@@ -175,4 +175,4 @@ jobs:
           done > SHA256SUMS
 
       - name: Upload SHA256SUMS asset
-        run: gh release upload "$RELEASE_TAG" artifacts/SHA256SUMS --clobber
+        run: gh release upload "$RELEASE_TAG" artifacts/SHA256SUMS --clobber --repo "$GITHUB_REPOSITORY"
