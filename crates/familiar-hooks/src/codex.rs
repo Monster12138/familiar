@@ -39,6 +39,25 @@ impl CodexHook {
             }
         }
     }
+
+    /// Loads an existing config file as a JSON object, refusing to fall back
+    /// to an empty document: overwriting a malformed or non-object config
+    /// would silently discard the user's other hooks and settings.
+    fn parse_existing_config(path: &std::path::Path, content: &str) -> Result<serde_json::Value> {
+        let existing = serde_json::from_str::<serde_json::Value>(content).map_err(|e| {
+            anyhow::anyhow!(
+                "{} is not valid JSON ({e}); refusing to overwrite it",
+                path.display()
+            )
+        })?;
+        if !existing.is_object() {
+            anyhow::bail!(
+                "{} is not a JSON object; refusing to overwrite it",
+                path.display()
+            );
+        }
+        Ok(existing)
+    }
 }
 
 #[async_trait]
@@ -99,7 +118,7 @@ impl AgentHook for CodexHook {
                                 if let Some(cmd) =
                                     inner_hook.get("command").and_then(|v| v.as_str())
                                 {
-                                    if cmd.contains("familiar-cli") {
+                                    if cmd.contains("familiar-cli") && cmd.contains("codex") {
                                         return true;
                                     }
                                 }
@@ -123,20 +142,16 @@ impl AgentHook for CodexHook {
         let mut config_json = serde_json::json!({});
 
         if path.exists() {
+            let content = std::fs::read_to_string(&path)?;
+            if !content.trim().is_empty() {
+                config_json = Self::parse_existing_config(&path, &content)?;
+            }
             let bak_path = path.with_extension(format!("bak.{}", chrono::Utc::now().timestamp()));
             std::fs::copy(&path, &bak_path)?;
-            let content = std::fs::read_to_string(&path)?;
-            if let Ok(existing) = serde_json::from_str::<serde_json::Value>(&content) {
-                config_json = existing;
-            }
         } else {
             if let Some(parent) = path.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-        }
-
-        if !config_json.is_object() {
-            config_json = serde_json::json!({});
         }
 
         if let Some(payload_hooks) = payload.get("hooks") {
@@ -180,7 +195,7 @@ impl AgentHook for CodexHook {
                                 inner_hooks.retain(|hook| {
                                     if let Some(cmd) = hook.get("command").and_then(|v| v.as_str())
                                     {
-                                        !cmd.contains("familiar-cli")
+                                        !(cmd.contains("familiar-cli") && cmd.contains("codex"))
                                     } else {
                                         true
                                     }
@@ -288,7 +303,7 @@ impl AgentHook for CodexHook {
                                 inner_hooks.retain(|hook| {
                                     if let Some(cmd) = hook.get("command").and_then(|v| v.as_str())
                                     {
-                                        !cmd.contains("familiar-cli")
+                                        !(cmd.contains("familiar-cli") && cmd.contains("codex"))
                                     } else {
                                         true
                                     }

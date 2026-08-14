@@ -31,6 +31,25 @@ impl AntigravityHook {
         text
     }
 
+    /// Loads an existing config file as a JSON object, refusing to fall back
+    /// to an empty document: overwriting a malformed or non-object config
+    /// would silently discard the user's other hooks and settings.
+    fn parse_existing_config(path: &std::path::Path, content: &str) -> Result<serde_json::Value> {
+        let existing = serde_json::from_str::<serde_json::Value>(content).map_err(|e| {
+            anyhow::anyhow!(
+                "{} is not valid JSON ({e}); refusing to overwrite it",
+                path.display()
+            )
+        })?;
+        if !existing.is_object() {
+            anyhow::bail!(
+                "{} is not a JSON object; refusing to overwrite it",
+                path.display()
+            );
+        }
+        Ok(existing)
+    }
+
     fn map_native_hook(&self, event_name: &str, json: &Value) -> Option<AgentEvent> {
         let agent_id = json
             .get("conversationId")
@@ -367,14 +386,13 @@ impl AgentHook for AntigravityHook {
         let mut config_json = serde_json::json!({});
 
         if path.exists() {
-            // Backup old config
+            let content = std::fs::read_to_string(&path)?;
+            if !content.trim().is_empty() {
+                config_json = Self::parse_existing_config(&path, &content)?;
+            }
+            // Backup old config before writing
             let bak_path = path.with_extension(format!("bak.{}", chrono::Utc::now().timestamp()));
             std::fs::copy(&path, &bak_path)?;
-
-            let content = std::fs::read_to_string(&path)?;
-            if let Ok(existing) = serde_json::from_str::<serde_json::Value>(&content) {
-                config_json = existing;
-            }
         } else {
             if let Some(parent) = path.parent() {
                 std::fs::create_dir_all(parent)?;
