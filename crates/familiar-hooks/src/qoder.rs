@@ -66,61 +66,21 @@ impl AgentHook for QoderHook {
 
     fn get_injection_payload(&self) -> Option<serde_json::Value> {
         let bin_path = crate::bin_path::resolve_cli_bin_path();
+        let hook = |event: &str| serde_json::json!({ "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source qoder --event {}", bin_path, event) }] });
         Some(serde_json::json!({
             "hooks": {
-                "UserPromptSubmit": [
-                    {
-                        "hooks": [
-                            {
-                                "type": "command",
-                                "command": format!("\"{}\" hook --source qoder --event UserPromptSubmit", bin_path)
-                            }
-                        ]
-                    }
-                ],
-                "PreToolUse": [
-                    {
-                        "matcher": "*",
-                        "hooks": [
-                            {
-                                "type": "command",
-                                "command": format!("\"{}\" hook --source qoder --event PreToolUse", bin_path)
-                            }
-                        ]
-                    }
-                ],
-                "PostToolUse": [
-                    {
-                        "matcher": "*",
-                        "hooks": [
-                            {
-                                "type": "command",
-                                "command": format!("\"{}\" hook --source qoder --event PostToolUse", bin_path)
-                            }
-                        ]
-                    }
-                ],
-                "PostToolUseFailure": [
-                    {
-                        "matcher": "*",
-                        "hooks": [
-                            {
-                                "type": "command",
-                                "command": format!("\"{}\" hook --source qoder --event PostToolUseFailure", bin_path)
-                            }
-                        ]
-                    }
-                ],
-                "Stop": [
-                    {
-                        "hooks": [
-                            {
-                                "type": "command",
-                                "command": format!("\"{}\" hook --source qoder --event Stop", bin_path)
-                            }
-                        ]
-                    }
-                ]
+                "SessionStart": [hook("SessionStart")],
+                "UserPromptSubmit": [hook("UserPromptSubmit")],
+                "PreToolUse": [serde_json::json!({ "matcher": "*", "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source qoder --event PreToolUse", bin_path) }] })],
+                "PermissionRequest": [serde_json::json!({ "matcher": "*", "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source qoder --event PermissionRequest", bin_path) }] })],
+                "PostToolUse": [serde_json::json!({ "matcher": "*", "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source qoder --event PostToolUse", bin_path) }] })],
+                "PostToolUseFailure": [serde_json::json!({ "matcher": "*", "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source qoder --event PostToolUseFailure", bin_path) }] })],
+                "SubagentStart": [hook("SubagentStart")],
+                "SubagentStop": [hook("SubagentStop")],
+                "Stop": [hook("Stop")],
+                "SessionEnd": [hook("SessionEnd")],
+                "PreCompact": [hook("PreCompact")],
+                "Notification": [hook("Notification")]
             }
         }))
     }
@@ -388,11 +348,39 @@ mod tests {
 
         let payload = hook.get_injection_payload().unwrap();
         let hooks_obj = payload["hooks"].as_object().unwrap();
-        assert!(hooks_obj.contains_key("UserPromptSubmit"));
-        assert!(hooks_obj.contains_key("PreToolUse"));
-        assert!(hooks_obj.contains_key("PostToolUse"));
-        assert!(hooks_obj.contains_key("PostToolUseFailure"));
-        assert!(hooks_obj.contains_key("Stop"));
+
+        // The full set of 12 events documented at docs.qoder.com/extensions/hooks.
+        for event in [
+            "SessionStart",
+            "UserPromptSubmit",
+            "PreToolUse",
+            "PermissionRequest",
+            "PostToolUse",
+            "PostToolUseFailure",
+            "SubagentStart",
+            "SubagentStop",
+            "Stop",
+            "SessionEnd",
+            "PreCompact",
+            "Notification",
+        ] {
+            assert!(hooks_obj.contains_key(event), "missing hook event {event}");
+        }
+
+        // Tool-scoped events carry the official `matcher: "*"` to match all tools.
+        for event in [
+            "PreToolUse",
+            "PermissionRequest",
+            "PostToolUse",
+            "PostToolUseFailure",
+        ] {
+            let group = hooks_obj[event].as_array().unwrap();
+            assert_eq!(
+                group[0]["matcher"].as_str(),
+                Some("*"),
+                "{event} should match all tools"
+            );
+        }
     }
 
     #[test]
@@ -472,6 +460,109 @@ mod tests {
                 assert_eq!(summary, "Task finished");
             }
             _ => panic!("Expected TaskCompleted"),
+        }
+
+        // 6. SessionStart
+        let session_start_input = json!({
+            "session_id": "qoder-session-1",
+            "hook_event_name": "SessionStart",
+            "type": "startup",
+            "model": "Auto"
+        });
+        let event = adapter.parse_hook_input(&session_start_input).unwrap();
+        match event.event_type {
+            AgentEventType::AgentStarted { instruction } => {
+                assert_eq!(instruction, None);
+            }
+            _ => panic!("Expected AgentStarted"),
+        }
+
+        // 7. PermissionRequest
+        let permission_input = json!({
+            "session_id": "qoder-session-1",
+            "hook_event_name": "PermissionRequest",
+            "tool_name": "Bash",
+            "tool_input": { "command": "rm -rf node_modules" },
+            "tool_use_id": "call_01ABC123"
+        });
+        let event = adapter.parse_hook_input(&permission_input).unwrap();
+        match event.event_type {
+            AgentEventType::WaitingForInput => {}
+            _ => panic!("Expected WaitingForInput"),
+        }
+
+        // 8. SubagentStart
+        let sub_start_input = json!({
+            "session_id": "qoder-session-1",
+            "hook_event_name": "SubagentStart",
+            "agent_id": "a1b2c3d4",
+            "agent_type": "task"
+        });
+        let event = adapter.parse_hook_input(&sub_start_input).unwrap();
+        match event.event_type {
+            AgentEventType::SubagentStarted { agent_type } => {
+                assert_eq!(agent_type, "task");
+            }
+            _ => panic!("Expected SubagentStarted"),
+        }
+
+        // 9. SubagentStop
+        let sub_stop_input = json!({
+            "session_id": "qoder-session-1",
+            "hook_event_name": "SubagentStop",
+            "agent_id": "a1b2c3d4",
+            "agent_type": "task",
+            "last_assistant_message": "Sub-task finished."
+        });
+        let event = adapter.parse_hook_input(&sub_stop_input).unwrap();
+        match event.event_type {
+            AgentEventType::SubagentStopped { agent_type } => {
+                assert_eq!(agent_type, "task");
+            }
+            _ => panic!("Expected SubagentStopped"),
+        }
+
+        // 10. SessionEnd
+        let session_end_input = json!({
+            "session_id": "qoder-session-1",
+            "hook_event_name": "SessionEnd",
+            "reason": "exit"
+        });
+        let event = adapter.parse_hook_input(&session_end_input).unwrap();
+        match event.event_type {
+            AgentEventType::TaskCompleted { .. } => {}
+            _ => panic!("Expected TaskCompleted"),
+        }
+
+        // 11. PreCompact
+        let pre_compact_input = json!({
+            "session_id": "qoder-session-1",
+            "hook_event_name": "PreCompact",
+            "trigger": "auto",
+            "custom_instructions": ""
+        });
+        let event = adapter.parse_hook_input(&pre_compact_input).unwrap();
+        match event.event_type {
+            AgentEventType::Processing { description } => {
+                assert_eq!(description, "PreCompact");
+            }
+            _ => panic!("Expected Processing (PreCompact)"),
+        }
+
+        // 12. Notification
+        let notification_input = json!({
+            "session_id": "qoder-session-1",
+            "hook_event_name": "Notification",
+            "notification_type": "permission_prompt",
+            "title": "Permission Required",
+            "message": "Agent is requesting permission"
+        });
+        let event = adapter.parse_hook_input(&notification_input).unwrap();
+        match event.event_type {
+            AgentEventType::Processing { description } => {
+                assert_eq!(description, "Notification");
+            }
+            _ => panic!("Expected Processing (Notification)"),
         }
     }
 }
