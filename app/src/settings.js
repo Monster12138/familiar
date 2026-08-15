@@ -68,6 +68,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const elCleanupAgeDays = document.getElementById('setting-cleanup-age-days');
     const btnCleanupRun = document.getElementById('btn-cleanup-run');
 
+    const elUpdateStartup = document.getElementById('setting-update-startup');
+    const elUpdateInterval = document.getElementById('setting-update-interval');
+    const elUpdateCurrentVersion = document.getElementById('setting-update-current-version');
+    const btnCheckUpdate = document.getElementById('btn-check-update');
+    const aboutVersion = document.getElementById('about-version');
+
     // Hide settings that only apply on some platforms: UDS has no Unix
     // domain sockets on Windows, and "follow desktop switching" only has
     // an effect on macOS (Spaces / full-screen behavior).
@@ -433,6 +439,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const cleanupAge = parseInt(elCleanupAgeDays.value, 10);
         currentConfig.cleanup.age_days = (Number.isFinite(cleanupAge) && cleanupAge >= 0) ? cleanupAge : 0;
 
+        if (!currentConfig.update) currentConfig.update = {};
+        currentConfig.update.check_on_startup = elUpdateStartup.checked;
+        currentConfig.update.interval = elUpdateInterval.value;
+
         try {
             await invoke('save_config', { config: currentConfig });
             return true;
@@ -611,6 +621,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
+        // Update check settings
+        if (currentConfig.update) {
+            if (currentConfig.update.check_on_startup !== undefined) {
+                elUpdateStartup.checked = currentConfig.update.check_on_startup;
+            }
+            elUpdateInterval.value = currentConfig.update.interval || 'daily';
+        } else {
+            elUpdateStartup.checked = true;
+            elUpdateInterval.value = 'daily';
+        }
+
+        // Dynamic version display (About + Update group) instead of a
+        // hardcoded value that goes stale between releases.
+        try {
+            const appVersion = await invoke('get_app_version');
+            const versionText = 'v' + appVersion;
+            if (aboutVersion) aboutVersion.textContent = versionText;
+            if (elUpdateCurrentVersion) elUpdateCurrentVersion.textContent = versionText;
+        } catch (e) {
+            console.error('Failed to load app version', e);
+        }
+
         // Load initial active sessions
         try {
             const activeSessions = await invoke('get_active_sessions');
@@ -629,8 +661,29 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 });
             }
+
+            // Show the update prompt when the backend reports an available
+            // release (startup auto-check or tray "Check for Updates").
+            if (appWin && appWin.listen) {
+                appWin.listen('update_available', (event) => {
+                    if (event.payload && event.payload.has_update) {
+                        openUpdateModal(event.payload);
+                    }
+                });
+            }
         } catch (e) {
             console.error("Failed to listen on webview window", e);
+        }
+
+        // Fallback for a settings window created after a startup check ran:
+        // the event may have been missed, so claim the stashed result.
+        try {
+            const pendingUpdate = await invoke('get_pending_update');
+            if (pendingUpdate && pendingUpdate.has_update) {
+                openUpdateModal(pendingUpdate);
+            }
+        } catch (e) {
+            console.error("Failed to fetch pending update", e);
         }
 
     } catch (e) {
@@ -923,7 +976,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const autoSaveControls = [
         elPetAlwaysTop, elPetAllDesktops, elShowBubble, elShowPet, elShowStats,
         elDashboardStyle, elDashboardPosition, elDashboardLayout, elDashboardAlignment,
-        elCleanupBackups, elCleanupLogs
+        elCleanupBackups, elCleanupLogs,
+        elUpdateStartup, elUpdateInterval
     ];
     autoSaveControls.forEach(el => {
         if (el) el.addEventListener('change', scheduleAutoSave);
@@ -963,6 +1017,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const cleanupModal = document.getElementById('cleanup-modal');
     const btnCleanupCancel = document.getElementById('btn-cleanup-cancel');
     const btnCleanupConfirm = document.getElementById('btn-cleanup-confirm');
+
+    const updateModal = document.getElementById('update-modal');
+    const btnUpdateLater = document.getElementById('btn-update-later');
+    const btnUpdateIgnore = document.getElementById('btn-update-ignore');
+    const btnUpdateSkip = document.getElementById('btn-update-skip');
+    const btnUpdateDownload = document.getElementById('btn-update-download');
     const uninstallBeforeCode = document.getElementById('uninstall-before-code');
     const uninstallAfterCode = document.getElementById('uninstall-after-code');
 
@@ -1481,6 +1541,92 @@ document.addEventListener('DOMContentLoaded', async () => {
             btnCleanupConfirm.disabled = false;
             currentCleanupPreview = null;
         }
+    });
+
+    // --- Update Check Logic ---
+
+    let currentUpdateResult = null;
+
+    // Idempotent: a startup check, tray action, manual check and the pending
+    // fallback can all trigger the same version; do not stack or re-open it.
+    function openUpdateModal(result) {
+        if (updateModal.style.display === 'flex' &&
+            currentUpdateResult &&
+            currentUpdateResult.latest_version === result.latest_version) {
+            return;
+        }
+        currentUpdateResult = result;
+        document.getElementById('update-version-current').textContent = 'v' + result.current_version;
+        document.getElementById('update-version-latest').textContent = 'v' + (result.latest_version || '');
+        document.getElementById('update-release-date').textContent = result.published_at || '-';
+        document.getElementById('update-release-notes').textContent = result.release_notes || '';
+        updateModal.style.display = 'flex';
+    }
+
+    function closeUpdateModal() {
+        updateModal.style.display = 'none';
+        currentUpdateResult = null;
+    }
+
+    btnCheckUpdate.addEventListener('click', async () => {
+        const lang = elLanguage.value;
+        btnCheckUpdate.disabled = true;
+        try {
+            const result = await invoke('check_for_updates', { force: true });
+            if (result.has_update) {
+                openUpdateModal(result);
+            } else if (result.suppressed_reason === 'skipped') {
+                showToast(t('msg_update_skipped', lang), 'success');
+            } else if (result.suppressed_reason === 'ignored') {
+                showToast(t('msg_update_ignored', lang), 'success');
+            } else {
+                showToast(t('msg_update_latest', lang), 'success');
+            }
+        } catch (e) {
+            console.error('Update check failed', e);
+            showToast(t('msg_update_check_failed', lang), 'error');
+        } finally {
+            btnCheckUpdate.disabled = false;
+        }
+    });
+
+    btnUpdateLater.addEventListener('click', closeUpdateModal);
+
+    btnUpdateDownload.addEventListener('click', async () => {
+        if (!currentUpdateResult) return;
+        const url = currentUpdateResult.download_url || currentUpdateResult.release_url;
+        try {
+            await invoke('open_url', { url });
+        } catch (e) {
+            console.error('Failed to open download URL', e);
+        }
+        closeUpdateModal();
+    });
+
+    btnUpdateSkip.addEventListener('click', async () => {
+        const lang = elLanguage.value;
+        if (!currentUpdateResult || !currentUpdateResult.latest_version) return;
+        try {
+            await invoke('skip_update', { version: currentUpdateResult.latest_version });
+            showToast(t('msg_update_skipped', lang), 'success');
+        } catch (e) {
+            console.error('Skip update failed', e);
+            showToast(t('msg_update_check_failed', lang), 'error');
+        }
+        closeUpdateModal();
+    });
+
+    btnUpdateIgnore.addEventListener('click', async () => {
+        const lang = elLanguage.value;
+        if (!currentUpdateResult || !currentUpdateResult.latest_version) return;
+        try {
+            await invoke('ignore_update', { version: currentUpdateResult.latest_version });
+            showToast(t('msg_update_ignored', lang), 'success');
+        } catch (e) {
+            console.error('Ignore update failed', e);
+            showToast(t('msg_update_check_failed', lang), 'error');
+        }
+        closeUpdateModal();
     });
 
     btnModalCancel.addEventListener('click', () => {
