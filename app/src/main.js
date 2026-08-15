@@ -59,7 +59,7 @@ function setupContextMenu() {
     menuSettings.addEventListener("click", async () => {
         contextMenu.style.display = "none";
         try {
-            await invoke("open_settings_window");
+            await invoke("open_settings_window", { autoCheck: false });
         } catch (e) {
             console.error("Failed to open settings window:", e);
         }

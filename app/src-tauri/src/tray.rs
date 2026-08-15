@@ -2,7 +2,7 @@ use tauri::{
     image::Image,
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
-    App, Emitter, Manager,
+    App, Manager,
 };
 
 // Windows renders a blank tray square when no icon is provided, so embed the 32x32 PNG at compile time.
@@ -35,7 +35,7 @@ pub fn create_tray(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
                 "quit" => app.exit(0),
                 "settings" => {
                     tauri::async_runtime::spawn(async move {
-                        if let Err(e) = crate::commands::open_settings_window(handle).await {
+                        if let Err(e) = crate::commands::open_settings_window(handle, false).await {
                             tracing::warn!("failed to open settings window from tray: {e}");
                         }
                     });
@@ -47,25 +47,13 @@ pub fn create_tray(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
                         }
                     });
                 }
+                // Delegate the check to the settings window: it owns the update
+                // check UI (modal for a new version, toast for up-to-date or
+                // failure), so the tray just asks it to run.
                 "check_update" => {
                     tauri::async_runtime::spawn(async move {
-                        let config_state = handle
-                            .state::<std::sync::Arc<crate::commands::AppConfigState>>()
-                            .inner()
-                            .clone();
-                        let pending = handle
-                            .state::<std::sync::Arc<crate::updates::PendingUpdateState>>()
-                            .inner()
-                            .clone();
-                        match crate::updates::run_check(&handle, &config_state, &pending, true)
-                            .await
-                        {
-                            Ok(result) if result.has_update => {
-                                let _ = crate::commands::open_settings_window(handle.clone()).await;
-                                let _ = handle.emit("update_available", &result);
-                            }
-                            Ok(_) => {}
-                            Err(e) => tracing::warn!("tray update check failed: {e}"),
+                        if let Err(e) = crate::commands::open_settings_window(handle, true).await {
+                            tracing::warn!("failed to open settings window for update check: {e}");
                         }
                     });
                 }

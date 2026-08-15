@@ -129,7 +129,7 @@ fn main() {
                 {
                     Ok(result) if result.has_update => {
                         if let Err(e) =
-                            commands::open_settings_window(update_app_handle.clone()).await
+                            commands::open_settings_window(update_app_handle.clone(), false).await
                         {
                             tracing::warn!("failed to open settings window for update prompt: {e}");
                         }

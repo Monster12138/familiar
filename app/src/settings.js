@@ -1105,7 +1105,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentUpdateResult = null;
     }
 
-    btnCheckUpdate.addEventListener('click', async () => {
+    // Run the update check and surface the result (update modal, or a toast
+    // for up-to-date / skipped / ignored / failure). Shared by the manual
+    // button and the tray "Check for Updates" (which opens this window with
+    // the check requested).
+    async function runUpdateCheck() {
         const lang = elLanguage.value;
         btnCheckUpdate.disabled = true;
         try {
@@ -1125,7 +1129,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         } finally {
             btnCheckUpdate.disabled = false;
         }
-    });
+    }
+    btnCheckUpdate.addEventListener('click', runUpdateCheck);
+
+    // Run the check when the tray requested it: a freshly-created window
+    // carries ?check_update=1 in the URL; an already-open window receives the
+    // check_update_requested event.
+    if (location.search.includes('check_update=1')) {
+        runUpdateCheck();
+    }
+    try {
+        const appWin = getCurrentWebviewWindow();
+        if (appWin && appWin.listen) {
+            appWin.listen('check_update_requested', () => runUpdateCheck());
+        }
+    } catch (e) {
+        console.error('Failed to listen for update check request', e);
+    }
 
     btnUpdateLater.addEventListener('click', closeUpdateModal);
 
