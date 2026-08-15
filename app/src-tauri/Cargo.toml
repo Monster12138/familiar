@@ -23,6 +23,14 @@ tracing = { workspace = true }
 open = "5.4.0"
 dirs = "6.0.0"
 rfd = "0.15"
+# Update checker HTTP client. Reuses the reqwest 0.13 already pulled in by
+# tauri. reqwest 0.13 no longer exposes rustls-tls-* aliases and its `rustls`
+# feature would pull aws-lc-rs (which needs NASM on Windows x86_64), so native
+# TLS is used instead: it is already a build requirement of the workspace
+# (familiar-cli compiles reqwest 0.12 with default native-tls), so this adds
+# no new system build dependency. Windows uses Schannel, macOS the Security
+# framework, Linux the OpenSSL already required by familiar-cli.
+reqwest = { version = "0.13", default-features = false, features = ["json", "native-tls"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "0.25"

@@ -276,6 +276,67 @@ pub fn save_config(
     save_config_internal(&app_handle, &config_state, config)
 }
 
+/// The compiled-in application version (sourced from the workspace
+/// `Cargo.toml`), so the UI never hardcodes a version that goes stale.
+#[tauri::command]
+pub fn get_app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+/// Check for a newer release. `force=true` always queries GitHub (manual
+/// check / tray); `force=false` is the startup auto-check gated by
+/// `check_on_startup` and the configured interval.
+#[tauri::command]
+pub async fn check_for_updates(
+    app_handle: tauri::AppHandle,
+    config_state: tauri::State<'_, Arc<AppConfigState>>,
+    pending: tauri::State<'_, Arc<crate::updates::PendingUpdateState>>,
+    force: bool,
+) -> Result<familiar_core::update::CheckUpdateResult, String> {
+    crate::updates::run_check(&app_handle, &config_state, &pending, force).await
+}
+
+/// Take the most recent update result, if any. Consumed once so a settings
+/// window created after a startup check still shows the prompt, without
+/// re-prompting on every open.
+#[tauri::command]
+pub fn get_pending_update(
+    pending: tauri::State<'_, Arc<crate::updates::PendingUpdateState>>,
+) -> Option<familiar_core::update::CheckUpdateResult> {
+    pending.0.write().unwrap().take()
+}
+
+/// Record a version the user chose to skip; the reminder is suppressed for
+/// that version until a newer one is released.
+#[tauri::command]
+pub async fn skip_update(
+    app_handle: tauri::AppHandle,
+    config_state: tauri::State<'_, Arc<AppConfigState>>,
+    pending: tauri::State<'_, Arc<crate::updates::PendingUpdateState>>,
+    version: String,
+) -> Result<(), String> {
+    let mut config = config_state.get_config();
+    config.update.skipped_version = Some(version);
+    *pending.0.write().unwrap() = None;
+    crate::commands::save_config_internal(&app_handle, &config_state, config)
+}
+
+/// Permanently ignore a version so it never prompts again.
+#[tauri::command]
+pub async fn ignore_update(
+    app_handle: tauri::AppHandle,
+    config_state: tauri::State<'_, Arc<AppConfigState>>,
+    pending: tauri::State<'_, Arc<crate::updates::PendingUpdateState>>,
+    version: String,
+) -> Result<(), String> {
+    let mut config = config_state.get_config();
+    if !config.update.ignored_versions.contains(&version) {
+        config.update.ignored_versions.push(version);
+    }
+    *pending.0.write().unwrap() = None;
+    crate::commands::save_config_internal(&app_handle, &config_state, config)
+}
+
 #[tauri::command]
 pub fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)

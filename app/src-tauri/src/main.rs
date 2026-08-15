@@ -7,6 +7,7 @@
 mod commands;
 mod desktop_pet_window;
 mod tray;
+mod updates;
 
 use serde_json::Value;
 use std::sync::Arc;
@@ -83,17 +84,50 @@ fn main() {
     let builder = builder.plugin(tauri_nspanel::init());
 
     let app_config_state_for_setup = app_config_state.clone();
+    let pending_update_state = Arc::new(updates::PendingUpdateState(std::sync::RwLock::new(None)));
 
     builder
         .manage(state_machine.clone())
         .manage(app_config_state.clone())
         .manage(StdMutex::new(sys_stats_state))
         .manage(event_bus.clone())
+        .manage(pending_update_state.clone())
         .setup(move |app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
             tray::create_tray(app)?;
+
+            // Startup auto-update check: gated by `check_on_startup` and the
+            // `[update]` interval. When a newer release is found it opens the
+            // settings window with the update prompt. Failures only log a
+            // warning and never block startup.
+            let update_app_handle = app.handle().clone();
+            let update_config_state = app_config_state_for_setup.clone();
+            let update_pending_state = pending_update_state.clone();
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+                match updates::run_check(
+                    &update_app_handle,
+                    &update_config_state,
+                    &update_pending_state,
+                    false,
+                )
+                .await
+                {
+                    Ok(result) if result.has_update => {
+                        if let Err(e) =
+                            commands::open_settings_window(update_app_handle.clone()).await
+                        {
+                            tracing::warn!("failed to open settings window for update prompt: {e}");
+                        }
+                        use tauri::Emitter;
+                        let _ = update_app_handle.emit("update_available", &result);
+                    }
+                    Ok(_) => {}
+                    Err(e) => tracing::warn!("startup update check failed: {e}"),
+                }
+            });
 
             let sm = state_machine.clone();
             tauri::async_runtime::spawn(async move {
@@ -439,6 +473,11 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::greet,
             commands::get_platform,
+            commands::get_app_version,
+            commands::check_for_updates,
+            commands::get_pending_update,
+            commands::skip_update,
+            commands::ignore_update,
             commands::get_config,
             commands::save_config,
             commands::run_data_cleanup,
