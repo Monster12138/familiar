@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Familiar</title>
+    <link rel="stylesheet" href="./settings.css">
+    <link rel="stylesheet" href="./onboard.css">
+</head>
+<body>
+    <div class="onboard">
+        <header class="onboard-hero">
+            <img src="../src-tauri/icons/icon.png" alt="Familiar" class="onboard-logo">
+            <h1 data-i18n="onboard_title">欢迎使用 Familiar</h1>
+            <p class="onboard-subtitle" data-i18n="onboard_subtitle">一只会回应你工作世界的桌面宠物</p>
+        </header>
+
+        <ol class="onboard-steps">
+            <li data-i18n="onboard_step_1">桌宠会随 Agent 的工作活动产生变化</li>
+            <li data-i18n="onboard_step_2">注入 Hooks 即可同步 Agent 状态</li>
+            <li data-i18n="onboard_step_3">数据只在本机处理，隐私优先</li>
+        </ol>
+
+        <section class="onboard-agents">
+            <h2 data-i18n="onboard_agents_title">连接你的 Agent（可选）</h2>
+            <div id="onboard-agent-list" class="onboard-agent-list"></div>
+        </section>
+
+        <footer class="onboard-footer">
+            <button id="btn-onboard-start" class="primary-btn" data-i18n="onboard_start">开始使用</button>
+            <button id="btn-onboard-skip" class="secondary-btn" data-i18n="onboard_skip">跳过</button>
+        </footer>
+    </div>
+
+    <script src="./onboard.js" type="module"></script>
+</body>
+</html>

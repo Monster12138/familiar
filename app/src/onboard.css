@@ -1,0 +1,115 @@
+/* Onboarding welcome page layout. Reuses the component classes from
+   settings.css (.primary-btn, .secondary-btn, .badge, .hook-agent-card,
+   .app-toast); this file only lays out the page around them. */
+
+body {
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+    background: var(--bg-main);
+}
+
+.onboard {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 40px 32px 48px;
+}
+
+.onboard-hero {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.onboard-logo {
+    width: 96px;
+    height: 96px;
+    border-radius: 18px;
+    image-rendering: pixelated;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.onboard-hero h1 {
+    margin: 16px 0 6px;
+    font-size: 26px;
+    color: var(--text-main);
+}
+
+.onboard-subtitle {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 15px;
+}
+
+.onboard-steps {
+    margin: 0 0 28px;
+    padding: 16px 20px;
+    list-style: none;
+    counter-reset: step;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+}
+
+.onboard-steps li {
+    position: relative;
+    padding: 7px 0 7px 34px;
+    font-size: 14px;
+    color: var(--text-active);
+    counter-increment: step;
+}
+
+.onboard-steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 7px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--accent-blue);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.onboard-agents h2 {
+    font-size: 16px;
+    margin: 0 0 12px;
+    color: var(--text-main);
+}
+
+.onboard-agent-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 28px;
+}
+
+.onboard-agent-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+}
+
+.onboard-agent-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.onboard-agent-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.onboard-footer {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
