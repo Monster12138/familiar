@@ -400,8 +400,8 @@ pub async fn open_onboard_window(app_handle: tauri::AppHandle) -> Result<(), Str
         tauri::WebviewUrl::App("onboard.html".into()),
     )
     .title("Familiar")
-    .inner_size(640.0, 720.0)
-    .resizable(false)
+    .inner_size(760.0, 640.0)
+    .resizable(true)
     .build()
     .map_err(|e| e.to_string())?;
 
