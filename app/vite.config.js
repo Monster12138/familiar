@@ -57,7 +57,8 @@ export default defineConfig({
         settings: 'src/settings.html',
         bubble: 'src/bubble.html',
         stats: 'src/stats.html',
-        onboard: 'src/onboard.html'
+        onboard: 'src/onboard.html',
+        'hook-manager': 'src/hook-manager.html'
       }
     }
   },
