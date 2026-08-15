@@ -46,31 +46,27 @@
                 <div class="features-grid">
                     <article class="feature-card">
                         <h3 data-i18n="feat_pet_title">会回应的桌面宠物</h3>
-                        <p data-i18n="feat_pet_desc">像素风动画随工作活动变化，安静地陪伴而不打扰你的工作空间。</p>
+                        <p data-i18n="feat_pet_desc">像素风动画随工作活动变化，安静陪伴不打扰。</p>
                     </article>
                     <article class="feature-card">
                         <h3 data-i18n="feat_agent_title">Agent 状态联动</h3>
-                        <p data-i18n="feat_agent_desc">连接 Claude Code、Codex CLI、Qoder 和 Google Antigravity，让桌宠反映它们的活动。</p>
-                    </article>
-                    <article class="feature-card">
-                        <h3 data-i18n="feat_hook_title">Hook 扩展能力</h3>
-                        <p data-i18n="feat_hook_desc">通过同一套事件流水线接入其他 Agent 和本地工作流，也支持非编程场景。</p>
-                    </article>
-                    <article class="feature-card">
-                        <h3 data-i18n="feat_modular_title">模块化架构</h3>
-                        <p data-i18n="feat_modular_desc">Hook 解析、状态管理、传输和渲染彼此分层，职责清晰。</p>
-                    </article>
-                    <article class="feature-card">
-                        <h3 data-i18n="feat_stats_title">本机状态视图</h3>
-                        <p data-i18n="feat_stats_desc">在桌宠旁显示当前 CPU、内存和磁盘状态，一眼掌握机器负载。</p>
-                    </article>
-                    <article class="feature-card">
-                        <h3 data-i18n="feat_sprite_title">Sprite Pack 皮肤包</h3>
-                        <p data-i18n="feat_sprite_desc">使用文档化的 .fpack 格式导入和打包更多桌宠形象。</p>
+                        <p data-i18n="feat_agent_desc">连接 Claude Code、Codex CLI、Qoder 与 Antigravity，桌宠实时反映 Agent 活动。</p>
                     </article>
                     <article class="feature-card">
                         <h3 data-i18n="feat_privacy_title">隐私优先</h3>
-                        <p data-i18n="feat_privacy_desc">Hook 数据只在本机处理，运行日志保持最小化，不包含远程遥测。</p>
+                        <p data-i18n="feat_privacy_desc">数据只在本机处理，无遥测，运行日志最小化。</p>
+                    </article>
+                    <article class="feature-card">
+                        <h3 data-i18n="feat_stats_title">本机状态视图</h3>
+                        <p data-i18n="feat_stats_desc">桌宠旁实时显示 CPU、内存与磁盘状态。</p>
+                    </article>
+                    <article class="feature-card">
+                        <h3 data-i18n="feat_sprite_title">Sprite Pack 皮肤包</h3>
+                        <p data-i18n="feat_sprite_desc">用 .fpack 格式导入和打包更多桌宠形象。</p>
+                    </article>
+                    <article class="feature-card">
+                        <h3 data-i18n="feat_perf_title">轻量低占用</h3>
+                        <p data-i18n="feat_perf_desc">UI 隐藏时暂停轮询；空闲平均 CPU 0.013%，内存约 37 MiB。</p>
                     </article>
                 </div>
             </div>
@@ -90,22 +86,22 @@
                     <tbody>
                         <tr>
                             <td>Claude Code</td>
-                            <td data-i18n="tr_claude_transport">通过本地 Familiar 通道上报 Hook 事件</td>
-                            <td><span class="badge badge-warn" data-i18n="status_pending">待验证</span></td>
+                            <td>Hooks</td>
+                            <td><span class="badge badge-ok" data-i18n="status_available">可用</span></td>
                         </tr>
                         <tr>
                             <td>Codex CLI</td>
-                            <td data-i18n="tr_codex_transport">通过本地 Familiar 通道上报 Hook 事件</td>
+                            <td>Hooks</td>
                             <td><span class="badge badge-ok" data-i18n="status_available">可用</span></td>
                         </tr>
                         <tr>
                             <td>Qoder</td>
-                            <td data-i18n="tr_qoder_transport">通过本地 Familiar 通道上报 Hook 事件</td>
+                            <td>Hooks</td>
                             <td><span class="badge badge-ok" data-i18n="status_available">可用</span></td>
                         </tr>
                         <tr>
                             <td>Google Antigravity</td>
-                            <td data-i18n="tr_antigravity_transport">支持 transcript 提取的原生 Hook 适配器</td>
+                            <td>Hooks</td>
                             <td><span class="badge badge-ok" data-i18n="status_available">可用</span></td>
                         </tr>
                     </tbody>
@@ -115,9 +111,7 @@
                 <p class="section-desc" data-i18n="perf_desc">对应 UI 隐藏时暂停轮询，只发送实际变化的渲染状态。Apple Silicon macOS 上连续运行约 2 小时 39 分钟后的 30 秒空闲采样：</p>
                 <div class="stats-grid">
                     <div class="stat"><span class="stat-value">0.013%</span><span class="stat-label" data-i18n="stat_cpu">平均 CPU 占用</span></div>
-                    <div class="stat"><span class="stat-value">0%</span><span class="stat-label" data-i18n="stat_cpu_median">CPU 中位数</span></div>
                     <div class="stat"><span class="stat-value">~37 MiB</span><span class="stat-label" data-i18n="stat_mem">物理内存占用</span></div>
-                    <div class="stat"><span class="stat-value">17–19</span><span class="stat-label" data-i18n="stat_threads">线程数</span></div>
                 </div>
             </div>
         </section>
