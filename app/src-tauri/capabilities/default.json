@@ -6,8 +6,7 @@
     "bubble",
     "stats",
     "settings",
-    "onboard",
-    "hook-manager"
+    "onboard"
   ],
   "permissions": [
     "core:default",

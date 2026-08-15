@@ -408,35 +408,6 @@ pub async fn open_onboard_window(app_handle: tauri::AppHandle) -> Result<(), Str
     Ok(())
 }
 
-/// Open (or focus) the standalone hook manager window. Hosts the full agent
-/// hook management UI (inject/uninstall/view-config/path/details/test) that
-/// both the settings panel and the onboarding page route to.
-#[tauri::command]
-pub async fn open_hook_manager_window(app_handle: tauri::AppHandle) -> Result<(), String> {
-    use tauri::Manager;
-    if let Some(window) = app_handle.get_webview_window("hook-manager") {
-        let _ = window.unminimize();
-        let _ = window.show();
-        // Force window to front on macOS when the app is in the background.
-        let _ = window.set_always_on_top(true);
-        let _ = window.set_always_on_top(false);
-        let _ = window.set_focus();
-        return Ok(());
-    }
-    let _ = tauri::WebviewWindowBuilder::new(
-        &app_handle,
-        "hook-manager",
-        tauri::WebviewUrl::App("hook-manager.html".into()),
-    )
-    .title("Hooks")
-    .inner_size(800.0, 600.0)
-    .resizable(true)
-    .build()
-    .map_err(|e| e.to_string())?;
-
-    Ok(())
-}
-
 /// Mark the first-run onboarding as completed (called when the user finishes
 /// or skips the onboard page). Persists `general.onboarded = true`.
 #[tauri::command]

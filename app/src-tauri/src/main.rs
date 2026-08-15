@@ -499,7 +499,6 @@ fn main() {
             commands::open_settings_window,
             commands::open_onboard_window,
             commands::complete_onboarding,
-            commands::open_hook_manager_window,
             commands::open_url,
             commands::open_login_items_settings,
             commands::get_hooks_status,
