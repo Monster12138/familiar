@@ -414,6 +414,17 @@ input:checked + .slider:before {
     font-size: 13px;
     font-weight: 500;
 }
+.hook-summary-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 14px;
+    font-size: 13px;
+}
+.hook-summary-agent {
+    color: var(--text-main);
+    font-weight: 500;
+}
 .badge {
     padding: 2px 8px;
     border-radius: 12px;

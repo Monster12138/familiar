@@ -1,5 +1,4 @@
 import { applyTranslations, t } from './i18n.js';
-import { renderDiffRows, syntaxHighlightJSON } from './diff.js';
 
 const { invoke } = window.__TAURI__.core;
 const { getCurrentWebviewWindow } = window.__TAURI__.webviewWindow;
@@ -694,30 +693,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load sprite packs (must be after DOM and config are ready)
     await loadAndRenderSpritePacks();
     
-    // Copy buttons logic
-    document.querySelectorAll('.modal-path-copy').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const targetId = btn.getAttribute('data-target');
-            const targetEl = document.getElementById(targetId);
-            if (targetEl && targetEl.textContent) {
-                try {
-                    await navigator.clipboard.writeText(targetEl.textContent);
-                    const origText = btn.textContent;
-                    btn.textContent = t('btn_copied', elLanguage.value);
-                    btn.style.backgroundColor = "rgba(46, 160, 67, 0.3)";
-                    btn.style.borderColor = "rgba(46, 160, 67, 0.5)";
-                    setTimeout(() => {
-                        btn.textContent = origText;
-                        btn.style.backgroundColor = "";
-                        btn.style.borderColor = "";
-                    }, 2000);
-                } catch (e) {
-                    console.error("Failed to copy:", e);
-                }
-            }
-        });
-    });
-
     async function loadAndRenderSpritePacks() {
         if (!spritePackGrid) return;
         try {
@@ -1006,15 +981,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         saveBtn.disabled = false;
     });
 
-    // --- Hooks Injection Logic ---
-    const hookModal = document.getElementById('hook-modal');
-    const btnModalCancel = document.getElementById('btn-modal-cancel');
-    const btnModalConfirm = document.getElementById('btn-modal-confirm');
-    const injectBeforeCode = document.getElementById('inject-before-code');
-    const injectAfterCode = document.getElementById('inject-after-code');
-    const uninstallModal = document.getElementById('uninstall-modal');
-    const btnUninstallCancel = document.getElementById('btn-uninstall-cancel');
-    const btnUninstallConfirm = document.getElementById('btn-uninstall-confirm');
+    // --- Hooks management (opened in a dedicated window) ---
     const cleanupModal = document.getElementById('cleanup-modal');
     const btnCleanupCancel = document.getElementById('btn-cleanup-cancel');
     const btnCleanupConfirm = document.getElementById('btn-cleanup-confirm');
@@ -1024,343 +991,48 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btnUpdateIgnore = document.getElementById('btn-update-ignore');
     const btnUpdateSkip = document.getElementById('btn-update-skip');
     const btnUpdateDownload = document.getElementById('btn-update-download');
-    const uninstallBeforeCode = document.getElementById('uninstall-before-code');
-    const uninstallAfterCode = document.getElementById('uninstall-after-code');
 
-    const configViewerModal = document.getElementById('config-viewer-modal');
-    const btnConfigViewerClose = document.getElementById('btn-config-viewer-close');
-    const configViewerCode = document.getElementById('config-viewer-code');
-    
-    let currentInjectingAgent = null;
-    let currentUninstallingAgent = null;
-    let hooksStatusCache = {};
-    let hookDetailsCache = {};     // agent -> AgentHookDetail (lazy)
-    let expandedAgents = new Set(); // track which agent cards are expanded
-
-    const AGENT_DISPLAY = {
-        'antigravity': 'Antigravity',
-        'claude-code': 'Claude Code',
-        'codex': 'Codex',
-        'qoder': 'Qoder',
-    };
-
-    const AGENTS = ['antigravity', 'claude-code', 'codex', 'qoder'];
-
-    function renderAgentCards() {
-        const container = document.getElementById('hook-status-list');
-        if (!container) return;
-
-        const lang = elLanguage ? elLanguage.value : 'zh-CN';
-
-        container.innerHTML = '';
-
-        AGENTS.forEach(agent => {
-            const status = hooksStatusCache[agent];
-            const isInjected = status ? status.injected : false;
-            const isExpanded = expandedAgents.has(agent);
-
-            // Build card
-            const card = document.createElement('div');
-            card.className = 'hook-agent-card';
-            card.setAttribute('data-agent', agent);
-
-            // --- Header row ---
-            const header = document.createElement('div');
-            header.className = 'hook-agent-header';
-
-            const left = document.createElement('div');
-            left.className = 'hook-agent-left';
-
-            const expandIcon = document.createElement('span');
-            expandIcon.className = 'hook-expand-icon' + (isExpanded ? ' expanded' : '');
-            expandIcon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>';
-
-            const nameEl = document.createElement('span');
-            nameEl.className = 'hook-agent-name';
-            nameEl.textContent = AGENT_DISPLAY[agent] || agent;
-
-            const badge = document.createElement('span');
-            badge.id = `badge-${agent}`;
-            if (status) {
-                badge.className = isInjected ? 'badge badge-injected' : 'badge badge-not-injected';
-                badge.textContent = isInjected ? t('badge_injected', lang) : t('badge_not_injected', lang);
-            } else {
-                badge.className = 'badge badge-loading';
-                badge.textContent = t('badge_loading', lang);
-            }
-
-            left.appendChild(expandIcon);
-            left.appendChild(nameEl);
-            left.appendChild(badge);
-
-            const actions = document.createElement('div');
-            actions.className = 'hook-agent-actions';
-
-            const btnInject = document.createElement('button');
-            btnInject.className = 'secondary-btn btn-sm';
-            btnInject.id = `btn-inject-${agent}`;
-            btnInject.textContent = t('btn_inject', lang);
-            btnInject.style.display = isInjected ? 'none' : 'inline-block';
-
-            const btnViewConfig = document.createElement('button');
-            btnViewConfig.className = 'secondary-btn btn-sm';
-            btnViewConfig.id = `btn-view-config-${agent}`;
-            btnViewConfig.textContent = t('btn_view_config', lang);
-            btnViewConfig.style.display = isInjected ? 'inline-block' : 'none';
-
-            const btnUninstall = document.createElement('button');
-            btnUninstall.className = 'danger-btn btn-sm';
-            btnUninstall.id = `btn-uninstall-${agent}`;
-            btnUninstall.textContent = t('btn_uninstall', lang);
-            btnUninstall.style.display = isInjected ? 'inline-block' : 'none';
-
-            actions.appendChild(btnInject);
-            actions.appendChild(btnViewConfig);
-            actions.appendChild(btnUninstall);
-
-            header.appendChild(left);
-            header.appendChild(actions);
-
-            // Click on header (except buttons) toggles expand
-            header.addEventListener('click', (e) => {
-                if (e.target.closest('button')) return;
-                toggleAgentExpand(agent);
-            });
-
-            card.appendChild(header);
-
-            // --- Detail panel (rendered on expand) ---
-            const detail = document.createElement('div');
-            detail.className = 'hook-agent-detail';
-            detail.id = `hook-detail-${agent}`;
-            if (isExpanded) {
-                detail.classList.add('expanded');
-                if (hookDetailsCache[agent]) {
-                    renderHookPointsTable(detail, hookDetailsCache[agent], agent);
-                } else {
-                    detail.innerHTML = `<div class="hook-detail-loading">${t('msg_loading_details', lang)}</div>`;
-                }
-            }
-            card.appendChild(detail);
-
-            // --- Bind button handlers ---
-            btnViewConfig.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                try {
-                    const content = await invoke('get_config_content', { agent });
-                    if (hooksStatusCache[agent] && hooksStatusCache[agent].config_path) {
-                        document.getElementById('config-viewer-path-text').textContent = hooksStatusCache[agent].config_path;
-                        document.getElementById('config-viewer-path-bar').style.display = 'flex';
-                    } else {
-                        document.getElementById('config-viewer-path-text').textContent = '';
-                        document.getElementById('config-viewer-path-bar').style.display = 'none';
-                    }
-                    configViewerCode.innerHTML = syntaxHighlightJSON(content || "{}");
-                    configViewerModal.style.display = 'flex';
-                } catch (err) {
-                    console.error(err);
-                }
-            });
-
-            btnInject.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                try {
-                    const diff = await invoke('preview_inject_hook', { agent });
-                    const { beforeHTML, afterHTML } = renderDiffRows(diff.before, diff.after);
-                    injectBeforeCode.innerHTML = beforeHTML;
-                    injectAfterCode.innerHTML = afterHTML;
-                    if (hooksStatusCache[agent] && hooksStatusCache[agent].config_path) {
-                        document.getElementById('inject-path-text').textContent = hooksStatusCache[agent].config_path;
-                        document.getElementById('inject-path-bar').style.display = 'flex';
-                    } else {
-                        document.getElementById('inject-path-bar').style.display = 'none';
-                    }
-                    currentInjectingAgent = agent;
-                    hookModal.style.display = 'flex';
-                } catch (err) {
-                    alert("Preview failed: " + err);
-                }
-            });
-
-            btnUninstall.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                try {
-                    const diff = await invoke('preview_uninstall_hook', { agent });
-                    const { beforeHTML, afterHTML } = renderDiffRows(diff.before, diff.after);
-                    uninstallBeforeCode.innerHTML = beforeHTML;
-                    uninstallAfterCode.innerHTML = afterHTML;
-                    if (hooksStatusCache[agent] && hooksStatusCache[agent].config_path) {
-                        document.getElementById('uninstall-path-text').textContent = hooksStatusCache[agent].config_path;
-                        document.getElementById('uninstall-path-bar').style.display = 'flex';
-                    } else {
-                        document.getElementById('uninstall-path-bar').style.display = 'none';
-                    }
-                    currentUninstallingAgent = agent;
-                    uninstallModal.style.display = 'flex';
-                } catch (err) {
-                    alert("Preview uninstall failed: " + err);
-                }
-            });
-
-            container.appendChild(card);
+    // The full hook management (inject/uninstall/config-path/details/test)
+    // lives in a dedicated window; this section only shows a status summary
+    // and an "open the manager" button.
+    const hooksSummary = document.getElementById('hooks-summary');
+    const btnOpenHookManager = document.getElementById('btn-open-hook-manager');
+    if (btnOpenHookManager) {
+        btnOpenHookManager.addEventListener('click', () => {
+            invoke('open_hook_manager_window');
         });
     }
-
-    // Raw hook event name → AgentEventType kind, mirroring the adapter
-    // (adapter.rs map_event_type) and Antigravity (antigravity.rs
-    // map_native_hook) parsers. Only used to display the status a hook event
-    // leads to. PreToolUse's kind depends on the tool, which a hook point does
-    // not carry, so it resolves generically to Processing (Working by default).
-    function hookEventKind(eventName, agent) {
-        if (agent === 'antigravity') {
-            switch (eventName) {
-                case 'SessionStart': return 'AgentStarted';
-                case 'PreToolUse': return 'Processing';
-                case 'PostToolUse': return 'Processing';
-                case 'PreInvocation':
-                case 'PostInvocation': return 'Thinking';
-                case 'Stop':
-                case 'SessionEnd': return 'TaskCompleted';
-                default: return null;
-            }
-        }
-        switch (eventName) {
-            case 'SessionStart':
-            case 'start':
-            case 'USER_INPUT':
-            case 'UserPromptSubmit': return 'AgentStarted';
-            case 'Stop':
-            case 'stop':
-            case 'exit':
-            case 'SessionEnd': return 'TaskCompleted';
-            case 'StopFailure': return 'TaskFailed';
-            case 'PreToolUse':
-            case 'tool_call': return 'Processing';
-            case 'PostToolUse':
-            case 'tool_result': return 'Processing';
-            case 'PostToolUseFailure': return 'Processing';
-            case 'PermissionRequest': return 'WaitingForInput';
-            case 'SubagentStart': return 'SubagentStarted';
-            case 'SubagentStop': return 'SubagentStopped';
-            default: return null;
-        }
-    }
-
-    // Effective pet status a hook event produces: the user's override from the
-    // event-status mapping if set, else the built-in default (or null for the
-    // no-op Subagent events).
-    function hookEventStatus(eventName, agent) {
-        const kind = hookEventKind(eventName, agent);
-        if (!kind) return null;
-        const map = currentConfig?.renderer?.['desktop-pet']?.event_status_map || {};
-        return map[kind] || EVENT_DEFAULT_STATUS[kind] || null;
-    }
-
-    function renderHookPointsTable(detailEl, hookDetail, agent) {
-        const lang = elLanguage ? elLanguage.value : 'zh-CN';
-        const points = hookDetail.hook_points || [];
-
-        if (points.length === 0) {
-            detailEl.innerHTML = `<div class="hook-detail-empty">${t('lbl_no_hook_points', lang)}</div>`;
-            return;
-        }
-
-        let html = '<div class="hook-points-table">';
-        html += '<div class="hook-points-header">';
-        html += `<span class="hook-col-event">${t('lbl_hook_event', lang)}</span>`;
-        html += `<span class="hook-col-status">${t('lbl_hook_status', lang)}</span>`;
-        html += `<span class="hook-col-test"></span>`;
-        html += '</div>';
-
-        points.forEach(pt => {
-            const matcherLabel = pt.matcher ? ` (matcher: ${pt.matcher})` : '';
-            const statusKey = hookEventStatus(pt.event_name, agent);
-            const statusLabel = statusKey
-                ? t('status_' + statusKey.replace(/-/g, '_'), lang)
-                : t('status_default_noop', lang);
-            // The command is only kept for copying (data-cmd), not displayed.
-            const copyCmd = pt.test_command || pt.command;
-            html += '<div class="hook-point-row">';
-            html += `<span class="hook-col-event"><code>${pt.event_name}</code>${matcherLabel}</span>`;
-            html += `<span class="hook-col-status"><span class="hook-status-badge">${statusLabel}</span></span>`;
-            html += '<span class="hook-col-test">';
-            html += `<button class="btn-test btn-test-bus" data-agent="${agent}" data-event="${pt.event_name}">${t('btn_test_eventbus', lang)}</button>`;
-            html += `<button class="btn-test btn-copy-cmd" data-cmd="${copyCmd.replace(/"/g, '&quot;')}">${t('btn_copy_command', lang)}</button>`;
-            html += '</span>';
-            html += '</div>';
-        });
-
-        html += '</div>';
-        detailEl.innerHTML = html;
-
-        // Bind event-bus test button handlers
-        detailEl.querySelectorAll('.btn-test-bus').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const evt = btn.getAttribute('data-event');
-                await testHookPoint(agent, evt);
+    async function renderHooksSummary() {
+        if (!hooksSummary) return;
+        try {
+            const status = await invoke('get_hooks_status');
+            const lang = elLanguage.value;
+            hooksSummary.innerHTML = '';
+            ['antigravity', 'claude-code', 'codex', 'qoder'].forEach(agent => {
+                const st = status[agent];
+                const names = {
+                    'antigravity': 'Antigravity',
+                    'claude-code': 'Claude Code',
+                    'codex': 'Codex',
+                    'qoder': 'Qoder',
+                };
+                const injected = st ? st.injected : false;
+                const badgeClass = st
+                    ? (injected ? 'badge badge-injected' : 'badge badge-not-injected')
+                    : 'badge badge-loading';
+                const badgeText = st
+                    ? (injected ? t('badge_injected', lang) : t('badge_not_injected', lang))
+                    : t('badge_loading', lang);
+                const item = document.createElement('span');
+                item.className = 'hook-summary-item';
+                item.innerHTML = `<span class="hook-summary-agent">${names[agent] || agent}</span> <span class="${badgeClass}">${badgeText}</span>`;
+                hooksSummary.appendChild(item);
             });
-        });
-
-        // Bind copy-command button handlers (the command text is not shown in
-        // the row; it is carried on the button itself for copying).
-        detailEl.querySelectorAll('.btn-copy-cmd').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const cmd = btn.getAttribute('data-cmd') || '';
-                const origText = btn.textContent;
-                try {
-                    await navigator.clipboard.writeText(cmd);
-                    btn.textContent = t('btn_copied', lang);
-                    btn.classList.add('copied');
-                } catch (err) {
-                    console.error('Failed to copy command', err);
-                }
-                setTimeout(() => {
-                    btn.textContent = origText;
-                    btn.classList.remove('copied');
-                }, 1500);
-            });
-        });
-    }
-
-    async function toggleAgentExpand(agent) {
-        const detailEl = document.getElementById(`hook-detail-${agent}`);
-        if (!detailEl) return;
-
-        const wasExpanded = expandedAgents.has(agent);
-
-        if (wasExpanded) {
-            expandedAgents.delete(agent);
-            detailEl.classList.remove('expanded');
-            // update arrow
-            const card = detailEl.closest('.hook-agent-card');
-            if (card) {
-                const icon = card.querySelector('.hook-expand-icon');
-                if (icon) icon.classList.remove('expanded');
-            }
-        } else {
-            expandedAgents.add(agent);
-            detailEl.classList.add('expanded');
-            // update arrow
-            const card = detailEl.closest('.hook-agent-card');
-            if (card) {
-                const icon = card.querySelector('.hook-expand-icon');
-                if (icon) icon.classList.add('expanded');
-            }
-
-            // Lazy-load details if not cached
-            if (!hookDetailsCache[agent]) {
-                try {
-                    hookDetailsCache[agent] = await invoke('get_hook_details', { agent });
-                } catch (e) {
-                    console.error('Failed to load hook details', e);
-                    hookDetailsCache[agent] = { hook_points: [] };
-                }
-            }
-            renderHookPointsTable(detailEl, hookDetailsCache[agent], agent);
+        } catch (e) {
+            console.error('Failed to load hooks summary', e);
         }
     }
+    renderHooksSummary();
 
     // Standard notification channel for the settings panel: a single global
     // toast element is created lazily and re-shown for each transient status
@@ -1383,57 +1055,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, durationMs || 4000);
     }
 
-    async function testHookPoint(agent, eventName) {
-        const lang = elLanguage ? elLanguage.value : 'zh-CN';
-
-        try {
-            const result = await invoke('test_hook_point', { agent, eventName, mode: 'event_bus' });
-            if (result.success) {
-                showToast(t('msg_test_success', lang), 'success');
-            } else {
-                showToast(t('msg_test_failed', lang), 'error');
-            }
-        } catch (e) {
-            console.error('Hook test invoke failed', e);
-            showToast(t('msg_test_failed', lang), 'error');
-        }
-    }
-
-    async function fetchHooksStatus() {
-        try {
-            const status = await invoke('get_hooks_status');
-            if (status) {
-                hooksStatusCache = status;
-                renderAgentCards();
-            }
-        } catch (e) {
-            console.error("Failed to fetch hooks status", e);
-        }
-    }
-
-    btnConfigViewerClose.addEventListener('click', () => {
-        configViewerModal.style.display = 'none';
-    });
-
-    btnUninstallCancel.addEventListener('click', () => {
-        uninstallModal.style.display = 'none';
-        currentUninstallingAgent = null;
-    });
-
-    btnUninstallConfirm.addEventListener('click', async () => {
-        if (!currentUninstallingAgent) return;
-        try {
-            btnUninstallConfirm.disabled = true;
-            await invoke('uninstall_hook', { agent: currentUninstallingAgent });
-            uninstallModal.style.display = 'none';
-            await fetchHooksStatus();
-        } catch (e) {
-            alert("Uninstall failed: " + e);
-        } finally {
-            btnUninstallConfirm.disabled = false;
-            currentUninstallingAgent = null;
-        }
-    });
 
     // --- Data Cleanup Logic ---
 
@@ -1582,26 +1203,4 @@ document.addEventListener('DOMContentLoaded', async () => {
         closeUpdateModal();
     });
 
-    btnModalCancel.addEventListener('click', () => {
-        hookModal.style.display = 'none';
-        currentInjectingAgent = null;
-    });
-
-    btnModalConfirm.addEventListener('click', async () => {
-        if (!currentInjectingAgent) return;
-        try {
-            btnModalConfirm.disabled = true;
-            await invoke('inject_hook', { agent: currentInjectingAgent });
-            hookModal.style.display = 'none';
-            await fetchHooksStatus();
-        } catch (e) {
-            alert("Inject failed: " + e);
-        } finally {
-            btnModalConfirm.disabled = false;
-            currentInjectingAgent = null;
-        }
-    });
-
-    // Initial load
-    fetchHooksStatus();
 });
