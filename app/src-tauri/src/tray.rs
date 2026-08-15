@@ -14,17 +14,16 @@ pub fn create_tray(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         .get_config()
         .general
         .language;
-    let (settings_label, onboard_label, check_label) = if lang.starts_with("zh") {
-        ("设置", "引导面板", "检查更新")
+    let (settings_label, onboard_label) = if lang.starts_with("zh") {
+        ("设置", "引导面板")
     } else {
-        ("Settings", "Onboarding", "Check for Updates")
+        ("Settings", "Onboarding")
     };
 
     let settings_i = MenuItem::with_id(app, "settings", settings_label, true, None::<&str>)?;
     let onboard_i = MenuItem::with_id(app, "onboard", onboard_label, true, None::<&str>)?;
-    let check_i = MenuItem::with_id(app, "check_update", check_label, true, None::<&str>)?;
     let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&settings_i, &onboard_i, &check_i, &quit_i])?;
+    let menu = Menu::with_items(app, &[&settings_i, &onboard_i, &quit_i])?;
 
     let _tray = TrayIconBuilder::new()
         .icon(Image::from_bytes(TRAY_ICON)?)
@@ -35,7 +34,7 @@ pub fn create_tray(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
                 "quit" => app.exit(0),
                 "settings" => {
                     tauri::async_runtime::spawn(async move {
-                        if let Err(e) = crate::commands::open_settings_window(handle, false).await {
+                        if let Err(e) = crate::commands::open_settings_window(handle).await {
                             tracing::warn!("failed to open settings window from tray: {e}");
                         }
                     });
@@ -44,16 +43,6 @@ pub fn create_tray(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
                     tauri::async_runtime::spawn(async move {
                         if let Err(e) = crate::commands::open_onboard_window(handle).await {
                             tracing::warn!("failed to open onboarding window from tray: {e}");
-                        }
-                    });
-                }
-                // Delegate the check to the settings window: it owns the update
-                // check UI (modal for a new version, toast for up-to-date or
-                // failure), so the tray just asks it to run.
-                "check_update" => {
-                    tauri::async_runtime::spawn(async move {
-                        if let Err(e) = crate::commands::open_settings_window(handle, true).await {
-                            tracing::warn!("failed to open settings window for update check: {e}");
                         }
                     });
                 }

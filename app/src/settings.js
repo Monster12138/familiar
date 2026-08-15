@@ -1132,21 +1132,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     btnCheckUpdate.addEventListener('click', runUpdateCheck);
 
-    // Run the check when the tray requested it: a freshly-created window
-    // carries ?check_update=1 in the URL; an already-open window receives the
-    // check_update_requested event.
-    if (location.search.includes('check_update=1')) {
-        runUpdateCheck();
-    }
-    try {
-        const appWin = getCurrentWebviewWindow();
-        if (appWin && appWin.listen) {
-            appWin.listen('check_update_requested', () => runUpdateCheck());
-        }
-    } catch (e) {
-        console.error('Failed to listen for update check request', e);
-    }
-
     btnUpdateLater.addEventListener('click', closeUpdateModal);
 
     btnUpdateDownload.addEventListener('click', async () => {

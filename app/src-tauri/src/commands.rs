@@ -355,10 +355,7 @@ pub fn quit_app(app_handle: tauri::AppHandle) {
 }
 
 #[tauri::command]
-pub async fn open_settings_window(
-    app_handle: tauri::AppHandle,
-    auto_check: bool,
-) -> Result<(), String> {
+pub async fn open_settings_window(app_handle: tauri::AppHandle) -> Result<(), String> {
     use tauri::Manager;
     if let Some(window) = app_handle.get_webview_window("settings") {
         let _ = window.unminimize();
@@ -367,25 +364,12 @@ pub async fn open_settings_window(
         let _ = window.set_always_on_top(true);
         let _ = window.set_always_on_top(false);
         let _ = window.set_focus();
-        // When asked to auto-check, nudge an already-open window to run its
-        // existing update check (the settings page owns the feedback UI).
-        if auto_check {
-            use tauri::Emitter;
-            let _ = window.emit("check_update_requested", ());
-        }
         return Ok(());
     }
-    // Pass the intent through the URL for a freshly-created window so the
-    // settings page runs the check once it loads (no event race).
-    let url = if auto_check {
-        "settings.html?check_update=1"
-    } else {
-        "settings.html"
-    };
     let _ = tauri::WebviewWindowBuilder::new(
         &app_handle,
         "settings",
-        tauri::WebviewUrl::App(url.into()),
+        tauri::WebviewUrl::App("settings.html".into()),
     )
     .title("Familiar Settings")
     .inner_size(800.0, 600.0)
