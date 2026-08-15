@@ -21,6 +21,23 @@ fn legacy_config_defaults_to_showing_on_all_desktops() {
 }
 
 #[test]
+fn legacy_config_defaults_onboarded_to_false() {
+    let legacy_config =
+        include_str!("../../../config/default.toml").replace("onboarded = false\n", "");
+    let path = std::env::temp_dir().join(format!(
+        "familiar-legacy-onboarded-{}.toml",
+        std::process::id()
+    ));
+
+    std::fs::write(&path, legacy_config).expect("write legacy config");
+    let config = FamiliarConfig::load_from_file(&path).expect("load legacy config");
+    std::fs::remove_file(path).expect("remove legacy config");
+
+    // Existing config files without the key still load and show onboarding.
+    assert!(!config.general.onboarded);
+}
+
+#[test]
 fn scale_serializes_with_one_decimal_place() {
     let mut config = FamiliarConfig::default();
     config.renderer.desktop_pet.scale = 1.3_f32;

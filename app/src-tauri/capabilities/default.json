@@ -5,11 +5,13 @@
     "main",
     "bubble",
     "stats",
-    "settings"
+    "settings",
+    "onboard"
   ],
   "permissions": [
     "core:default",
     "core:window:default",
+    "core:window:allow-close",
     "core:window:allow-start-dragging",
     "core:window:allow-set-size",
     "core:window:allow-set-visible-on-all-workspaces",
