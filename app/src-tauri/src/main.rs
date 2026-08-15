@@ -441,6 +441,7 @@ fn main() {
             commands::get_platform,
             commands::get_config,
             commands::save_config,
+            commands::run_data_cleanup,
             commands::get_system_stats,
             commands::get_active_sessions,
             commands::delete_session,

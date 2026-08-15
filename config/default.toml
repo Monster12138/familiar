@@ -65,3 +65,8 @@ enabled = true
 
 [sessions]
 hidden_sessions = []
+
+[cleanup]
+backup_files = true
+log_files = true
+age_days = 90

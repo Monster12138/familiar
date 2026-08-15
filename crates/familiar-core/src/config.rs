@@ -15,6 +15,8 @@ pub struct FamiliarConfig {
     pub achievements: AchievementsConfig,
     #[serde(default)]
     pub sessions: SessionsConfig,
+    #[serde(default)]
+    pub cleanup: CleanupConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -87,6 +89,10 @@ impl DesktopPetConfig {
 
 fn default_true() -> bool {
     true
+}
+
+fn default_cleanup_age_days() -> u32 {
+    90
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -208,6 +214,29 @@ pub struct SessionsConfig {
     pub hidden_sessions: Vec<String>,
 }
 
+/// Data-cleanup settings. `age_days` is the retention window for both backup
+/// and log files; `0` disables the age limit. Field-level serde defaults keep
+/// a partially-written `[cleanup]` section (e.g. only `age_days`) loadable.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CleanupConfig {
+    #[serde(default = "default_true")]
+    pub backup_files: bool,
+    #[serde(default = "default_true")]
+    pub log_files: bool,
+    #[serde(default = "default_cleanup_age_days")]
+    pub age_days: u32,
+}
+
+impl Default for CleanupConfig {
+    fn default() -> Self {
+        Self {
+            backup_files: true,
+            log_files: true,
+            age_days: 90,
+        }
+    }
+}
+
 impl Default for FamiliarConfig {
     fn default() -> Self {
         Self {
@@ -257,6 +286,7 @@ impl Default for FamiliarConfig {
             },
             achievements: AchievementsConfig { enabled: true },
             sessions: SessionsConfig::default(),
+            cleanup: CleanupConfig::default(),
         }
     }
 }

@@ -1,3 +1,4 @@
+pub mod cleanup;
 pub mod config;
 pub mod event;
 pub mod event_bus;

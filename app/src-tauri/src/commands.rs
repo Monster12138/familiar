@@ -1,7 +1,12 @@
+use familiar_core::cleanup::{
+    bytes_of, delete_files, familiar_log_files_in, filter_by_age, DataCleanupSummary,
+};
 use familiar_core::config::FamiliarConfig;
 use familiar_core::event_bus::EventBus;
+use familiar_core::logger::default_log_dir;
 use familiar_core::state::{AgentState, EventStatusMap};
 use familiar_core::state_machine::StateMachine;
+use familiar_hooks::cleanup::{backup_dirs, scan_backups_in};
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -177,6 +182,42 @@ pub fn get_config(
     config_state: tauri::State<'_, Arc<AppConfigState>>,
 ) -> Result<FamiliarConfig, String> {
     Ok(config_state.get_config())
+}
+
+/// Scan (and optionally delete) familiar's hook backup files and log files,
+/// per the `[cleanup]` config section. `dry_run = true` only counts and sums
+/// eligible files so the UI can confirm before deletion.
+#[tauri::command]
+pub fn run_data_cleanup(
+    config_state: tauri::State<'_, Arc<AppConfigState>>,
+    dry_run: bool,
+) -> Result<DataCleanupSummary, String> {
+    let cleanup = config_state.get_config().cleanup;
+
+    let mut backups: Vec<std::path::PathBuf> = Vec::new();
+    let mut logs: Vec<std::path::PathBuf> = Vec::new();
+    if cleanup.backup_files {
+        backups = filter_by_age(scan_backups_in(&backup_dirs()), cleanup.age_days);
+    }
+    if cleanup.log_files {
+        logs = filter_by_age(familiar_log_files_in(&default_log_dir()), cleanup.age_days);
+    }
+
+    let mut summary = DataCleanupSummary {
+        backup_count: backups.len(),
+        log_count: logs.len(),
+        freed_bytes: bytes_of(&backups) + bytes_of(&logs),
+        failures: Vec::new(),
+    };
+
+    if !dry_run {
+        let mut all = backups;
+        all.append(&mut logs);
+        let (freed, failures) = delete_files(&all);
+        summary.freed_bytes = freed;
+        summary.failures = failures;
+    }
+    Ok(summary)
 }
 
 fn apply_and_emit_config(
@@ -499,7 +540,10 @@ fn extract_hook_points(payload: &serde_json::Value) -> Vec<HookPointInfo> {
             continue;
         };
         for item in items {
-            let matcher = item.get("matcher").and_then(|v| v.as_str()).map(|s| s.to_string());
+            let matcher = item
+                .get("matcher")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
 
             // Commands may be directly on the item (Antigravity style) or nested
             // inside a "hooks" array (Claude Code / Codex / Qoder style).
@@ -619,8 +663,7 @@ async fn test_via_event_bus(
 
     let parsed = if agent == "antigravity" {
         let hook = AntigravityHook::new();
-        hook.parse(event_name, &payload)
-            .map_err(|e| e.to_string())
+        hook.parse(event_name, &payload).map_err(|e| e.to_string())
     } else {
         let source = match agent {
             "codex" => AgentSource::Codex,
@@ -634,10 +677,7 @@ async fn test_via_event_bus(
             .map_err(|e| e.to_string())
     }?;
 
-    event_bus
-        .publish(parsed)
-        .await
-        .map_err(|e| e.to_string())?;
+    event_bus.publish(parsed).await.map_err(|e| e.to_string())?;
 
     Ok(TestHookResult {
         success: true,
@@ -694,7 +734,10 @@ fn test_via_shell(agent: &str, event_name: &str) -> Result<TestHookResult, Strin
     Ok(TestHookResult {
         success,
         message: if success {
-            format!("Command executed successfully (exit code: {})", exit_code.unwrap_or(-1))
+            format!(
+                "Command executed successfully (exit code: {})",
+                exit_code.unwrap_or(-1)
+            )
         } else {
             format!("Command failed (exit code: {})", exit_code.unwrap_or(-1))
         },

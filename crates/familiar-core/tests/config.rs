@@ -1,6 +1,6 @@
 use familiar_core::config::{
-    DashboardAlignment, DashboardLayout, DashboardPosition, DashboardStyle, EventStatus,
-    FamiliarConfig,
+    CleanupConfig, DashboardAlignment, DashboardLayout, DashboardPosition, DashboardStyle,
+    EventStatus, FamiliarConfig,
 };
 use familiar_core::state::AgentStatus;
 
@@ -299,4 +299,63 @@ fn event_status_agent_map_skips_unknown_and_agent_stopped() {
     // fall back to the built-in behavior.
     assert!(!map.contains_key("AgentStopped"));
     assert!(!map.contains_key("RunningCommand"));
+}
+
+#[test]
+fn legacy_config_defaults_to_cleanup_settings() {
+    // Normalize line endings so the strip matches regardless of CRLF/LF.
+    let legacy_config = include_str!("../../../config/default.toml")
+        .replace("\r\n", "\n")
+        .replace("[cleanup]\nbackup_files = true\nlog_files = true\nage_days = 90", "");
+    let path = std::env::temp_dir().join(format!(
+        "familiar-legacy-cleanup-{}.toml",
+        std::process::id()
+    ));
+
+    std::fs::write(&path, legacy_config).expect("write legacy config");
+    let config = FamiliarConfig::load_from_file(&path).expect("load legacy config");
+    std::fs::remove_file(path).expect("remove legacy config");
+
+    assert_eq!(config.cleanup, CleanupConfig::default());
+}
+
+#[test]
+fn cleanup_serializes_expected_section() {
+    let serialized = toml::to_string_pretty(&FamiliarConfig::default()).expect("serialize config");
+
+    assert!(
+        serialized.lines().any(|line| line == "backup_files = true"),
+        "unexpected serialized cleanup section:\n{serialized}"
+    );
+    assert!(
+        serialized.lines().any(|line| line == "log_files = true"),
+        "unexpected serialized cleanup section:\n{serialized}"
+    );
+    assert!(
+        serialized.lines().any(|line| line == "age_days = 90"),
+        "unexpected serialized cleanup section:\n{serialized}"
+    );
+}
+
+#[test]
+fn cleanup_partial_section_fills_missing_fields() {
+    // Normalize line endings so the replacement matches regardless of CRLF/LF.
+    let content = include_str!("../../../config/default.toml")
+        .replace("\r\n", "\n")
+        .replace(
+            "[cleanup]\nbackup_files = true\nlog_files = true\nage_days = 90",
+            "[cleanup]\nage_days = 30",
+        );
+    let path = std::env::temp_dir().join(format!(
+        "familiar-partial-cleanup-{}.toml",
+        std::process::id()
+    ));
+
+    std::fs::write(&path, content).expect("write config");
+    let config = FamiliarConfig::load_from_file(&path).expect("load config");
+    std::fs::remove_file(path).expect("remove config");
+
+    assert!(config.cleanup.backup_files);
+    assert!(config.cleanup.log_files);
+    assert_eq!(config.cleanup.age_days, 30);
 }

@@ -762,6 +762,26 @@ input:checked + .slider:before {
     gap: 12px;
 }
 
+.cleanup-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background-color: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.summary-row span:last-child {
+    font-weight: 500;
+}
+
 .modal-path {
     font-family: 'Menlo', 'Monaco', monospace;
     font-size: 11px;

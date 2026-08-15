@@ -63,6 +63,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const elUdsPath = document.getElementById('setting-uds-path');
     const elTcpPort = document.getElementById('setting-tcp-port');
 
+    const elCleanupBackups = document.getElementById('setting-cleanup-backups');
+    const elCleanupLogs = document.getElementById('setting-cleanup-logs');
+    const elCleanupAgeDays = document.getElementById('setting-cleanup-age-days');
+    const btnCleanupRun = document.getElementById('btn-cleanup-run');
+
     // Hide settings that only apply on some platforms: UDS has no Unix
     // domain sockets on Windows, and "follow desktop switching" only has
     // an effect on macOS (Spaces / full-screen behavior).
@@ -422,6 +427,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentConfig.hooks.socket_path = elUdsPath.value;
         currentConfig.hooks.tcp_port = parseInt(elTcpPort.value, 10);
 
+        if (!currentConfig.cleanup) currentConfig.cleanup = {};
+        currentConfig.cleanup.backup_files = elCleanupBackups.checked;
+        currentConfig.cleanup.log_files = elCleanupLogs.checked;
+        const cleanupAge = parseInt(elCleanupAgeDays.value, 10);
+        currentConfig.cleanup.age_days = (Number.isFinite(cleanupAge) && cleanupAge >= 0) ? cleanupAge : 0;
+
         try {
             await invoke('save_config', { config: currentConfig });
             return true;
@@ -585,6 +596,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (currentConfig.hooks) {
             if (currentConfig.hooks.socket_path) elUdsPath.value = currentConfig.hooks.socket_path;
             if (currentConfig.hooks.tcp_port) elTcpPort.value = currentConfig.hooks.tcp_port;
+        }
+
+        // Data cleanup
+        if (currentConfig.cleanup) {
+            if (currentConfig.cleanup.backup_files !== undefined) {
+                elCleanupBackups.checked = currentConfig.cleanup.backup_files;
+            }
+            if (currentConfig.cleanup.log_files !== undefined) {
+                elCleanupLogs.checked = currentConfig.cleanup.log_files;
+            }
+            if (currentConfig.cleanup.age_days !== undefined) {
+                elCleanupAgeDays.value = currentConfig.cleanup.age_days;
+            }
         }
 
         // Load initial active sessions
@@ -898,14 +922,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Bind all controls for auto-save
     const autoSaveControls = [
         elPetAlwaysTop, elPetAllDesktops, elShowBubble, elShowPet, elShowStats,
-        elDashboardStyle, elDashboardPosition, elDashboardLayout, elDashboardAlignment
+        elDashboardStyle, elDashboardPosition, elDashboardLayout, elDashboardAlignment,
+        elCleanupBackups, elCleanupLogs
     ];
     autoSaveControls.forEach(el => {
         if (el) el.addEventListener('change', scheduleAutoSave);
     });
 
     const autoSaveInputs = [
-        elApiPort, elPetScale, elPetOpacity, elUdsPath, elTcpPort, elCelebrationSecs, elSleepTimeoutSecs
+        elApiPort, elPetScale, elPetOpacity, elUdsPath, elTcpPort, elCelebrationSecs, elSleepTimeoutSecs,
+        elCleanupAgeDays
     ];
     autoSaveInputs.forEach(el => {
         if (el) el.addEventListener('change', scheduleAutoSave);
@@ -934,6 +960,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const uninstallModal = document.getElementById('uninstall-modal');
     const btnUninstallCancel = document.getElementById('btn-uninstall-cancel');
     const btnUninstallConfirm = document.getElementById('btn-uninstall-confirm');
+    const cleanupModal = document.getElementById('cleanup-modal');
+    const btnCleanupCancel = document.getElementById('btn-cleanup-cancel');
+    const btnCleanupConfirm = document.getElementById('btn-cleanup-confirm');
     const uninstallBeforeCode = document.getElementById('uninstall-before-code');
     const uninstallAfterCode = document.getElementById('uninstall-after-code');
 
@@ -1390,6 +1419,67 @@ document.addEventListener('DOMContentLoaded', async () => {
         } finally {
             btnUninstallConfirm.disabled = false;
             currentUninstallingAgent = null;
+        }
+    });
+
+    // --- Data Cleanup Logic ---
+
+    function formatBytes(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+    }
+
+    let currentCleanupPreview = null;
+
+    // Preview first (dry run) so the modal can confirm what will be deleted.
+    btnCleanupRun.addEventListener('click', async () => {
+        const lang = elLanguage.value;
+        try {
+            const summary = await invoke('run_data_cleanup', { dryRun: true });
+            if (summary.backup_count === 0 && summary.log_count === 0) {
+                showToast(t('msg_cleanup_nothing', lang), 'success');
+                return;
+            }
+            currentCleanupPreview = summary;
+            document.getElementById('cleanup-summary-backup-count').textContent = summary.backup_count;
+            document.getElementById('cleanup-summary-log-count').textContent = summary.log_count;
+            document.getElementById('cleanup-summary-freed-bytes').textContent = formatBytes(summary.freed_bytes);
+            cleanupModal.style.display = 'flex';
+        } catch (e) {
+            console.error('Cleanup preview failed', e);
+            showToast(t('msg_cleanup_preview_failed', lang), 'error');
+        }
+    });
+
+    btnCleanupCancel.addEventListener('click', () => {
+        cleanupModal.style.display = 'none';
+        currentCleanupPreview = null;
+    });
+
+    btnCleanupConfirm.addEventListener('click', async () => {
+        const lang = elLanguage.value;
+        if (!currentCleanupPreview) return;
+        try {
+            btnCleanupConfirm.disabled = true;
+            const result = await invoke('run_data_cleanup', { dryRun: false });
+            cleanupModal.style.display = 'none';
+            const total = result.backup_count + result.log_count;
+            showToast(
+                t('msg_cleanup_done', lang) + ' ' + total + ' ' + t('msg_cleanup_files', lang) +
+                ' · ' + formatBytes(result.freed_bytes),
+                'success'
+            );
+            if (result.failures && result.failures.length > 0) {
+                showToast(t('msg_cleanup_partial', lang) + ' (' + result.failures.length + ')', 'error');
+            }
+        } catch (e) {
+            console.error('Cleanup failed', e);
+            showToast(t('msg_cleanup_failed', lang), 'error');
+        } finally {
+            btnCleanupConfirm.disabled = false;
+            currentCleanupPreview = null;
         }
     });
 

@@ -39,6 +39,12 @@ The `data_retention_days` setting is reserved for that future persistence
 feature and has no effect in the current release. The versioned default is 90
 days, but no event history is presently stored for it to delete.
 
+The `[cleanup]` config section drives the built-in data-cleanup module
+(Settings → 数据清理 / Data Cleanup). It can remove the timestamped `.bak.*`
+backups Familiar creates before editing hook configs, and Familiar's own
+operational logs in the temporary directory. Cleanup is manual-only and always
+requires confirmation; nothing is deleted automatically.
+
 User preferences are stored locally in:
 
 ```text
@@ -73,9 +79,9 @@ it does not delete unrelated Agent configuration or transcript history.
 ## Clearing Local Familiar Data
 
 1. Quit Familiar to clear all in-memory Agent activity.
-2. Remove `~/.config/familiar/config.toml` to reset saved preferences.
-3. Remove Familiar operational logs from the operating system temporary
-   directory if desired.
+2. Use Settings → 数据清理 / Data Cleanup to remove hook-config backups and
+   Familiar's operational logs in one step.
+3. Remove `~/.config/familiar/config.toml` to reset saved preferences.
 4. Use the settings UI to uninstall Agent hooks before removing the app.
 
 ## Security Reports
