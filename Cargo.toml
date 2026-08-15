@@ -13,7 +13,7 @@ version = "0.5.4"
 edition = "2021"
 rust-version = "1.88"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/familiar-agent/familiar"
+repository = "https://github.com/Monster12138/familiar"
 readme = "README.md"
 publish = false
 
