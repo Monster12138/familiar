@@ -1,4 +1,5 @@
 import { applyTranslations, t } from './i18n.js';
+import { renderDiffRows, syntaxHighlightJSON } from './diff.js';
 
 const { invoke } = window.__TAURI__.core;
 const { getCurrentWebviewWindow } = window.__TAURI__.webviewWindow;
@@ -1036,58 +1037,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     let hookDetailsCache = {};     // agent -> AgentHookDetail (lazy)
     let expandedAgents = new Set(); // track which agent cards are expanded
 
-    function syntaxHighlightJSON(json) {
-        if (typeof json != 'string') {
-             json = JSON.stringify(json, undefined, 2);
-        }
-        json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
-            let cls = 'json-number';
-            if (/^"/.test(match)) {
-                if (/:$/.test(match)) {
-                    cls = 'json-key';
-                } else {
-                    cls = 'json-string';
-                }
-            } else if (/true|false/.test(match)) {
-                cls = 'json-boolean';
-            } else if (/null/.test(match)) {
-                cls = 'json-null';
-            }
-            return '<span class="' + cls + '">' + match + '</span>';
-        });
-    }
-
-    function renderDiff(beforeText, afterText, elBefore, elAfter) {
-        const beforeLines = beforeText ? beforeText.split('\n') : [];
-        const afterLines = afterText ? afterText.split('\n') : [];
-        
-        let beforeHTML = '';
-        let afterHTML = '';
-        
-        let maxLines = Math.max(beforeLines.length, afterLines.length);
-        for(let i=0; i<maxLines; i++) {
-            const bLine = i < beforeLines.length ? beforeLines[i] : null;
-            const aLine = i < afterLines.length ? afterLines[i] : null;
-            
-            if (bLine === aLine) {
-                beforeHTML += `<div class="diff-line">${bLine !== null ? syntaxHighlightJSON(bLine) : ''}</div>`;
-                afterHTML += `<div class="diff-line">${aLine !== null ? syntaxHighlightJSON(aLine) : ''}</div>`;
-            } else if (bLine !== null && aLine === null) {
-                beforeHTML += `<div class="diff-line diff-remove">${syntaxHighlightJSON(bLine)}</div>`;
-                afterHTML += `<div class="diff-line"></div>`;
-            } else if (bLine === null && aLine !== null) {
-                beforeHTML += `<div class="diff-line"></div>`;
-                afterHTML += `<div class="diff-line diff-add">${syntaxHighlightJSON(aLine)}</div>`;
-            } else {
-                beforeHTML += `<div class="diff-line diff-remove">${syntaxHighlightJSON(bLine)}</div>`;
-                afterHTML += `<div class="diff-line diff-add">${syntaxHighlightJSON(aLine)}</div>`;
-            }
-        }
-        elBefore.innerHTML = beforeHTML;
-        elAfter.innerHTML = afterHTML;
-    }
-
     const AGENT_DISPLAY = {
         'antigravity': 'Antigravity',
         'claude-code': 'Claude Code',
@@ -1217,7 +1166,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 e.stopPropagation();
                 try {
                     const diff = await invoke('preview_inject_hook', { agent });
-                    renderDiff(diff.before, diff.after, injectBeforeCode, injectAfterCode);
+                    const { beforeHTML, afterHTML } = renderDiffRows(diff.before, diff.after);
+                    injectBeforeCode.innerHTML = beforeHTML;
+                    injectAfterCode.innerHTML = afterHTML;
                     if (hooksStatusCache[agent] && hooksStatusCache[agent].config_path) {
                         document.getElementById('inject-path-text').textContent = hooksStatusCache[agent].config_path;
                         document.getElementById('inject-path-bar').style.display = 'flex';
@@ -1235,7 +1186,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 e.stopPropagation();
                 try {
                     const diff = await invoke('preview_uninstall_hook', { agent });
-                    renderDiff(diff.before, diff.after, uninstallBeforeCode, uninstallAfterCode);
+                    const { beforeHTML, afterHTML } = renderDiffRows(diff.before, diff.after);
+                    uninstallBeforeCode.innerHTML = beforeHTML;
+                    uninstallAfterCode.innerHTML = afterHTML;
                     if (hooksStatusCache[agent] && hooksStatusCache[agent].config_path) {
                         document.getElementById('uninstall-path-text').textContent = hooksStatusCache[agent].config_path;
                         document.getElementById('uninstall-path-bar').style.display = 'flex';
