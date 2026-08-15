@@ -1,4 +1,5 @@
 import { applyTranslations, t } from './i18n.js';
+import { mountHookPanel } from './hook-panel.js';
 
 const { invoke } = window.__TAURI__.core;
 const { getCurrentWebviewWindow } = window.__TAURI__.webviewWindow;
@@ -14,22 +15,18 @@ async function completeOnboarding() {
     }
 }
 
-// The first page is the introduction; the next page is the dedicated hook
-// manager window. Completing onboarding here keeps the intro from coming
-// back, then open the manager and close this window.
-async function nextToHooks() {
-    await completeOnboarding();
-    try {
-        await invoke('open_hook_manager_window');
-    } catch (e) {
-        console.error('Failed to open hook manager', e);
-    }
-    const win = getCurrentWebviewWindow();
-    if (win) win.close();
+// Step 2: swap the introduction for the shared hook management panel
+// mounted in the same window.
+async function showHooks() {
+    const intro = document.getElementById('onboard-intro');
+    const hookView = document.getElementById('onboard-hook-view');
+    if (intro) intro.style.display = 'none';
+    if (hookView) hookView.style.display = 'block';
+    await mountHookPanel(document.getElementById('onboard-hook-panel'));
 }
 
-// Skip setup: just mark onboarding complete and close.
-async function skipOnboarding() {
+// Finish setup after the hooks step: complete onboarding and close.
+async function finishOnboarding() {
     await completeOnboarding();
     const win = getCurrentWebviewWindow();
     if (win) win.close();
@@ -48,6 +45,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const nextBtn = document.getElementById('btn-onboard-next');
     const skipBtn = document.getElementById('btn-onboard-skip');
-    if (nextBtn) nextBtn.addEventListener('click', nextToHooks);
-    if (skipBtn) skipBtn.addEventListener('click', skipOnboarding);
+    const doneBtn = document.getElementById('btn-onboard-done');
+    if (nextBtn) nextBtn.addEventListener('click', showHooks);
+    if (skipBtn) skipBtn.addEventListener('click', finishOnboarding);
+    if (doneBtn) doneBtn.addEventListener('click', finishOnboarding);
 });

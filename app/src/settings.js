@@ -1,4 +1,5 @@
 import { applyTranslations, t } from './i18n.js';
+import { mountHookPanel } from './hook-panel.js';
 
 const { invoke } = window.__TAURI__.core;
 const { getCurrentWebviewWindow } = window.__TAURI__.webviewWindow;
@@ -992,47 +993,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btnUpdateSkip = document.getElementById('btn-update-skip');
     const btnUpdateDownload = document.getElementById('btn-update-download');
 
-    // The full hook management (inject/uninstall/config-path/details/test)
-    // lives in a dedicated window; this section only shows a status summary
-    // and an "open the manager" button.
-    const hooksSummary = document.getElementById('hooks-summary');
-    const btnOpenHookManager = document.getElementById('btn-open-hook-manager');
-    if (btnOpenHookManager) {
-        btnOpenHookManager.addEventListener('click', () => {
-            invoke('open_hook_manager_window');
-        });
-    }
-    async function renderHooksSummary() {
-        if (!hooksSummary) return;
-        try {
-            const status = await invoke('get_hooks_status');
-            const lang = elLanguage.value;
-            hooksSummary.innerHTML = '';
-            ['antigravity', 'claude-code', 'codex', 'qoder'].forEach(agent => {
-                const st = status[agent];
-                const names = {
-                    'antigravity': 'Antigravity',
-                    'claude-code': 'Claude Code',
-                    'codex': 'Codex',
-                    'qoder': 'Qoder',
-                };
-                const injected = st ? st.injected : false;
-                const badgeClass = st
-                    ? (injected ? 'badge badge-injected' : 'badge badge-not-injected')
-                    : 'badge badge-loading';
-                const badgeText = st
-                    ? (injected ? t('badge_injected', lang) : t('badge_not_injected', lang))
-                    : t('badge_loading', lang);
-                const item = document.createElement('span');
-                item.className = 'hook-summary-item';
-                item.innerHTML = `<span class="hook-summary-agent">${names[agent] || agent}</span> <span class="${badgeClass}">${badgeText}</span>`;
-                hooksSummary.appendChild(item);
-            });
-        } catch (e) {
-            console.error('Failed to load hooks summary', e);
-        }
-    }
-    renderHooksSummary();
+    // The full hook management panel (inject/uninstall/config-path/details/
+    // test) is mounted here from the shared hook-panel module.
+    mountHookPanel(document.getElementById('hook-status-list'), elLanguage.value);
 
     // Standard notification channel for the settings panel: a single global
     // toast element is created lazily and re-shown for each transient status

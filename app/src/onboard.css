@@ -82,8 +82,25 @@ body {
     justify-content: center;
 }
 
+.onboard-hook-title {
+    font-size: 18px;
+    margin: 0 0 4px;
+    color: var(--text-main);
+}
+
+.onboard-hook-desc {
+    margin: 0 0 16px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+#onboard-hook-panel .hook-agent-card {
+    margin-bottom: 10px;
+}
+
 .onboard-footer {
     display: flex;
     justify-content: center;
     gap: 12px;
+    margin-top: 20px;
 }

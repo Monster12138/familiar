@@ -1,13 +1,88 @@
-// Standalone hook manager window. The full agent hook management UI
-// (inject / uninstall / view-config / config path / hook-point details /
-// test) extracted from the settings panel so both the settings page and the
-// onboarding page can open the same window. Reuses diff.js for line-based
-// config diffs and i18n.js for translations.
+// Shared mountable hook management panel. Used by both the onboarding
+// second step and the settings panel: `mountHookPanel(container)` renders
+// the full agent hook UI (inject / uninstall / view-config / config path /
+// hook-point details / test) into any container, injecting the required
+// modals into the page on first mount. Reuses diff.js and i18n.js.
 
 import { applyTranslations, t } from './i18n.js';
 import { renderDiffRows, syntaxHighlightJSON } from './diff.js';
 
 const { invoke } = window.__TAURI__.core;
+
+// The three modals used by the panel, injected into document.body once on
+// first mount so host pages do not need to carry the markup.
+const HOOK_MODALS_HTML = `
+    <div id="hook-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content diff-modal-content">
+            <h3 data-i18n="modal_title_preview">确认注入 Hooks 契约</h3>
+            <p data-i18n="modal_desc_preview" style="color:var(--text-muted);font-size:13px;margin: 8px 0 16px;">以下配置将会合并到 Agent 的配置文件中。我们将自动生成一个 <code>.bak</code> 备份以防万一。</p>
+
+            <div class="diff-viewer">
+                <div class="diff-pane">
+                    <div class="diff-header">Before</div>
+                    <pre><code id="inject-before-code" class="code-preview"></code></pre>
+                </div>
+                <div class="diff-pane">
+                    <div class="diff-header">After</div>
+                    <pre><code id="inject-after-code" class="code-preview"></code></pre>
+                </div>
+            </div>
+
+            <div class="modal-path-bar" id="inject-path-bar" style="display:none;">
+                <div class="modal-path-text" id="inject-path-text"></div>
+                <button class="modal-path-copy" data-target="inject-path-text" data-i18n="btn_copy">复制</button>
+            </div>
+
+            <div class="modal-actions">
+                <button class="secondary-btn" id="btn-modal-cancel" data-i18n="btn_cancel">取消</button>
+                <button class="primary-btn" id="btn-modal-confirm" data-i18n="btn_confirm_inject">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="uninstall-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content diff-modal-content">
+            <h3 data-i18n="modal_title_uninstall">确认卸载 Hooks</h3>
+            <p data-i18n="confirm_uninstall" style="color:var(--text-muted);font-size:13px;margin: 8px 0 16px;">卸载后该 Agent 的状态将不再同步给桌面宠物，是否确认？</p>
+
+            <div class="diff-viewer">
+                <div class="diff-pane">
+                    <div class="diff-header">Before</div>
+                    <pre><code id="uninstall-before-code" class="code-preview"></code></pre>
+                </div>
+                <div class="diff-pane">
+                    <div class="diff-header">After</div>
+                    <pre><code id="uninstall-after-code" class="code-preview"></code></pre>
+                </div>
+            </div>
+
+            <div class="modal-path-bar" id="uninstall-path-bar" style="display:none;">
+                <div class="modal-path-text" id="uninstall-path-text"></div>
+                <button class="modal-path-copy" data-target="uninstall-path-text" data-i18n="btn_copy">复制</button>
+            </div>
+
+            <div class="modal-actions">
+                <button class="secondary-btn" id="btn-uninstall-cancel" data-i18n="btn_cancel">取消</button>
+                <button class="danger-btn" id="btn-uninstall-confirm" data-i18n="btn_uninstall" style="padding: 10px 20px; font-size: 14px; font-weight: 500;">确认卸载</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="config-viewer-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content diff-modal-content">
+            <h3 data-i18n="modal_title_view_config">查看配置</h3>
+            <pre style="flex: 1; overflow: auto; margin-bottom: 16px;"><code id="config-viewer-code" class="code-preview" style="height: 100%; box-sizing: border-box;"></code></pre>
+
+            <div class="modal-path-bar" id="config-viewer-path-bar" style="display:none;">
+                <div class="modal-path-text" id="config-viewer-path-text"></div>
+                <button class="modal-path-copy" data-target="config-viewer-path-text" data-i18n="btn_copy">复制</button>
+            </div>
+
+            <div class="modal-actions">
+                <button class="primary-btn" id="btn-config-viewer-close" data-i18n="btn_close">关闭</button>
+            </div>
+        </div>
+    </div>`;
 
 // Built-in (fallback) status per event kind, mirroring StateMachine::apply_event.
 // `null` means the event is a no-op by default (keeps the agent's current status).
@@ -36,7 +111,8 @@ const AGENT_DISPLAY = {
 
 const AGENTS = ['antigravity', 'claude-code', 'codex', 'qoder'];
 
-let lang = 'zh-CN';
+let panelContainer = null;
+let currentLang = 'zh-CN';
 let currentConfig = {};
 let currentInjectingAgent = null;
 let currentUninstallingAgent = null;
@@ -44,8 +120,7 @@ let hooksStatusCache = {};
 let hookDetailsCache = {};      // agent -> AgentHookDetail (lazy)
 let expandedAgents = new Set(); // track which agent cards are expanded
 
-// Modal DOM refs, assigned in DOMContentLoaded; the card handlers in
-// renderAgentCards reference them.
+// Modal DOM refs, captured after the modals are injected on first mount.
 let hookModal;
 let btnModalConfirm;
 let injectBeforeCode;
@@ -73,32 +148,6 @@ function showToast(message, type, durationMs) {
     toastTimer = setTimeout(() => {
         toast.className = 'app-toast';
     }, durationMs || 4000);
-}
-
-// Copy buttons for the modal path bars.
-function bindCopyButtons() {
-    document.querySelectorAll('.modal-path-copy').forEach((btn) => {
-        btn.addEventListener('click', async () => {
-            const targetId = btn.getAttribute('data-target');
-            const targetEl = document.getElementById(targetId);
-            if (targetEl && targetEl.textContent) {
-                try {
-                    await navigator.clipboard.writeText(targetEl.textContent);
-                    const origText = btn.textContent;
-                    btn.textContent = t('btn_copied', lang);
-                    btn.style.backgroundColor = "rgba(46, 160, 67, 0.3)";
-                    btn.style.borderColor = "rgba(46, 160, 67, 0.5)";
-                    setTimeout(() => {
-                        btn.textContent = origText;
-                        btn.style.backgroundColor = "";
-                        btn.style.borderColor = "";
-                    }, 2000);
-                } catch (e) {
-                    console.error("Failed to copy:", e);
-                }
-            }
-        });
-    });
 }
 
 // Raw hook event name → AgentEventType kind, mirroring the adapter
@@ -155,14 +204,14 @@ function renderHookPointsTable(detailEl, hookDetail, agent) {
     const points = hookDetail.hook_points || [];
 
     if (points.length === 0) {
-        detailEl.innerHTML = `<div class="hook-detail-empty">${t('lbl_no_hook_points', lang)}</div>`;
+        detailEl.innerHTML = `<div class="hook-detail-empty">${t('lbl_no_hook_points', currentLang)}</div>`;
         return;
     }
 
     let html = '<div class="hook-points-table">';
     html += '<div class="hook-points-header">';
-    html += `<span class="hook-col-event">${t('lbl_hook_event', lang)}</span>`;
-    html += `<span class="hook-col-status">${t('lbl_hook_status', lang)}</span>`;
+    html += `<span class="hook-col-event">${t('lbl_hook_event', currentLang)}</span>`;
+    html += `<span class="hook-col-status">${t('lbl_hook_status', currentLang)}</span>`;
     html += `<span class="hook-col-test"></span>`;
     html += '</div>';
 
@@ -170,16 +219,15 @@ function renderHookPointsTable(detailEl, hookDetail, agent) {
         const matcherLabel = pt.matcher ? ` (matcher: ${pt.matcher})` : '';
         const statusKey = hookEventStatus(pt.event_name, agent);
         const statusLabel = statusKey
-            ? t('status_' + statusKey.replace(/-/g, '_'), lang)
-            : t('status_default_noop', lang);
-        // The command is only kept for copying (data-cmd), not displayed.
+            ? t('status_' + statusKey.replace(/-/g, '_'), currentLang)
+            : t('status_default_noop', currentLang);
         const copyCmd = pt.test_command || pt.command;
         html += '<div class="hook-point-row">';
         html += `<span class="hook-col-event"><code>${pt.event_name}</code>${matcherLabel}</span>`;
         html += `<span class="hook-col-status"><span class="hook-status-badge">${statusLabel}</span></span>`;
         html += '<span class="hook-col-test">';
-        html += `<button class="btn-test btn-test-bus" data-agent="${agent}" data-event="${pt.event_name}">${t('btn_test_eventbus', lang)}</button>`;
-        html += `<button class="btn-test btn-copy-cmd" data-cmd="${copyCmd.replace(/"/g, '&quot;')}">${t('btn_copy_command', lang)}</button>`;
+        html += `<button class="btn-test btn-test-bus" data-agent="${agent}" data-event="${pt.event_name}">${t('btn_test_eventbus', currentLang)}</button>`;
+        html += `<button class="btn-test btn-copy-cmd" data-cmd="${copyCmd.replace(/"/g, '&quot;')}">${t('btn_copy_command', currentLang)}</button>`;
         html += '</span>';
         html += '</div>';
     });
@@ -202,7 +250,7 @@ function renderHookPointsTable(detailEl, hookDetail, agent) {
             const origText = btn.textContent;
             try {
                 await navigator.clipboard.writeText(cmd);
-                btn.textContent = t('btn_copied', lang);
+                btn.textContent = t('btn_copied', currentLang);
                 btn.classList.add('copied');
             } catch (err) {
                 console.error('Failed to copy command', err);
@@ -216,7 +264,7 @@ function renderHookPointsTable(detailEl, hookDetail, agent) {
 }
 
 function renderAgentCards() {
-    const container = document.getElementById('hook-status-list');
+    const container = panelContainer;
     if (!container) return;
 
     container.innerHTML = '';
@@ -248,10 +296,10 @@ function renderAgentCards() {
         badge.id = `badge-${agent}`;
         if (status) {
             badge.className = isInjected ? 'badge badge-injected' : 'badge badge-not-injected';
-            badge.textContent = isInjected ? t('badge_injected', lang) : t('badge_not_injected', lang);
+            badge.textContent = isInjected ? t('badge_injected', currentLang) : t('badge_not_injected', currentLang);
         } else {
             badge.className = 'badge badge-loading';
-            badge.textContent = t('badge_loading', lang);
+            badge.textContent = t('badge_loading', currentLang);
         }
 
         left.appendChild(expandIcon);
@@ -264,19 +312,19 @@ function renderAgentCards() {
         const btnInject = document.createElement('button');
         btnInject.className = 'secondary-btn btn-sm';
         btnInject.id = `btn-inject-${agent}`;
-        btnInject.textContent = t('btn_inject', lang);
+        btnInject.textContent = t('btn_inject', currentLang);
         btnInject.style.display = isInjected ? 'none' : 'inline-block';
 
         const btnViewConfig = document.createElement('button');
         btnViewConfig.className = 'secondary-btn btn-sm';
         btnViewConfig.id = `btn-view-config-${agent}`;
-        btnViewConfig.textContent = t('btn_view_config', lang);
+        btnViewConfig.textContent = t('btn_view_config', currentLang);
         btnViewConfig.style.display = isInjected ? 'inline-block' : 'none';
 
         const btnUninstall = document.createElement('button');
         btnUninstall.className = 'danger-btn btn-sm';
         btnUninstall.id = `btn-uninstall-${agent}`;
-        btnUninstall.textContent = t('btn_uninstall', lang);
+        btnUninstall.textContent = t('btn_uninstall', currentLang);
         btnUninstall.style.display = isInjected ? 'inline-block' : 'none';
 
         actions.appendChild(btnInject);
@@ -301,7 +349,7 @@ function renderAgentCards() {
             if (hookDetailsCache[agent]) {
                 renderHookPointsTable(detail, hookDetailsCache[agent], agent);
             } else {
-                detail.innerHTML = `<div class="hook-detail-loading">${t('msg_loading_details', lang)}</div>`;
+                detail.innerHTML = `<div class="hook-detail-loading">${t('msg_loading_details', currentLang)}</div>`;
             }
         }
         card.appendChild(detail);
@@ -407,13 +455,13 @@ async function testHookPoint(agent, eventName) {
     try {
         const result = await invoke('test_hook_point', { agent, eventName, mode: 'event_bus' });
         if (result.success) {
-            showToast(t('msg_test_success', lang), 'success');
+            showToast(t('msg_test_success', currentLang), 'success');
         } else {
-            showToast(t('msg_test_failed', lang), 'error');
+            showToast(t('msg_test_failed', currentLang), 'error');
         }
     } catch (e) {
         console.error('Hook test invoke failed', e);
-        showToast(t('msg_test_failed', lang), 'error');
+        showToast(t('msg_test_failed', currentLang), 'error');
     }
 }
 
@@ -429,77 +477,121 @@ async function fetchHooksStatus() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
+// Copy buttons for the modal path bars (bound once after modals are injected).
+function bindCopyButtons() {
+    document.querySelectorAll('.modal-path-copy').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+            const targetId = btn.getAttribute('data-target');
+            const targetEl = document.getElementById(targetId);
+            if (targetEl && targetEl.textContent) {
+                try {
+                    await navigator.clipboard.writeText(targetEl.textContent);
+                    const origText = btn.textContent;
+                    btn.textContent = t('btn_copied', currentLang);
+                    btn.style.backgroundColor = "rgba(46, 160, 67, 0.3)";
+                    btn.style.borderColor = "rgba(46, 160, 67, 0.5)";
+                    setTimeout(() => {
+                        btn.textContent = origText;
+                        btn.style.backgroundColor = "";
+                        btn.style.borderColor = "";
+                    }, 2000);
+                } catch (e) {
+                    console.error("Failed to copy:", e);
+                }
+            }
+        });
+    });
+}
+
+let mounted = false;
+
+/**
+ * Mount the full hook management panel into `container`.
+ * @param {HTMLElement} container Element to render the agent cards into.
+ * @param {string} [lang] Optional language override; otherwise loaded from config.
+ */
+export async function mountHookPanel(container, lang) {
+    if (!container) return;
+    panelContainer = container;
+
+    if (!mounted) {
+        if (!document.getElementById('hook-modal')) {
+            document.body.insertAdjacentHTML('beforeend', HOOK_MODALS_HTML);
+        }
+        hookModal = document.getElementById('hook-modal');
+        const btnModalCancel = document.getElementById('btn-modal-cancel');
+        btnModalConfirm = document.getElementById('btn-modal-confirm');
+        injectBeforeCode = document.getElementById('inject-before-code');
+        injectAfterCode = document.getElementById('inject-after-code');
+        uninstallModal = document.getElementById('uninstall-modal');
+        const btnUninstallCancel = document.getElementById('btn-uninstall-cancel');
+        btnUninstallConfirm = document.getElementById('btn-uninstall-confirm');
+        uninstallBeforeCode = document.getElementById('uninstall-before-code');
+        uninstallAfterCode = document.getElementById('uninstall-after-code');
+        configViewerModal = document.getElementById('config-viewer-modal');
+        const btnConfigViewerClose = document.getElementById('btn-config-viewer-close');
+        configViewerCode = document.getElementById('config-viewer-code');
+
+        bindCopyButtons();
+
+        btnConfigViewerClose.addEventListener('click', () => {
+            configViewerModal.style.display = 'none';
+        });
+
+        btnUninstallCancel.addEventListener('click', () => {
+            uninstallModal.style.display = 'none';
+            currentUninstallingAgent = null;
+        });
+
+        btnUninstallConfirm.addEventListener('click', async () => {
+            if (!currentUninstallingAgent) return;
+            try {
+                btnUninstallConfirm.disabled = true;
+                await invoke('uninstall_hook', { agent: currentUninstallingAgent });
+                uninstallModal.style.display = 'none';
+                await fetchHooksStatus();
+            } catch (e) {
+                alert("Uninstall failed: " + e);
+            } finally {
+                btnUninstallConfirm.disabled = false;
+                currentUninstallingAgent = null;
+            }
+        });
+
+        btnModalCancel.addEventListener('click', () => {
+            hookModal.style.display = 'none';
+            currentInjectingAgent = null;
+        });
+
+        btnModalConfirm.addEventListener('click', async () => {
+            if (!currentInjectingAgent) return;
+            try {
+                btnModalConfirm.disabled = true;
+                await invoke('inject_hook', { agent: currentInjectingAgent });
+                hookModal.style.display = 'none';
+                await fetchHooksStatus();
+            } catch (e) {
+                alert("Inject failed: " + e);
+            } finally {
+                btnModalConfirm.disabled = false;
+                currentInjectingAgent = null;
+            }
+        });
+
+        mounted = true;
+    }
+
+    // Load config for the event-status map and default language.
     try {
         currentConfig = await invoke('get_config');
         if (currentConfig && currentConfig.general && currentConfig.general.language) {
-            lang = currentConfig.general.language;
+            currentLang = currentConfig.general.language;
         }
     } catch (e) {
         console.error('Failed to load config', e);
     }
-    applyTranslations(lang);
-
-    // DOM refs for the three modals.
-    hookModal = document.getElementById('hook-modal');
-    const btnModalCancel = document.getElementById('btn-modal-cancel');
-    btnModalConfirm = document.getElementById('btn-modal-confirm');
-    injectBeforeCode = document.getElementById('inject-before-code');
-    injectAfterCode = document.getElementById('inject-after-code');
-    uninstallModal = document.getElementById('uninstall-modal');
-    const btnUninstallCancel = document.getElementById('btn-uninstall-cancel');
-    btnUninstallConfirm = document.getElementById('btn-uninstall-confirm');
-    uninstallBeforeCode = document.getElementById('uninstall-before-code');
-    uninstallAfterCode = document.getElementById('uninstall-after-code');
-    configViewerModal = document.getElementById('config-viewer-modal');
-    const btnConfigViewerClose = document.getElementById('btn-config-viewer-close');
-    configViewerCode = document.getElementById('config-viewer-code');
-
-    bindCopyButtons();
-
-    btnConfigViewerClose.addEventListener('click', () => {
-        configViewerModal.style.display = 'none';
-    });
-
-    btnUninstallCancel.addEventListener('click', () => {
-        uninstallModal.style.display = 'none';
-        currentUninstallingAgent = null;
-    });
-
-    btnUninstallConfirm.addEventListener('click', async () => {
-        if (!currentUninstallingAgent) return;
-        try {
-            btnUninstallConfirm.disabled = true;
-            await invoke('uninstall_hook', { agent: currentUninstallingAgent });
-            uninstallModal.style.display = 'none';
-            await fetchHooksStatus();
-        } catch (e) {
-            alert("Uninstall failed: " + e);
-        } finally {
-            btnUninstallConfirm.disabled = false;
-            currentUninstallingAgent = null;
-        }
-    });
-
-    btnModalCancel.addEventListener('click', () => {
-        hookModal.style.display = 'none';
-        currentInjectingAgent = null;
-    });
-
-    btnModalConfirm.addEventListener('click', async () => {
-        if (!currentInjectingAgent) return;
-        try {
-            btnModalConfirm.disabled = true;
-            await invoke('inject_hook', { agent: currentInjectingAgent });
-            hookModal.style.display = 'none';
-            await fetchHooksStatus();
-        } catch (e) {
-            alert("Inject failed: " + e);
-        } finally {
-            btnModalConfirm.disabled = false;
-            currentInjectingAgent = null;
-        }
-    });
+    if (lang) currentLang = lang;
+    applyTranslations(currentLang);
 
     await fetchHooksStatus();
-});
+}

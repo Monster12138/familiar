@@ -263,18 +263,9 @@
                     <h2 data-i18n="lbl_hook_injection">Hooks 注入管理</h2>
                     <p data-i18n="desc_hook_injection" style="color:var(--text-muted);font-size:13px;margin: -8px 0 16px 0;">自动修改各 Agent 的配置文件，将运行状态实时同步到桌面宠物</p>
                     <div class="settings-card">
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <div class="setting-title" data-i18n="title_hook_manager">Hooks 管理</div>
-                                <div class="setting-desc" data-i18n="desc_hook_manager">管理各 Agent 的 Hook 注入、卸载、配置查看与测试</div>
-                            </div>
-                            <button class="secondary-btn btn-sm" id="btn-open-hook-manager" data-i18n="btn_open_hook_manager">打开 Hooks 管理</button>
-                        </div>
-                        <div class="divider"></div>
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <div class="setting-title" data-i18n="lbl_hook_status_summary">注入状态</div>
-                                <div class="setting-desc" id="hooks-summary"></div>
+                        <div class="setting-item" style="flex-direction: column; align-items: stretch; padding: 0;">
+                            <div id="hook-status-list">
+                                <!-- Full hook management panel mounted by the shared hook-panel module -->
                             </div>
                         </div>
                     </div>
