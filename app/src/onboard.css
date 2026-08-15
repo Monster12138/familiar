@@ -82,27 +82,6 @@ body {
     justify-content: center;
 }
 
-.onboard-agents h2 {
-    font-size: 16px;
-    margin: 0 0 12px;
-    color: var(--text-main);
-}
-
-.onboard-hooks-summary {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px 16px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 14px 16px;
-    margin-bottom: 14px;
-}
-
-.onboard-agents .secondary-btn {
-    width: 100%;
-}
-
 .onboard-footer {
     display: flex;
     justify-content: center;

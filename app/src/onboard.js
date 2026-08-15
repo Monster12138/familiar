@@ -5,48 +5,32 @@ const { getCurrentWebviewWindow } = window.__TAURI__.webviewWindow;
 
 let lang = 'zh-CN';
 
-// Render a read-only per-agent injection status readout. Full management
-// (inject / uninstall / config-path / details / test) lives in the dedicated
-// hook manager window, opened via the button below.
-async function renderHooksSummary() {
-    const container = document.getElementById('onboard-hooks-summary');
-    if (!container) return;
-    try {
-        const status = await invoke('get_hooks_status');
-        const names = {
-            'antigravity': 'Antigravity',
-            'claude-code': 'Claude Code',
-            'codex': 'Codex',
-            'qoder': 'Qoder',
-        };
-        container.innerHTML = '';
-        ['antigravity', 'claude-code', 'codex', 'qoder'].forEach((agent) => {
-            const st = status[agent];
-            const injected = st ? st.injected : false;
-            const badgeClass = st
-                ? (injected ? 'badge badge-injected' : 'badge badge-not-injected')
-                : 'badge badge-loading';
-            const badgeText = st
-                ? (injected ? t('badge_injected', lang) : t('badge_not_injected', lang))
-                : t('badge_loading', lang);
-            const item = document.createElement('span');
-            item.className = 'hook-summary-item';
-            item.innerHTML = `<span class="hook-summary-agent">${names[agent] || agent}</span> <span class="${badgeClass}">${badgeText}</span>`;
-            container.appendChild(item);
-        });
-    } catch (e) {
-        console.error('Failed to load hooks summary', e);
-    }
-}
-
-// Persist the "onboarded" flag (so the welcome page is not shown again) and
-// close the window. Reached via both the start and skip buttons.
+// Mark onboarding complete so the welcome page does not reappear.
 async function completeOnboarding() {
     try {
         await invoke('complete_onboarding');
     } catch (e) {
         console.error('Failed to complete onboarding', e);
     }
+}
+
+// The first page is the introduction; the next page is the dedicated hook
+// manager window. Completing onboarding here keeps the intro from coming
+// back, then open the manager and close this window.
+async function nextToHooks() {
+    await completeOnboarding();
+    try {
+        await invoke('open_hook_manager_window');
+    } catch (e) {
+        console.error('Failed to open hook manager', e);
+    }
+    const win = getCurrentWebviewWindow();
+    if (win) win.close();
+}
+
+// Skip setup: just mark onboarding complete and close.
+async function skipOnboarding() {
+    await completeOnboarding();
     const win = getCurrentWebviewWindow();
     if (win) win.close();
 }
@@ -62,17 +46,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     applyTranslations(lang);
 
-    const startBtn = document.getElementById('btn-onboard-start');
+    const nextBtn = document.getElementById('btn-onboard-next');
     const skipBtn = document.getElementById('btn-onboard-skip');
-    if (startBtn) startBtn.addEventListener('click', completeOnboarding);
-    if (skipBtn) skipBtn.addEventListener('click', completeOnboarding);
-
-    const btnOpenHooks = document.getElementById('btn-onboard-open-hooks');
-    if (btnOpenHooks) {
-        btnOpenHooks.addEventListener('click', () => {
-            invoke('open_hook_manager_window');
-        });
-    }
-
-    await renderHooksSummary();
+    if (nextBtn) nextBtn.addEventListener('click', nextToHooks);
+    if (skipBtn) skipBtn.addEventListener('click', skipOnboarding);
 });
