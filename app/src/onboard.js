@@ -1,4 +1,5 @@
 import { applyTranslations, t } from './i18n.js';
+import { renderDiffRows } from './diff.js';
 
 const { invoke } = window.__TAURI__.core;
 const { getCurrentWebviewWindow } = window.__TAURI__.webviewWindow;
@@ -13,6 +14,8 @@ const AGENT_DISPLAY = {
 const AGENTS = ['antigravity', 'claude-code', 'codex', 'qoder'];
 
 let lang = 'zh-CN';
+let currentOnboardInjectAgent = null;
+let onboardHookModal = null;
 
 // Same global toast used by the settings panel, replicated here so the
 // onboard page has its own transient-notification channel.
@@ -84,22 +87,22 @@ async function loadAgentCards() {
         btn.textContent = t('btn_inject', lang);
         btn.style.display = isInjected ? 'none' : 'inline-block';
 
+        // Show the before/after diff in the preview modal first; the actual
+        // injection only happens after the user confirms.
         btn.addEventListener('click', async () => {
             try {
-                btn.disabled = true;
-                await invoke('inject_hook', { agent });
-                showToast(
-                    t('msg_onboard_inject_success', lang) + ' (' + (AGENT_DISPLAY[agent] || agent) + ')',
-                    'success'
-                );
-                await loadAgentCards();
+                const diff = await invoke('preview_inject_hook', { agent });
+                const { beforeHTML, afterHTML } = renderDiffRows(diff.before, diff.after);
+                document.getElementById('onboard-inject-before').innerHTML = beforeHTML;
+                document.getElementById('onboard-inject-after').innerHTML = afterHTML;
+                currentOnboardInjectAgent = agent;
+                onboardHookModal.style.display = 'flex';
             } catch (e) {
-                console.error('Inject failed', e);
+                console.error('Preview failed', e);
                 showToast(
                     t('msg_onboard_inject_failed', lang) + ' (' + (AGENT_DISPLAY[agent] || agent) + ')',
                     'error'
                 );
-                btn.disabled = false;
             }
         });
 
@@ -136,6 +139,44 @@ document.addEventListener('DOMContentLoaded', async () => {
     const skipBtn = document.getElementById('btn-onboard-skip');
     if (startBtn) startBtn.addEventListener('click', completeOnboarding);
     if (skipBtn) skipBtn.addEventListener('click', completeOnboarding);
+
+    // Hook inject preview modal: confirm performs the injection, cancel closes.
+    onboardHookModal = document.getElementById('onboard-hook-modal');
+    const btnInjectCancel = document.getElementById('btn-onboard-inject-cancel');
+    const btnInjectConfirm = document.getElementById('btn-onboard-inject-confirm');
+
+    if (btnInjectCancel) {
+        btnInjectCancel.addEventListener('click', () => {
+            onboardHookModal.style.display = 'none';
+            currentOnboardInjectAgent = null;
+        });
+    }
+
+    if (btnInjectConfirm) {
+        btnInjectConfirm.addEventListener('click', async () => {
+            if (!currentOnboardInjectAgent) return;
+            const agent = currentOnboardInjectAgent;
+            try {
+                btnInjectConfirm.disabled = true;
+                await invoke('inject_hook', { agent });
+                onboardHookModal.style.display = 'none';
+                currentOnboardInjectAgent = null;
+                showToast(
+                    t('msg_onboard_inject_success', lang) + ' (' + (AGENT_DISPLAY[agent] || agent) + ')',
+                    'success'
+                );
+                await loadAgentCards();
+            } catch (e) {
+                console.error('Inject failed', e);
+                showToast(
+                    t('msg_onboard_inject_failed', lang) + ' (' + (AGENT_DISPLAY[agent] || agent) + ')',
+                    'error'
+                );
+            } finally {
+                btnInjectConfirm.disabled = false;
+            }
+        });
+    }
 
     await loadAgentCards();
 });

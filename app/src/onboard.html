@@ -32,6 +32,30 @@
         </footer>
     </div>
 
+    <!-- Hook inject preview modal (mirrors the settings panel) -->
+    <div id="onboard-hook-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content diff-modal-content">
+            <h3 data-i18n="onboard_modal_title">确认注入 Hooks</h3>
+            <p data-i18n="onboard_modal_desc" style="color:var(--text-muted);font-size:13px;margin: 8px 0 16px;">以下配置将合并到 Agent 配置文件中，我们会先自动生成一个 .bak 备份。</p>
+
+            <div class="diff-viewer">
+                <div class="diff-pane">
+                    <div class="diff-header">Before</div>
+                    <pre><code id="onboard-inject-before" class="code-preview"></code></pre>
+                </div>
+                <div class="diff-pane">
+                    <div class="diff-header">After</div>
+                    <pre><code id="onboard-inject-after" class="code-preview"></code></pre>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="secondary-btn" id="btn-onboard-inject-cancel" data-i18n="btn_cancel">取消</button>
+                <button class="primary-btn" id="btn-onboard-inject-confirm" data-i18n="btn_confirm_inject">确认</button>
+            </div>
+        </div>
+    </div>
+
     <script src="./onboard.js" type="module"></script>
 </body>
 </html>
