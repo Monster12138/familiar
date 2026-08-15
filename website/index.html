@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Familiar — A desktop pet that reacts to your world</title>
+    <meta name="description" content="Familiar is a local-first desktop companion for coding agents. It reacts to your work through a pixel-art desktop pet.">
+    <link rel="icon" type="image/png" href="assets/icon.png">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header class="site-header">
+        <div class="container header-inner">
+            <a class="brand" href="#top">
+                <img src="assets/icon.png" alt="Familiar" class="brand-logo">
+                <span class="brand-name">Familiar</span>
+            </a>
+            <nav class="site-nav" aria-label="Main">
+                <a href="#features" data-i18n="nav_features">特性</a>
+                <a href="#integrations" data-i18n="nav_integrations">集成</a>
+                <a href="#privacy" data-i18n="nav_privacy">隐私</a>
+                <a href="#download" data-i18n="nav_download">下载</a>
+            </nav>
+            <button class="lang-toggle" id="lang-toggle" type="button">English</button>
+        </div>
+    </header>
+
+    <main id="top">
+        <section class="hero">
+            <div class="container hero-inner">
+                <img src="assets/icon.png" alt="Familiar mascot" class="hero-logo">
+                <h1 class="hero-title">Familiar</h1>
+                <p class="hero-tagline" data-i18n="hero_tagline">一只会回应你工作世界的桌面宠物。</p>
+                <p class="hero-sub" data-i18n="hero_sub">本地优先的编程 Agent 桌面伴侣：把 Hook 活动转化为像素风桌宠的细微回应，不打扰你的工作流。</p>
+                <div class="hero-actions">
+                    <a class="btn btn-primary" href="https://github.com/Monster12138/familiar/releases" data-i18n="btn_download">下载 Familiar</a>
+                    <a class="btn btn-secondary" href="https://github.com/Monster12138/familiar" data-i18n="btn_source">GitHub 仓库</a>
+                </div>
+                <p class="hero-note" data-i18n="hero_note">macOS · Windows · Linux 支持开发中，最新版本见 GitHub Releases。</p>
+            </div>
+        </section>
+
+        <section class="section" id="features">
+            <div class="container">
+                <h2 class="section-title" data-i18n="features_title">特性</h2>
+                <div class="features-grid">
+                    <article class="feature-card">
+                        <h3 data-i18n="feat_pet_title">会回应的桌面宠物</h3>
+                        <p data-i18n="feat_pet_desc">像素风动画随工作活动变化，安静地陪伴而不打扰你的工作空间。</p>
+                    </article>
+                    <article class="feature-card">
+                        <h3 data-i18n="feat_agent_title">Agent 状态联动</h3>
+                        <p data-i18n="feat_agent_desc">连接 Claude Code、Codex CLI、Qoder 和 Google Antigravity，让桌宠反映它们的活动。</p>
+                    </article>
+                    <article class="feature-card">
+                        <h3 data-i18n="feat_hook_title">Hook 扩展能力</h3>
+                        <p data-i18n="feat_hook_desc">通过同一套事件流水线接入其他 Agent 和本地工作流，也支持非编程场景。</p>
+                    </article>
+                    <article class="feature-card">
+                        <h3 data-i18n="feat_modular_title">模块化架构</h3>
+                        <p data-i18n="feat_modular_desc">Hook 解析、状态管理、传输和渲染彼此分层，职责清晰。</p>
+                    </article>
+                    <article class="feature-card">
+                        <h3 data-i18n="feat_stats_title">本机状态视图</h3>
+                        <p data-i18n="feat_stats_desc">在桌宠旁显示当前 CPU、内存和磁盘状态，一眼掌握机器负载。</p>
+                    </article>
+                    <article class="feature-card">
+                        <h3 data-i18n="feat_sprite_title">Sprite Pack 皮肤包</h3>
+                        <p data-i18n="feat_sprite_desc">使用文档化的 .fpack 格式导入和打包更多桌宠形象。</p>
+                    </article>
+                    <article class="feature-card">
+                        <h3 data-i18n="feat_privacy_title">隐私优先</h3>
+                        <p data-i18n="feat_privacy_desc">Hook 数据只在本机处理，运行日志保持最小化，不包含远程遥测。</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="section section-alt" id="integrations">
+            <div class="container">
+                <h2 class="section-title" data-i18n="integrations_title">支持的集成</h2>
+                <table class="integrations-table">
+                    <thead>
+                        <tr>
+                            <th data-i18n="th_integration">集成</th>
+                            <th data-i18n="th_transport">传输方式</th>
+                            <th data-i18n="th_status">状态</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Claude Code</td>
+                            <td data-i18n="tr_claude_transport">通过本地 Familiar 通道上报 Hook 事件</td>
+                            <td><span class="badge badge-warn" data-i18n="status_pending">待验证</span></td>
+                        </tr>
+                        <tr>
+                            <td>Codex CLI</td>
+                            <td data-i18n="tr_codex_transport">通过本地 Familiar 通道上报 Hook 事件</td>
+                            <td><span class="badge badge-ok" data-i18n="status_available">可用</span></td>
+                        </tr>
+                        <tr>
+                            <td>Qoder</td>
+                            <td data-i18n="tr_qoder_transport">通过本地 Familiar 通道上报 Hook 事件</td>
+                            <td><span class="badge badge-ok" data-i18n="status_available">可用</span></td>
+                        </tr>
+                        <tr>
+                            <td>Google Antigravity</td>
+                            <td data-i18n="tr_antigravity_transport">支持 transcript 提取的原生 Hook 适配器</td>
+                            <td><span class="badge badge-ok" data-i18n="status_available">可用</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h2 class="section-title section-title-sub" data-i18n="perf_title">性能表现</h2>
+                <p class="section-desc" data-i18n="perf_desc">对应 UI 隐藏时暂停轮询，只发送实际变化的渲染状态。Apple Silicon macOS 上连续运行约 2 小时 39 分钟后的 30 秒空闲采样：</p>
+                <div class="stats-grid">
+                    <div class="stat"><span class="stat-value">0.013%</span><span class="stat-label" data-i18n="stat_cpu">平均 CPU 占用</span></div>
+                    <div class="stat"><span class="stat-value">0%</span><span class="stat-label" data-i18n="stat_cpu_median">CPU 中位数</span></div>
+                    <div class="stat"><span class="stat-value">~37 MiB</span><span class="stat-label" data-i18n="stat_mem">物理内存占用</span></div>
+                    <div class="stat"><span class="stat-value">17–19</span><span class="stat-label" data-i18n="stat_threads">线程数</span></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="privacy">
+            <div class="container">
+                <h2 class="section-title" data-i18n="privacy_title">隐私优先</h2>
+                <p class="privacy-text" data-i18n="privacy_text">为了展示当前状态，Familiar 可能读取最近的任务说明、命令文本、工具名称、文件路径等本地 Hook 数据。当前版本不会持久化完整 transcript 或 Agent 事件历史，也不会把采集到的数据发送到远程服务。运行日志只包含事件类型、会话标识和状态等最小元数据。</p>
+                <p class="privacy-text" data-i18n="privacy_text2">完整的数据流、配置修改、日志和清理说明见项目文档。</p>
+                <a class="btn btn-secondary" href="https://github.com/Monster12138/familiar/blob/main/docs/PRIVACY.md" data-i18n="btn_privacy">查看隐私文档</a>
+            </div>
+        </section>
+
+        <section class="section section-alt" id="download">
+            <div class="container">
+                <h2 class="section-title" data-i18n="download_title">下载 Familiar</h2>
+                <p class="section-desc" data-i18n="download_desc">从 GitHub Releases 下载最新的安装包，或从源码构建。修改 Hook 配置前，程序会自动创建备份。</p>
+                <div class="download-actions">
+                    <a class="btn btn-primary btn-lg" href="https://github.com/Monster12138/familiar/releases" data-i18n="btn_download">下载 Familiar</a>
+                </div>
+                <p class="download-note" data-i18n="download_note">也可访问 GitHub 仓库阅读源码、提交 Issue 或参与贡献。</p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container footer-inner">
+            <span class="footer-brand">Familiar</span>
+            <span class="footer-license">MIT OR Apache-2.0</span>
+            <a href="https://github.com/Monster12138/familiar">github.com/Monster12138/familiar</a>
+        </div>
+    </footer>
+
+    <script src="js/main.js" type="module"></script>
+</body>
+</html>
