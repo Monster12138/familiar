@@ -65,7 +65,10 @@ can also be deleted manually while Familiar is not running.
 ## Hook Configuration Changes
 
 Hook installation and removal are explicit actions in the Familiar settings
-UI. Before changing an existing file, Familiar creates a timestamped backup.
+UI. Before changing an existing file, Familiar creates a timestamped backup
+named `familiar-*.bak.<timestamp>`; the `familiar-` prefix marks it as
+Familiar's own so the data-cleanup module never touches backups created by
+other tools.
 Depending on the selected integration, Familiar may update:
 
 - Claude Code: `~/.claude/settings.json`

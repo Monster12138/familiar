@@ -8,15 +8,15 @@ fn is_epoch_tail(s: &str) -> bool {
 }
 
 /// True for the exact filename pattern familiar's inject/uninstall backups
-/// produce: `<stem>.bak.<epoch>` or `<stem>.bak.uninstall.<epoch>` where
-/// `<stem>` is `settings` or `hooks`. `Path::with_extension` replaces the
-/// `.json` extension, so familiar's backups never retain it. Deliberately
-/// rejects `settings.json.bak.123` (editor-style backups that keep `.json`) —
-/// loosening this to a generic `*.bak.*` glob would risk deleting user files.
+/// produce: `familiar-<stem>.bak.<epoch>` or
+/// `familiar-<stem>.bak.uninstall.<epoch>` where `<stem>` is `settings` or
+/// `hooks` (see [`crate::hook_trait::backup_path`]). The `familiar-` prefix
+/// is required, so backups created by other tools — including the pre-marker
+/// `settings.bak.<epoch>` format — are never touched.
 pub fn is_familiar_backup(file_name: &str) -> bool {
     for stem in ["settings", "hooks"] {
         for marker in ["bak", "bak.uninstall"] {
-            if let Some(rest) = file_name.strip_prefix(&format!("{stem}.{marker}.")) {
+            if let Some(rest) = file_name.strip_prefix(&format!("familiar-{stem}.{marker}.")) {
                 if is_epoch_tail(rest) {
                     return true;
                 }
@@ -66,43 +66,52 @@ mod tests {
     use std::fs;
 
     #[test]
-    fn familiar_backup_name_matches_inject_and_uninstall() {
-        assert!(is_familiar_backup("settings.bak.1755273600"));
-        assert!(is_familiar_backup("hooks.bak.1755273600"));
-        assert!(is_familiar_backup("settings.bak.uninstall.1755273600"));
-        assert!(is_familiar_backup("hooks.bak.uninstall.0"));
+    fn familiar_backup_name_matches_marked_inject_and_uninstall() {
+        assert!(is_familiar_backup("familiar-settings.bak.1755273600"));
+        assert!(is_familiar_backup("familiar-hooks.bak.1755273600"));
+        assert!(is_familiar_backup(
+            "familiar-settings.bak.uninstall.1755273600"
+        ));
+        assert!(is_familiar_backup("familiar-hooks.bak.uninstall.0"));
     }
 
     #[test]
-    fn familiar_backup_name_rejects_non_familiar_files() {
+    fn familiar_backup_name_rejects_unmarked_and_non_familiar_files() {
         for name in [
             "settings.json",
             "hooks.json",
             "config.json",
+            // Pre-marker backups must not be matched (another tool's backup
+            // could share that name).
+            "settings.bak.1755273600",
+            "hooks.bak.uninstall.1755273600",
             "settings.bak",
             "hooks.bak.uninstall",
-            "settings.bak.",
-            "settings.bak.abc",
-            "settings.bak.12a",
-            "settings.json.bak.123",
-            "hooks.json.bak.uninstall.123",
-            "other.bak.123",
-            "settings.bak.uninstall.",
+            "familiar-settings.bak",
+            "familiar-hooks.bak.uninstall",
+            "familiar-settings.bak.",
+            "familiar-settings.bak.abc",
+            "familiar-settings.bak.12a",
+            "familiar-settings.json.bak.123",
+            "familiar-hooks.json.bak.uninstall.123",
+            "familiar-other.bak.123",
+            "familiar-settings.bak.uninstall.",
         ] {
             assert!(!is_familiar_backup(name), "should reject {name}");
         }
     }
 
     #[test]
-    fn scans_only_familiar_backups_in_dirs() {
+    fn scans_only_marked_familiar_backups_in_dirs() {
         let dir =
             std::env::temp_dir().join(format!("familiar-hooks-backup-scan-{}", std::process::id()));
         fs::create_dir_all(&dir).expect("create temp dir");
-        fs::write(dir.join("settings.bak.1755273600"), "a").expect("write backup");
-        fs::write(dir.join("hooks.bak.uninstall.1755273600"), "b").expect("write backup");
+        fs::write(dir.join("familiar-settings.bak.1755273600"), "a").expect("write backup");
+        fs::write(dir.join("familiar-hooks.bak.uninstall.1755273600"), "b").expect("write backup");
         fs::write(dir.join("settings.json"), "c").expect("write config");
         fs::write(dir.join("settings.json.bak.123"), "d").expect("write editor backup");
-        fs::write(dir.join("unrelated.txt"), "e").expect("write unrelated");
+        fs::write(dir.join("settings.bak.1755273600"), "e").expect("write legacy backup");
+        fs::write(dir.join("unrelated.txt"), "f").expect("write unrelated");
 
         let found = scan_backups_in(&[dir.clone()]);
         let names: Vec<String> = found
@@ -110,8 +119,8 @@ mod tests {
             .filter_map(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
             .collect();
         assert_eq!(names.len(), 2, "found: {names:?}");
-        assert!(names.contains(&"settings.bak.1755273600".to_string()));
-        assert!(names.contains(&"hooks.bak.uninstall.1755273600".to_string()));
+        assert!(names.contains(&"familiar-settings.bak.1755273600".to_string()));
+        assert!(names.contains(&"familiar-hooks.bak.uninstall.1755273600".to_string()));
 
         fs::remove_dir_all(&dir).expect("remove temp dir");
     }

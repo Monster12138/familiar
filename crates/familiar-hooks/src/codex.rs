@@ -146,7 +146,7 @@ impl AgentHook for CodexHook {
             if !content.trim().is_empty() {
                 config_json = Self::parse_existing_config(&path, &content)?;
             }
-            let bak_path = path.with_extension(format!("bak.{}", chrono::Utc::now().timestamp()));
+            let bak_path = crate::hook_trait::backup_path(&path, "bak")?;
             std::fs::copy(&path, &bak_path)?;
         } else {
             if let Some(parent) = path.parent() {
@@ -179,8 +179,7 @@ impl AgentHook for CodexHook {
             return Ok(());
         }
 
-        let bak_path =
-            path.with_extension(format!("bak.uninstall.{}", chrono::Utc::now().timestamp()));
+        let bak_path = crate::hook_trait::backup_path(&path, "bak.uninstall")?;
         std::fs::copy(&path, &bak_path)?;
 
         let content = std::fs::read_to_string(&path)?;

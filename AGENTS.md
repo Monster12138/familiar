@@ -162,7 +162,9 @@ user's other hooks or config.
 
 - Preserve the user's existing config: read it, merge familiar's entries in,
   and never overwrite other hooks, event groups, or non-hook settings.
-- Back up the config file (`*.bak.<timestamp>`) before writing.
+- Back up the config file as `familiar-*.bak.<timestamp>` (built by
+  `familiar_hooks::hook_trait::backup_path`) before writing. The `familiar-`
+  prefix makes familiar's backups unambiguous to the cleanup scanner.
 - If the existing config is not valid JSON or not a JSON object, abort
   injection with an actionable error — never fall back to `{}` and clobber
   the file.
