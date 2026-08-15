@@ -10,3 +10,4 @@ pub mod state;
 pub mod state_machine;
 pub mod stats;
 pub mod storage;
+pub mod update;
