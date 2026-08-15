@@ -21,7 +21,7 @@ All contributors are expected to adhere to our [Code of Conduct](CODE_OF_CONDUCT
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/familiar-agent/familiar.git
+   git clone https://github.com/Monster12138/familiar.git
    cd familiar
    ```
 
