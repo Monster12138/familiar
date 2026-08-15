@@ -1305,7 +1305,7 @@ checksum = "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a"
 
 [[package]]
 name = "familiar-api"
-version = "0.5.4"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -1317,7 +1317,7 @@ dependencies = [
 
 [[package]]
 name = "familiar-app"
-version = "0.5.4"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -1342,7 +1342,7 @@ dependencies = [
 
 [[package]]
 name = "familiar-cli"
-version = "0.5.4"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -1357,7 +1357,7 @@ dependencies = [
 
 [[package]]
 name = "familiar-core"
-version = "0.5.4"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1376,7 +1376,7 @@ dependencies = [
 
 [[package]]
 name = "familiar-hooks"
-version = "0.5.4"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
