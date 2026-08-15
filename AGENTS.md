@@ -122,6 +122,70 @@ cover the change and report the unrelated failure clearly.
 - Prefer focused comments that explain platform constraints or non-obvious
   behavior; do not narrate straightforward code.
 
+## Agent Hooks Integration
+
+Rules for adding or updating hook integration for a coding agent (Claude Code,
+Codex, Qoder, Antigravity, or a new one). Each agent lives in
+`crates/familiar-hooks/src/<agent>.rs` (injection/uninstall) plus event
+parsing in `adapter.rs` (or the hook's own parser) and CLI responses in
+`crates/familiar-cli/src/hook_reporter.rs`. These rules exist so familiar's
+hooks stay strictly aligned with the official docs and never disturb the
+user's other hooks or config.
+
+### Align with the official documentation
+
+- Read the agent's official hooks documentation page first, then inject every
+  officially supported event — never ship a partial subset of the documented
+  event list.
+- Use the official event names verbatim. Tool-scoped events
+  (`PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`)
+  use the official `matcher: "*"` group so they fire for all tools; events
+  that take no matcher omit it.
+- Target the official config file location and JSON structure (for example
+  Claude Code `~/.claude/settings.json`; Codex `~/.codex/hooks.json`; Qoder
+  `~/.qoder/settings.json`; Antigravity `~/.gemini/config/hooks.json`, keyed
+  by hook name). Match the agent's shape, not a familiar-specific one.
+- Parse the official input field names (camelCase per the agent's docs) and
+  map every supported event to an existing `AgentEventType`; add a variant
+  only if none fits.
+- Keep the injected command format consistent:
+  `"<familiar-cli>" hook --source <agent> --event <Event>`.
+
+### Stay passive
+
+- Familiar is a passive observer. Injected hooks exit `0` and return only what
+  lets the agent proceed (an `allow` decision for blockable events, empty `{}`
+  otherwise). Never override the user's own permission or deny rules, and do
+  not inject stray JSON into the agent's context.
+
+### Keep injection and uninstall clean
+
+- Preserve the user's existing config: read it, merge familiar's entries in,
+  and never overwrite other hooks, event groups, or non-hook settings.
+- Back up the config file as `familiar-*.bak.<timestamp>` (built by
+  `familiar_hooks::hook_trait::backup_path`) before writing. The `familiar-`
+  prefix makes familiar's backups unambiguous to the cleanup scanner.
+- If the existing config is not valid JSON or not a JSON object, abort
+  injection with an actionable error — never fall back to `{}` and clobber
+  the file.
+- Uninstall removes only commands matching familiar's own injected signature
+  (the CLI path plus the `--source <agent>` marker), then prunes only the
+  groups and event keys that became empty as a result. Leave everything else
+  untouched.
+- `is_injected()` matches the same injected signature (CLI name plus the
+  `--source <agent>` marker), not just the CLI name.
+- Re-injection is idempotent: merging must not duplicate familiar's entries.
+- Each agent owns its own config file; never touch another agent's file or
+  user-level agent configuration beyond the hooks file.
+
+### Verification
+
+- Unit-test the injection payload: it contains every officially supported
+  event, with `matcher: "*"` on tool-scoped events.
+- Cover adapter parsing with official-shaped payloads for each event.
+- Verify the CLI response for each event follows the official stdout contract
+  and stays passive.
+
 ## Verification
 
 - Add or update tests for changed Rust behavior.

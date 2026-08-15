@@ -189,6 +189,7 @@ mod tests {
 
     #[test]
     fn test_qoder_hook_response_json() {
+        // PreToolUse uses the official IDE structure so the agent proceeds.
         let resp = get_hook_response_json("qoder", "PreToolUse", false);
         let json: serde_json::Value = serde_json::from_str(&resp).unwrap();
         assert_eq!(
@@ -200,8 +201,28 @@ mod tests {
             Some("Familiar notified")
         );
 
-        let stop_resp = get_hook_response_json("qoder", "Stop", false);
-        let stop_json: serde_json::Value = serde_json::from_str(&stop_resp).unwrap();
-        assert_eq!(stop_json, serde_json::json!({}));
+        // Every other Qoder event stays passive: empty JSON on exit 0 never
+        // overrides the user's own rules (including blockable Stop/UserPromptSubmit).
+        for event in [
+            "SessionStart",
+            "UserPromptSubmit",
+            "PermissionRequest",
+            "PostToolUse",
+            "PostToolUseFailure",
+            "SubagentStart",
+            "SubagentStop",
+            "Stop",
+            "SessionEnd",
+            "PreCompact",
+            "Notification",
+        ] {
+            let resp = get_hook_response_json("qoder", event, false);
+            let json: serde_json::Value = serde_json::from_str(&resp).unwrap();
+            assert_eq!(
+                json,
+                serde_json::json!({}),
+                "qoder {event} should be passive"
+            );
+        }
     }
 }
