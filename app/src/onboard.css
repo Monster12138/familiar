@@ -2,10 +2,17 @@
    settings.css (.primary-btn, .secondary-btn, .badge, .hook-agent-card,
    .app-toast); this file only lays out the page around them. */
 
+/* settings.css pins body to `height: 100vh; overflow: hidden`. For the
+   onboard page the content can be taller than the window, so make the
+   viewport (html) the scrolling container instead and let body grow. */
+html {
+    overflow-y: auto;
+}
+
 body {
     height: auto;
     min-height: 100vh;
-    overflow-y: auto;
+    overflow: visible;
     background: var(--bg-main);
 }
 
