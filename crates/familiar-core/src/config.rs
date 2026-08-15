@@ -17,6 +17,8 @@ pub struct FamiliarConfig {
     pub sessions: SessionsConfig,
     #[serde(default)]
     pub cleanup: CleanupConfig,
+    #[serde(default)]
+    pub update: UpdateConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -237,6 +239,46 @@ impl Default for CleanupConfig {
     }
 }
 
+/// How often the app auto-checks for updates (used with `last_check_at`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum UpdateInterval {
+    #[default]
+    Daily,
+    Weekly,
+}
+
+/// In-app update settings. `last_check_at` is written by the app (not the UI)
+/// as a Unix-epoch-seconds timestamp each time a successful check runs; it
+/// gates the auto-check interval across restarts. `skipped_version` suppresses
+/// the reminder for one specific version until a newer one appears, while
+/// `ignored_versions` suppresses it permanently.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct UpdateConfig {
+    #[serde(default = "default_true")]
+    pub check_on_startup: bool,
+    #[serde(default)]
+    pub interval: UpdateInterval,
+    #[serde(default)]
+    pub skipped_version: Option<String>,
+    #[serde(default)]
+    pub ignored_versions: Vec<String>,
+    #[serde(default)]
+    pub last_check_at: Option<u64>,
+}
+
+impl Default for UpdateConfig {
+    fn default() -> Self {
+        Self {
+            check_on_startup: true,
+            interval: UpdateInterval::Daily,
+            skipped_version: None,
+            ignored_versions: Vec::new(),
+            last_check_at: None,
+        }
+    }
+}
+
 impl Default for FamiliarConfig {
     fn default() -> Self {
         Self {
@@ -287,6 +329,7 @@ impl Default for FamiliarConfig {
             achievements: AchievementsConfig { enabled: true },
             sessions: SessionsConfig::default(),
             cleanup: CleanupConfig::default(),
+            update: UpdateConfig::default(),
         }
     }
 }

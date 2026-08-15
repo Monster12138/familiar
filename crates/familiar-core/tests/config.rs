@@ -1,6 +1,6 @@
 use familiar_core::config::{
     CleanupConfig, DashboardAlignment, DashboardLayout, DashboardPosition, DashboardStyle,
-    EventStatus, FamiliarConfig,
+    EventStatus, FamiliarConfig, UpdateConfig,
 };
 use familiar_core::state::AgentStatus;
 
@@ -306,7 +306,10 @@ fn legacy_config_defaults_to_cleanup_settings() {
     // Normalize line endings so the strip matches regardless of CRLF/LF.
     let legacy_config = include_str!("../../../config/default.toml")
         .replace("\r\n", "\n")
-        .replace("[cleanup]\nbackup_files = true\nlog_files = true\nage_days = 90", "");
+        .replace(
+            "[cleanup]\nbackup_files = true\nlog_files = true\nage_days = 90",
+            "",
+        );
     let path = std::env::temp_dir().join(format!(
         "familiar-legacy-cleanup-{}.toml",
         std::process::id()
@@ -358,4 +361,74 @@ fn cleanup_partial_section_fills_missing_fields() {
     assert!(config.cleanup.backup_files);
     assert!(config.cleanup.log_files);
     assert_eq!(config.cleanup.age_days, 30);
+}
+
+#[test]
+fn legacy_config_defaults_to_update_settings() {
+    // Normalize line endings so the strip matches regardless of CRLF/LF.
+    let legacy_config = include_str!("../../../config/default.toml")
+        .replace("\r\n", "\n")
+        .replace(
+            "[update]\ncheck_on_startup = true\ninterval = \"daily\"\nignored_versions = []\n",
+            "",
+        );
+    let path = std::env::temp_dir().join(format!(
+        "familiar-legacy-update-{}.toml",
+        std::process::id()
+    ));
+
+    std::fs::write(&path, legacy_config).expect("write legacy config");
+    let config = FamiliarConfig::load_from_file(&path).expect("load legacy config");
+    std::fs::remove_file(path).expect("remove legacy config");
+
+    assert_eq!(config.update, UpdateConfig::default());
+}
+
+#[test]
+fn update_serializes_expected_section() {
+    let serialized = toml::to_string_pretty(&FamiliarConfig::default()).expect("serialize config");
+
+    assert!(
+        serialized
+            .lines()
+            .any(|line| line == "check_on_startup = true"),
+        "unexpected serialized update section:\n{serialized}"
+    );
+    assert!(
+        serialized
+            .lines()
+            .any(|line| line == "interval = \"daily\""),
+        "unexpected serialized update section:\n{serialized}"
+    );
+    assert!(
+        serialized
+            .lines()
+            .any(|line| line == "ignored_versions = []"),
+        "unexpected serialized update section:\n{serialized}"
+    );
+}
+
+#[test]
+fn update_partial_section_fills_missing_fields() {
+    // Normalize line endings so the replacement matches regardless of CRLF/LF.
+    let content = include_str!("../../../config/default.toml")
+        .replace("\r\n", "\n")
+        .replace(
+            "[update]\ncheck_on_startup = true\ninterval = \"daily\"\nignored_versions = []\n",
+            "[update]\ncheck_on_startup = false\n",
+        );
+    let path = std::env::temp_dir().join(format!(
+        "familiar-partial-update-{}.toml",
+        std::process::id()
+    ));
+
+    std::fs::write(&path, content).expect("write config");
+    let config = FamiliarConfig::load_from_file(&path).expect("load config");
+    std::fs::remove_file(path).expect("remove config");
+
+    assert!(!config.update.check_on_startup);
+    assert_eq!(config.update.interval, Default::default());
+    assert!(config.update.skipped_version.is_none());
+    assert!(config.update.ignored_versions.is_empty());
+    assert!(config.update.last_check_at.is_none());
 }

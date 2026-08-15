@@ -70,3 +70,10 @@ hidden_sessions = []
 backup_files = true
 log_files = true
 age_days = 90
+
+[update]
+check_on_startup = true
+interval = "daily"
+ignored_versions = []
+# skipped_version and last_check_at are written by the app at runtime and
+# do not appear in the default file.
