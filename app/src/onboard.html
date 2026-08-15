@@ -22,38 +22,15 @@
         </ol>
 
         <section class="onboard-agents">
-            <h2 data-i18n="onboard_agents_title">连接你的 Agent（可选）</h2>
-            <div id="onboard-agent-list" class="onboard-agent-list"></div>
+            <h2 data-i18n="onboard_agents_title">连接你的 Agent</h2>
+            <div id="onboard-hooks-summary" class="onboard-hooks-summary"></div>
+            <button id="btn-onboard-open-hooks" class="secondary-btn" data-i18n="btn_open_hook_manager">打开 Hooks 管理</button>
         </section>
 
         <footer class="onboard-footer">
             <button id="btn-onboard-start" class="primary-btn" data-i18n="onboard_start">开始使用</button>
             <button id="btn-onboard-skip" class="secondary-btn" data-i18n="onboard_skip">跳过</button>
         </footer>
-    </div>
-
-    <!-- Hook inject preview modal (mirrors the settings panel) -->
-    <div id="onboard-hook-modal" class="modal-overlay" style="display:none;">
-        <div class="modal-content diff-modal-content">
-            <h3 data-i18n="onboard_modal_title">确认注入 Hooks</h3>
-            <p data-i18n="onboard_modal_desc" style="color:var(--text-muted);font-size:13px;margin: 8px 0 16px;">以下配置将合并到 Agent 配置文件中，我们会先自动生成一个 .bak 备份。</p>
-
-            <div class="diff-viewer">
-                <div class="diff-pane">
-                    <div class="diff-header">Before</div>
-                    <pre><code id="onboard-inject-before" class="code-preview"></code></pre>
-                </div>
-                <div class="diff-pane">
-                    <div class="diff-header">After</div>
-                    <pre><code id="onboard-inject-after" class="code-preview"></code></pre>
-                </div>
-            </div>
-
-            <div class="modal-actions">
-                <button class="secondary-btn" id="btn-onboard-inject-cancel" data-i18n="btn_cancel">取消</button>
-                <button class="primary-btn" id="btn-onboard-inject-confirm" data-i18n="btn_confirm_inject">确认</button>
-            </div>
-        </div>
     </div>
 
     <script src="./onboard.js" type="module"></script>

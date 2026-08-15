@@ -88,31 +88,19 @@ body {
     color: var(--text-main);
 }
 
-.onboard-agent-list {
+.onboard-hooks-summary {
     display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
 }
 
-.onboard-agent-card {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 12px 16px;
-}
-
-.onboard-agent-left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.onboard-agent-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-main);
+.onboard-agents .secondary-btn {
+    width: 100%;
 }
 
 .onboard-footer {
