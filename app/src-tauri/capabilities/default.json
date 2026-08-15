@@ -5,7 +5,8 @@
     "main",
     "bubble",
     "stats",
-    "settings"
+    "settings",
+    "onboard"
   ],
   "permissions": [
     "core:default",
