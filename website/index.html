@@ -31,7 +31,7 @@
                 <img src="assets/icon.png" alt="Familiar mascot" class="hero-logo">
                 <h1 class="hero-title">Familiar</h1>
                 <p class="hero-tagline" data-i18n="hero_tagline">一只会回应你工作世界的桌面宠物。</p>
-                <p class="hero-sub" data-i18n="hero_sub">本地优先的编程 Agent 桌面伴侣：把 Hook 活动转化为像素风桌宠的细微回应，不打扰你的工作流。</p>
+                <p class="hero-sub" data-i18n="hero_sub">仅本地计算的 Agent 桌面伴侣：把 Agent 活动转化为可爱桌宠的一举一动。</p>
                 <div class="hero-actions">
                     <a class="btn btn-primary" href="https://github.com/Monster12138/familiar/releases" data-i18n="btn_download">下载 Familiar</a>
                     <a class="btn btn-secondary" href="https://github.com/Monster12138/familiar" data-i18n="btn_source">GitHub 仓库</a>
@@ -50,7 +50,7 @@
                     </article>
                     <article class="feature-card">
                         <h3 data-i18n="feat_agent_title">Agent 状态联动</h3>
-                        <p data-i18n="feat_agent_desc">连接 Claude Code、Codex CLI、Qoder 与 Antigravity，桌宠实时反映 Agent 活动。</p>
+                        <p data-i18n="feat_agent_desc">支持连接 Claude Code、Codex CLI、Qoder 与 Antigravity，桌宠实时反映 Agent 活动。</p>
                     </article>
                     <article class="feature-card">
                         <h3 data-i18n="feat_privacy_title">隐私优先</h3>
@@ -61,12 +61,12 @@
                         <p data-i18n="feat_stats_desc">桌宠旁实时显示 CPU、内存与磁盘状态。</p>
                     </article>
                     <article class="feature-card">
-                        <h3 data-i18n="feat_sprite_title">Sprite Pack 皮肤包</h3>
-                        <p data-i18n="feat_sprite_desc">用 .fpack 格式导入和打包更多桌宠形象。</p>
-                    </article>
-                    <article class="feature-card">
                         <h3 data-i18n="feat_perf_title">轻量低占用</h3>
                         <p data-i18n="feat_perf_desc">UI 隐藏时暂停轮询；空闲平均 CPU 0.013%，内存约 37 MiB。</p>
+                    </article>
+                    <article class="feature-card">
+                        <h3 data-i18n="feat_sprite_title">Sprite Pack 皮肤包</h3>
+                        <p data-i18n="feat_sprite_desc">用 .fpack 格式导入和打包更多桌宠形象。</p>
                     </article>
                 </div>
             </div>
@@ -108,7 +108,7 @@
                 </table>
 
                 <h2 class="section-title section-title-sub" data-i18n="perf_title">性能表现</h2>
-                <p class="section-desc" data-i18n="perf_desc">对应 UI 隐藏时暂停轮询，只发送实际变化的渲染状态。Apple Silicon macOS 上连续运行约 2 小时 39 分钟后的 30 秒空闲采样：</p>
+                <p class="section-desc" data-i18n="perf_desc">Apple Silicon macOS 上连续运行约 2 小时 39 分钟后的 30 秒空闲采样：</p>
                 <div class="stats-grid">
                     <div class="stat"><span class="stat-value">0.013%</span><span class="stat-label" data-i18n="stat_cpu">平均 CPU 占用</span></div>
                     <div class="stat"><span class="stat-value">~37 MiB</span><span class="stat-label" data-i18n="stat_mem">物理内存占用</span></div>
@@ -119,7 +119,7 @@
         <section class="section" id="privacy">
             <div class="container">
                 <h2 class="section-title" data-i18n="privacy_title">隐私优先</h2>
-                <p class="privacy-text" data-i18n="privacy_text">为了展示当前状态，Familiar 可能读取最近的任务说明、命令文本、工具名称、文件路径等本地 Hook 数据。当前版本不会持久化完整 transcript 或 Agent 事件历史，也不会把采集到的数据发送到远程服务。运行日志只包含事件类型、会话标识和状态等最小元数据。</p>
+                <p class="privacy-text" data-i18n="privacy_text">为了展示当前状态，Familiar 可能读取最近的任务说明、命令文本、工具名称、文件路径等本地 Hook 数据。仅用于本地计算，不会持久化 Agent 事件历史，也不会把采集到的数据发送到远程服务。</p>
                 <p class="privacy-text" data-i18n="privacy_text2">完整的数据流、配置修改、日志和清理说明见项目文档。</p>
                 <a class="btn btn-secondary" href="https://github.com/Monster12138/familiar/blob/main/docs/PRIVACY.md" data-i18n="btn_privacy">查看隐私文档</a>
             </div>
@@ -128,7 +128,7 @@
         <section class="section section-alt" id="download">
             <div class="container">
                 <h2 class="section-title" data-i18n="download_title">下载 Familiar</h2>
-                <p class="section-desc" data-i18n="download_desc">从 GitHub Releases 下载最新的安装包，或从源码构建。修改 Hook 配置前，程序会自动创建备份。</p>
+                <p class="section-desc" data-i18n="download_desc">从 GitHub Releases 下载最新的安装包，或从源码构建。</p>
                 <div class="download-actions">
                     <a class="btn btn-primary btn-lg" href="https://github.com/Monster12138/familiar/releases" data-i18n="btn_download">下载 Familiar</a>
                 </div>
