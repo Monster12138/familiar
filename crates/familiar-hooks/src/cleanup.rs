@@ -37,6 +37,7 @@ pub fn backup_dirs() -> Vec<PathBuf> {
         home.join(".codex"),
         home.join(".qoder"),
         home.join(".gemini").join("config"),
+        home.join(".dsh"),
     ]
 }
 
@@ -113,7 +114,7 @@ mod tests {
         fs::write(dir.join("settings.bak.1755273600"), "e").expect("write legacy backup");
         fs::write(dir.join("unrelated.txt"), "f").expect("write unrelated");
 
-        let found = scan_backups_in(&[dir.clone()]);
+        let found = scan_backups_in(std::slice::from_ref(&dir));
         let names: Vec<String> = found
             .iter()
             .filter_map(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
@@ -135,7 +136,7 @@ mod tests {
     }
 
     #[test]
-    fn backup_dirs_lists_four_agent_dirs() {
+    fn backup_dirs_lists_five_agent_dirs() {
         let Some(home) = dirs::home_dir() else {
             return;
         };
@@ -146,6 +147,7 @@ mod tests {
                 home.join(".codex"),
                 home.join(".qoder"),
                 home.join(".gemini").join("config"),
+                home.join(".dsh"),
             ]
         );
     }

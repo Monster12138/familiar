@@ -49,12 +49,15 @@ pub fn apply_settings(
     window
         .set_visible_on_all_workspaces(config.show_on_all_desktops)
         .map_err(|error| error.to_string())?;
+    window
+        .set_ignore_cursor_events(config.click_through)
+        .map_err(|error| error.to_string())?;
 
     if let Some((x_str, y_str)) = config.position.split_once(',') {
         if let (Ok(x), Ok(y)) = (x_str.parse::<i32>(), y_str.parse::<i32>()) {
-            let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition::new(
-                x, y,
-            )));
+            let requested = tauri::PhysicalPosition::new(x, y);
+            let visible = clamp_to_visible_work_area(window, requested);
+            let _ = window.set_position(tauri::Position::Physical(visible));
         }
     }
 
@@ -62,6 +65,43 @@ pub fn apply_settings(
     apply_macos_desktop_behavior(window, config.show_on_all_desktops)?;
 
     Ok(())
+}
+
+/// Clamp a requested physical top-left position into the work area of the
+/// monitor nearest to that point. A stale saved coordinate — a monitor that
+/// was unplugged, a resolution or DPI change, or a window dragged below the
+/// taskbar — would otherwise restore the pet outside every visible monitor,
+/// where the user can neither see nor grab it.
+fn clamp_to_visible_work_area(
+    window: &tauri::WebviewWindow,
+    requested: tauri::PhysicalPosition<i32>,
+) -> tauri::PhysicalPosition<i32> {
+    let monitor = window
+        .monitor_from_point(requested.x as f64, requested.y as f64)
+        .ok()
+        .flatten()
+        .or_else(|| window.primary_monitor().ok().flatten());
+
+    let Some(monitor) = monitor else {
+        return requested;
+    };
+
+    let work = *monitor.work_area();
+    let width = window.outer_size().map(|s| s.width as i32).unwrap_or(320);
+    let height = window
+        .outer_size()
+        .map(|s| s.height as i32)
+        .unwrap_or(500);
+
+    let left = work.position.x;
+    let top = work.position.y;
+    let right = left + work.size.width as i32;
+    let bottom = top + work.size.height as i32;
+
+    let x = requested.x.clamp(left, (right - width).max(left));
+    let y = requested.y.clamp(top, (bottom - height).max(top));
+
+    tauri::PhysicalPosition::new(x, y)
 }
 
 #[cfg(target_os = "macos")]

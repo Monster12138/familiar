@@ -467,6 +467,7 @@ pub fn open_login_items_settings() -> Result<(), String> {
 use familiar_hooks::antigravity::AntigravityHook;
 use familiar_hooks::claude_code::ClaudeCodeHook;
 use familiar_hooks::codex::CodexHook;
+use familiar_hooks::deepseek_harness::DeepSeekHarnessHook;
 use familiar_hooks::hook_trait::AgentHook;
 use familiar_hooks::qoder::QoderHook;
 use serde_json::json;
@@ -476,6 +477,7 @@ fn get_hook_by_name(agent: &str) -> Option<Box<dyn AgentHook>> {
         "antigravity" => Some(Box::new(AntigravityHook::new())),
         "claude-code" => Some(Box::new(ClaudeCodeHook::new())),
         "codex" => Some(Box::new(CodexHook::new())),
+        "deepseek-harness" => Some(Box::new(DeepSeekHarnessHook::new())),
         "qoder" => Some(Box::new(QoderHook::new())),
         _ => None,
     }
@@ -487,6 +489,7 @@ pub fn get_hooks_status() -> Result<serde_json::Value, String> {
         Box::new(AntigravityHook::new()),
         Box::new(ClaudeCodeHook::new()),
         Box::new(CodexHook::new()),
+        Box::new(DeepSeekHarnessHook::new()),
         Box::new(QoderHook::new()),
     ];
 
@@ -770,6 +773,7 @@ async fn test_via_event_bus(
             "codex" => AgentSource::Codex,
             "claude-code" => AgentSource::ClaudeCode,
             "qoder" => AgentSource::Qoder,
+            "deepseek-harness" => AgentSource::DeepSeekHarness,
             other => AgentSource::Custom(other.to_string()),
         };
         let adapter = CliAgentHookAdapter::new(source);

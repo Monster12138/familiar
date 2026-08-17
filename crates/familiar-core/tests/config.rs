@@ -449,3 +449,65 @@ fn update_partial_section_fills_missing_fields() {
     assert!(config.update.ignored_versions.is_empty());
     assert!(config.update.last_check_at.is_none());
 }
+
+#[test]
+fn legacy_config_defaults_to_no_click_through() {
+    let legacy_config =
+        include_str!("../../../config/default.toml").replace("click_through = false\n", "");
+    let path = std::env::temp_dir().join(format!(
+        "familiar-legacy-click-through-{}.toml",
+        std::process::id()
+    ));
+
+    std::fs::write(&path, legacy_config).expect("write legacy config");
+    let config = FamiliarConfig::load_from_file(&path).expect("load legacy config");
+    std::fs::remove_file(path).expect("remove legacy config");
+
+    assert!(!config.renderer.desktop_pet.click_through);
+}
+
+#[test]
+fn click_through_serializes_as_bool() {
+    let mut config = FamiliarConfig::default();
+    config.renderer.desktop_pet.click_through = true;
+
+    let serialized = toml::to_string_pretty(&config).expect("serialize config");
+
+    assert!(
+        serialized
+            .lines()
+            .any(|line| line == "click_through = true"),
+        "unexpected serialized click_through:\n{serialized}"
+    );
+}
+
+#[test]
+fn legacy_config_defaults_to_no_window_frame() {
+    let legacy_config =
+        include_str!("../../../config/default.toml").replace("show_window_frame = false\n", "");
+    let path = std::env::temp_dir().join(format!(
+        "familiar-legacy-window-frame-{}.toml",
+        std::process::id()
+    ));
+
+    std::fs::write(&path, legacy_config).expect("write legacy config");
+    let config = FamiliarConfig::load_from_file(&path).expect("load legacy config");
+    std::fs::remove_file(path).expect("remove legacy config");
+
+    assert!(!config.renderer.desktop_pet.show_window_frame);
+}
+
+#[test]
+fn show_window_frame_serializes_as_bool() {
+    let mut config = FamiliarConfig::default();
+    config.renderer.desktop_pet.show_window_frame = true;
+
+    let serialized = toml::to_string_pretty(&config).expect("serialize config");
+
+    assert!(
+        serialized
+            .lines()
+            .any(|line| line == "show_window_frame = true"),
+        "unexpected serialized show_window_frame:\n{serialized}"
+    );
+}

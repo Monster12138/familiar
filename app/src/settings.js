@@ -51,6 +51,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const valPetScale = document.getElementById('val-pet-scale');
     const elPetAlwaysTop = document.getElementById('setting-pet-always-top');
     const elPetAllDesktops = document.getElementById('setting-pet-all-desktops');
+    const elPetClickThrough = document.getElementById('setting-pet-click-through');
+    const elPetWindowFrame = document.getElementById('setting-pet-window-frame');
     const elPetOpacity = document.getElementById('setting-pet-opacity');
     const valPetOpacity = document.getElementById('val-pet-opacity');
     const elShowBubble = document.getElementById('setting-show-bubble');
@@ -136,6 +138,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             return `<span class="session-source-badge" style="background:#4f46e5;">AGY</span>`;
         } else if (srcStr === 'Qoder') {
             return `<span class="session-source-badge" style="background:#0284c7;">Qoder</span>`;
+        } else if (srcStr === 'DeepSeekHarness') {
+            return `<span class="session-source-badge" style="background:#4d6bfe;">DSH</span>`;
         }
         return `<span class="session-source-badge" style="background:#6b7280;">${srcStr}</span>`;
     }
@@ -412,6 +416,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentConfig.renderer['desktop-pet'].scale = parseFloat(elPetScale.value);
         currentConfig.renderer['desktop-pet'].always_on_top = elPetAlwaysTop.checked;
         currentConfig.renderer['desktop-pet'].show_on_all_desktops = elPetAllDesktops.checked;
+        currentConfig.renderer['desktop-pet'].click_through = elPetClickThrough.checked;
+        currentConfig.renderer['desktop-pet'].show_window_frame = elPetWindowFrame.checked;
         currentConfig.renderer['desktop-pet'].opacity = parseFloat(elPetOpacity.value);
         currentConfig.renderer['desktop-pet'].show_task_bubble = elShowBubble.checked;
         currentConfig.renderer['desktop-pet'].show_pet = elShowPet.checked;
@@ -579,6 +585,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (petConf.always_on_top !== undefined) elPetAlwaysTop.checked = petConf.always_on_top;
             if (petConf.show_on_all_desktops !== undefined) {
                 elPetAllDesktops.checked = petConf.show_on_all_desktops;
+            }
+            if (petConf.click_through !== undefined) {
+                elPetClickThrough.checked = petConf.click_through;
+            }
+            if (petConf.show_window_frame !== undefined) {
+                elPetWindowFrame.checked = petConf.show_window_frame;
             }
             if (petConf.opacity !== undefined) {
                 elPetOpacity.value = petConf.opacity;
@@ -951,7 +963,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Bind all controls for auto-save
     const autoSaveControls = [
-        elPetAlwaysTop, elPetAllDesktops, elShowBubble, elShowPet, elShowStats,
+        elPetAlwaysTop, elPetAllDesktops, elPetClickThrough, elPetWindowFrame, elShowBubble, elShowPet, elShowStats,
         elDashboardStyle, elDashboardPosition, elDashboardLayout, elDashboardAlignment,
         elCleanupBackups, elCleanupLogs,
         elUpdateStartup, elUpdateInterval

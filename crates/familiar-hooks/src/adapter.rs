@@ -305,6 +305,7 @@ impl CliAgentHookAdapter {
             AgentSource::Codex => AgentCategory::Coding,
             AgentSource::Antigravity => AgentCategory::Coding,
             AgentSource::Qoder => AgentCategory::Coding,
+            AgentSource::DeepSeekHarness => AgentCategory::Coding,
             AgentSource::Custom(_) => AgentCategory::General,
         }
     }

@@ -29,6 +29,8 @@ export class BubbleOverlay {
             return `<span style="display:inline-flex; align-items:center; background:#4f46e5; color:#ffffff; font-size:9px; font-weight:700; padding:1px 4px; border-radius:4px; line-height:1.2;">AGY</span>`;
         } else if (srcStr === 'Qoder') {
             return `<span style="display:inline-flex; align-items:center; background:#0284c7; color:#ffffff; font-size:9px; font-weight:700; padding:1px 4px; border-radius:4px; line-height:1.2;">Qoder</span>`;
+        } else if (srcStr === 'DeepSeekHarness') {
+            return `<span style="display:inline-flex; align-items:center; background:#4d6bfe; color:#ffffff; font-size:9px; font-weight:700; padding:1px 4px; border-radius:4px; line-height:1.2;">DSH</span>`;
         }
         return `<span style="display:inline-flex; align-items:center; background:#6b7280; color:#ffffff; font-size:9px; font-weight:700; padding:1px 4px; border-radius:4px; line-height:1.2;">${srcStr}</span>`;
     }
@@ -136,18 +138,15 @@ export class BubbleOverlay {
         }
 
         // Add or update bubbles
-        activeAgents.forEach((agent, index) => {
+        activeAgents.forEach((agent) => {
             let data = this.bubbles.get(agent.id);
             if (!data) {
                 data = { element: this.createBubbleElement(), timeoutId: null };
                 this.container.appendChild(data.element.bubble);
                 this.bubbles.set(agent.id, data);
                 // Trigger reflow for opacity transition
-                void data.element.bubble.offsetWidth; 
+                void data.element.bubble.offsetWidth;
             }
-
-            // Adjust bottom-right rounding based on position to simulate a tail for the bottom-most bubble
-            data.element.bubble.style.borderRadius = index === 0 ? '16px 16px 0px 16px' : '16px';
 
             const ui = data.element;
             ui.sourceBadgeEl.innerHTML = this.getSourceBadge(agent.source);
@@ -168,7 +167,20 @@ export class BubbleOverlay {
 
             ui.bubble.style.opacity = '1';
         });
-        
+
+        // Apply the speech-bubble tail to the bottom-most bubble (the one
+        // closest to the pet). The container stacks bubbles in insertion
+        // order, so the last active bubble is the one next to the pet. Keying
+        // off the DOM order instead of the agent array keeps the corner style
+        // consistent regardless of how the agents reorder between renders.
+        const activeBubbles = Array.from(this.bubbles.values());
+        activeBubbles.forEach((data, i) => {
+            const isBottomMost = i === activeBubbles.length - 1;
+            data.element.bubble.style.borderRadius = isBottomMost
+                ? '16px 16px 0px 16px'
+                : '16px';
+        });
+
         // Unified window handles its own size, no need to resize here
     }
 }

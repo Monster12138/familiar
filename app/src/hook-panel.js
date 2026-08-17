@@ -106,10 +106,11 @@ const AGENT_DISPLAY = {
     'antigravity': 'Antigravity',
     'claude-code': 'Claude Code',
     'codex': 'Codex',
+    'deepseek-harness': 'DeepSeek Harness',
     'qoder': 'Qoder',
 };
 
-const AGENTS = ['antigravity', 'claude-code', 'codex', 'qoder'];
+const AGENTS = ['antigravity', 'claude-code', 'codex', 'deepseek-harness', 'qoder'];
 
 let panelContainer = null;
 let currentLang = 'zh-CN';
