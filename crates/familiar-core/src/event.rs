@@ -9,6 +9,7 @@ pub enum AgentSource {
     Codex,
     Antigravity,
     Qoder,
+    DeepSeekHarness,
     Custom(String),
 }
 

@@ -4,5 +4,6 @@ pub mod bin_path;
 pub mod claude_code;
 pub mod cleanup;
 pub mod codex;
+pub mod deepseek_harness;
 pub mod hook_trait;
 pub mod qoder;

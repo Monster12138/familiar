@@ -214,6 +214,9 @@ fn main() {
                                                                 AgentSource::ClaudeCode
                                                             }
                                                             "qoder" => AgentSource::Qoder,
+                                                            "deepseek-harness" => {
+                                                                AgentSource::DeepSeekHarness
+                                                            }
                                                             other => AgentSource::Custom(
                                                                 other.to_string(),
                                                             ),
@@ -298,6 +301,7 @@ fn main() {
                                                         "codex" => AgentSource::Codex,
                                                         "claude-code" => AgentSource::ClaudeCode,
                                                         "qoder" => AgentSource::Qoder,
+                                                        "deepseek-harness" => AgentSource::DeepSeekHarness,
                                                         other => {
                                                             AgentSource::Custom(other.to_string())
                                                         }

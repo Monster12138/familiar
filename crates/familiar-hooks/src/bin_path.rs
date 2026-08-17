@@ -37,6 +37,10 @@ fn candidates_for_exe(exe: &Path) -> Vec<PathBuf> {
 /// candidate exists on disk.
 pub fn resolve_cli_bin_path() -> String {
     if let Ok(exe) = std::env::current_exe() {
+        if let Some(release_cli) = release_sibling_cli(&exe) {
+            return release_cli.to_string_lossy().to_string();
+        }
+
         for candidate in candidates_for_exe(&exe) {
             if candidate.exists() {
                 return candidate.to_string_lossy().to_string();
@@ -65,6 +69,22 @@ pub fn resolve_cli_bin_path() -> String {
     }
 
     "familiar-cli".to_string()
+}
+
+/// When the running executable lives under a cargo `target/<profile>` dir
+/// (a dev build of familiar-app or a test binary), prefer the `release`
+/// sibling of familiar-cli. The debug binary carries MSVC debug-runtime
+/// dependencies that can fail to initialize when a GUI host such as DeepSeek
+/// Harness spawns the hook command, so injected hooks must not point at it
+/// while a release build exists.
+fn release_sibling_cli(exe: &std::path::Path) -> Option<PathBuf> {
+    let profile_dir = exe.parent()?;
+    let target_dir = profile_dir.parent()?;
+    if target_dir.file_name().and_then(|s| s.to_str()) != Some("target") {
+        return None;
+    }
+    let release_cli = target_dir.join("release").join(cli_exe_name());
+    release_cli.exists().then_some(release_cli)
 }
 
 #[cfg(test)]
@@ -109,5 +129,35 @@ mod tests {
         assert!(candidates
             .iter()
             .any(|p| p == &PathBuf::from(format!("/opt/familiar/Resources/{exe_name}"))));
+    }
+
+    #[test]
+    fn release_sibling_ignores_non_target_layout() {
+        let exe = PathBuf::from("/opt/familiar/bin/familiar-app");
+        assert_eq!(release_sibling_cli(&exe), None);
+    }
+
+    #[test]
+    fn release_sibling_prefers_release_cli_under_target_dir() {
+        let root = std::env::temp_dir().join(format!("fam-bin-test-{}", std::process::id()));
+        let target = root.join("target");
+        let debug_dir = target.join("debug");
+        let release_dir = target.join("release");
+        let exe_name = cli_exe_name();
+        let exe = debug_dir.join(format!("familiar-app{exe_name}"));
+        let release_cli = release_dir.join(&exe_name);
+
+        std::fs::create_dir_all(&debug_dir).expect("create debug dir");
+        std::fs::create_dir_all(&release_dir).expect("create release dir");
+        // The sibling only resolves when the release CLI actually exists.
+        std::fs::write(&release_cli, b"").expect("write release cli");
+        std::fs::write(&exe, b"").expect("write app exe");
+
+        assert_eq!(release_sibling_cli(&exe), Some(release_cli.clone()));
+
+        std::fs::remove_file(&release_cli).ok();
+        assert_eq!(release_sibling_cli(&exe), None);
+
+        std::fs::remove_dir_all(&root).ok();
     }
 }

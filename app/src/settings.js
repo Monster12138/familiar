@@ -137,6 +137,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             return `<span class="session-source-badge" style="background:#4f46e5;">AGY</span>`;
         } else if (srcStr === 'Qoder') {
             return `<span class="session-source-badge" style="background:#0284c7;">Qoder</span>`;
+        } else if (srcStr === 'DeepSeekHarness') {
+            return `<span class="session-source-badge" style="background:#4d6bfe;">DSH</span>`;
         }
         return `<span class="session-source-badge" style="background:#6b7280;">${srcStr}</span>`;
     }
@@ -1102,10 +1104,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         'antigravity': 'Antigravity',
         'claude-code': 'Claude Code',
         'codex': 'Codex',
+        'deepseek-harness': 'DeepSeek Harness',
         'qoder': 'Qoder',
     };
 
-    const AGENTS = ['antigravity', 'claude-code', 'codex', 'qoder'];
+    const AGENTS = ['antigravity', 'claude-code', 'codex', 'deepseek-harness', 'qoder'];
 
     function renderAgentCards() {
         const container = document.getElementById('hook-status-list');
