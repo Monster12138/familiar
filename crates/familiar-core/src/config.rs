@@ -25,6 +25,10 @@ pub struct FamiliarConfig {
 pub struct GeneralConfig {
     pub language: String,
     pub data_retention_days: u32,
+    /// Whether the first-run onboarding page has been completed. Defaults to
+    /// false so existing config files without the key still show it once.
+    #[serde(default)]
+    pub onboarded: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -289,6 +293,7 @@ impl Default for FamiliarConfig {
             general: GeneralConfig {
                 language: "zh-CN".to_string(),
                 data_retention_days: 90,
+                onboarded: false,
             },
             hooks: HooksConfig {
                 enabled: vec!["claude-code".to_string(), "codex".to_string()],

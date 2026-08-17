@@ -1,6 +1,7 @@
 [general]
 language = "zh-CN"
 data_retention_days = 90
+onboarded = false
 
 [hooks]
 enabled = [

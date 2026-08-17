@@ -380,6 +380,46 @@ pub async fn open_settings_window(app_handle: tauri::AppHandle) -> Result<(), St
     Ok(())
 }
 
+/// Open (or focus) the first-run onboarding window, mirroring the settings
+/// window lifecycle: focus it if it already exists, otherwise create it.
+#[tauri::command]
+pub async fn open_onboard_window(app_handle: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+    if let Some(window) = app_handle.get_webview_window("onboard") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        // Force window to front on macOS when the app is in the background.
+        let _ = window.set_always_on_top(true);
+        let _ = window.set_always_on_top(false);
+        let _ = window.set_focus();
+        return Ok(());
+    }
+    let _ = tauri::WebviewWindowBuilder::new(
+        &app_handle,
+        "onboard",
+        tauri::WebviewUrl::App("onboard.html".into()),
+    )
+    .title("Familiar")
+    .inner_size(760.0, 640.0)
+    .resizable(true)
+    .build()
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+/// Mark the first-run onboarding as completed (called when the user finishes
+/// or skips the onboard page). Persists `general.onboarded = true`.
+#[tauri::command]
+pub async fn complete_onboarding(
+    app_handle: tauri::AppHandle,
+    config_state: tauri::State<'_, Arc<AppConfigState>>,
+) -> Result<(), String> {
+    let mut config = config_state.get_config();
+    config.general.onboarded = true;
+    crate::commands::save_config_internal(&app_handle, &config_state, config)
+}
+
 #[tauri::command]
 pub async fn open_url(url: String) -> Result<(), String> {
     let _ = open::that(url);

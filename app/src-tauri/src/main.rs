@@ -110,6 +110,18 @@ fn main() {
 
             tray::create_tray(app)?;
 
+            // First-run onboarding: open the welcome window once, until the
+            // user completes or skips it. Failures only log a warning and
+            // never block startup.
+            if !config_for_setup.general.onboarded {
+                let onboard_handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = commands::open_onboard_window(onboard_handle).await {
+                        tracing::warn!("failed to open onboarding window: {e}");
+                    }
+                });
+            }
+
             // Startup auto-update check: gated by `check_on_startup` and the
             // `[update]` interval. When a newer release is found it opens the
             // settings window with the update prompt. Failures only log a
@@ -501,6 +513,8 @@ fn main() {
             commands::get_active_sessions,
             commands::delete_session,
             commands::open_settings_window,
+            commands::open_onboard_window,
+            commands::complete_onboarding,
             commands::open_url,
             commands::open_login_items_settings,
             commands::get_hooks_status,
