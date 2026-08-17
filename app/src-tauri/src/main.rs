@@ -83,6 +83,18 @@ fn main() {
     #[cfg(target_os = "macos")]
     let builder = builder.plugin(tauri_nspanel::init());
 
+    // Single-instance: launching familiar again while it is already running
+    // must not create a second desktop pet. Bring the existing pet window to
+    // the front instead of starting another app instance.
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+        tracing::info!(?args, cwd, "second instance launched; focusing existing window");
+        use tauri::Manager;
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }));
+
     let app_config_state_for_setup = app_config_state.clone();
     let pending_update_state = Arc::new(updates::PendingUpdateState(std::sync::RwLock::new(None)));
 
