@@ -240,7 +240,7 @@ mod tests {
         assert!(!file.exists());
 
         // A directory path cannot be removed with remove_file -> failure recorded.
-        let (_, failures) = delete_files(&[dir.clone()]);
+        let (_, failures) = delete_files(std::slice::from_ref(&dir));
         assert_eq!(failures.len(), 1);
 
         fs::remove_dir_all(&dir).expect("remove temp dir");
