@@ -1,7 +1,7 @@
 {
   "build": {
     "beforeBuildCommand": "cargo build --release -p familiar-cli && npm run build",
-    "beforeDevCommand": "npm run dev",
+    "beforeDevCommand": "cargo build --release -p familiar-cli && npm run dev",
     "devUrl": "http://localhost:5173",
     "frontendDist": "../dist"
   },
@@ -17,6 +17,7 @@
         "transparent": true,
         "decorations": false,
         "shadow": false,
+        "resizable": false,
         "alwaysOnTop": false,
         "visibleOnAllWorkspaces": false,
         "skipTaskbar": true,

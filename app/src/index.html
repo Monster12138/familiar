@@ -29,7 +29,20 @@
         justify-content: flex-start;
         transform-origin: top left;
         width: max-content;
-        min-width: 160px;
+        box-sizing: border-box;
+        /* The glass frame is this container's own border (toggled via the
+           .show-frame class), so it hugs the content by construction. The
+           border is always present — transparent when off — so toggling
+           never changes the window size. */
+        border: 1.5px solid transparent;
+        border-radius: 10px;
+        padding: 2px;
+      }
+      #unified-container.show-frame {
+        border-color: rgba(255, 255, 255, 0.45);
+        box-shadow:
+          inset 0 0 0 1px rgba(0, 0, 0, 0.12),
+          inset 0 0 16px rgba(255, 255, 255, 0.08);
       }
       #bubble-container {
         display: flex;
@@ -41,13 +54,22 @@
         width: 160px;
         box-sizing: border-box;
         height: max-content;
-        min-height: 80px;
+      }
+      /* No bubble present: collapse the reserved space entirely so the window
+         hugs the pet. It re-expands automatically once a bubble is appended. */
+      #bubble-container:empty {
+        width: 0;
+        height: 0;
+        padding: 0;
       }
       .bubble {
         pointer-events: auto;
       }
       #pet-container {
-        width: 128px;
+        /* Hug the sprite canvas: fixed widths let the canvas (and the pet's
+           tail) escape the container, which made the window frame cut
+           across the sprite. */
+        width: max-content;
         height: auto;
         position: relative;
         pointer-events: none;

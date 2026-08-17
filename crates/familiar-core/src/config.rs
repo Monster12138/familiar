@@ -61,6 +61,10 @@ pub struct DesktopPetConfig {
     #[serde(default = "default_true")]
     pub show_dashboard: bool,
     #[serde(default)]
+    pub click_through: bool,
+    #[serde(default)]
+    pub show_window_frame: bool,
+    #[serde(default)]
     pub dashboard_style: DashboardStyle,
     #[serde(default)]
     pub dashboard_position: DashboardPosition,
@@ -303,6 +307,8 @@ impl Default for FamiliarConfig {
                     show_task_bubble: true,
                     show_pet: true,
                     show_dashboard: true,
+                    click_through: false,
+                    show_window_frame: false,
                     dashboard_style: DashboardStyle::Classic,
                     dashboard_position: DashboardPosition::Bottom,
                     dashboard_layout: DashboardLayout::Vertical,

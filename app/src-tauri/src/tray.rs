@@ -14,15 +14,16 @@ pub fn create_tray(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         .get_config()
         .general
         .language;
-    let check_label = if lang.starts_with("zh") {
-        "检查更新"
+    let (settings_label, check_label) = if lang.starts_with("zh") {
+        ("设置", "检查更新")
     } else {
-        "Check for Updates"
+        ("Settings", "Check for Updates")
     };
 
+    let settings_i = MenuItem::with_id(app, "open_settings", settings_label, true, None::<&str>)?;
     let check_i = MenuItem::with_id(app, "check_update", check_label, true, None::<&str>)?;
     let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&check_i, &quit_i])?;
+    let menu = Menu::with_items(app, &[&settings_i, &check_i, &quit_i])?;
 
     let _tray = TrayIconBuilder::new()
         .icon(Image::from_bytes(TRAY_ICON)?)
@@ -30,6 +31,13 @@ pub fn create_tray(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         .on_menu_event(|app, event| {
             if event.id.as_ref() == "quit" {
                 app.exit(0);
+            } else if event.id.as_ref() == "open_settings" {
+                let handle = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = crate::commands::open_settings_window(handle).await {
+                        tracing::warn!("failed to open settings window from tray: {e}");
+                    }
+                });
             } else if event.id.as_ref() == "check_update" {
                 let handle = app.clone();
                 tauri::async_runtime::spawn(async move {
