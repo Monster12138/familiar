@@ -1,7 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { LogicalSize, PhysicalPosition } from "@tauri-apps/api/dpi";
 
 import { PixelSpriteRenderer } from "./pet/PixelSpriteRenderer.js";
 import { applyTranslations, t } from "./i18n.js";
@@ -183,32 +181,16 @@ function updateWindowSize() {
     if (width === 0 || height === 0) return;
     if (width === lastWidth && height === lastHeight) return;
 
-    const prevWidth = lastWidth;
-    const prevHeight = lastHeight;
+    const anchorBottom = lastHeight > 0;
     lastWidth = width;
     lastHeight = height;
 
-    try {
-        const appWindow = getCurrentWebviewWindow();
-        appWindow.setSize(new LogicalSize(width, height)).then(async () => {
-            // Anchor the bottom edge and the horizontal center: children are
-            // bottom/center aligned in the container, so when bubbles appear
-            // the window grows upward and outward without shifting the pet.
-            // The first resize just sizes the freshly placed window, so skip
-            // it to avoid relocating the pet.
-            if (prevHeight > 0) {
-                const sf = await appWindow.scaleFactor();
-                const dy = Math.round((height - prevHeight) * sf);
-                const dx = Math.round(((width - prevWidth) / 2) * sf);
-                if (dx !== 0 || dy !== 0) {
-                    const pos = await appWindow.outerPosition();
-                    await appWindow.setPosition(new PhysicalPosition(pos.x - dx, pos.y - dy));
-                }
-            }
-        }).catch(console.error);
-    } catch (e) {
+    // Resize and reposition in the desktop layer as one anchored operation.
+    // Keeping the bottom edge fixed makes bubble growth consume space above
+    // the pet instead of pushing the pet down.
+    invoke('resize_main_window', { width, height, anchorBottom }).catch((e) => {
         console.error("Failed to resize window dynamically:", e);
-    }
+    });
 }
 
 window.requestDashboardResize = updateWindowSize;
