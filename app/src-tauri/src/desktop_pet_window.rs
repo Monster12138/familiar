@@ -67,6 +67,81 @@ pub fn apply_settings(
     Ok(())
 }
 
+/// Resize the pet window, optionally keeping its bottom edge and horizontal
+/// center fixed. Bubble content grows above the pet, so anchored resizes
+/// prevent it from pushing the pet down on screen.
+pub fn resize(
+    window: &tauri::WebviewWindow,
+    width: f64,
+    height: f64,
+    anchor_bottom: bool,
+) -> Result<(), String> {
+    if !width.is_finite() || !height.is_finite() || width <= 0.0 || height <= 0.0 {
+        return Err("window dimensions must be positive finite numbers".to_string());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let window_for_main_thread = window.clone();
+        window
+            .run_on_main_thread(move || {
+                use cocoa::appkit::NSWindow;
+                use cocoa::base::id;
+                use cocoa::foundation::{NSPoint, NSRect, NSSize};
+
+                let Ok(ns_window_ptr) = window_for_main_thread.ns_window() else {
+                    tracing::warn!("failed to access the desktop pet NSPanel for resize");
+                    return;
+                };
+                let ns_window = ns_window_ptr as id;
+
+                unsafe {
+                    let frame = ns_window.frame();
+                    let x = if anchor_bottom {
+                        frame.origin.x + (frame.size.width - width) / 2.0
+                    } else {
+                        frame.origin.x
+                    };
+                    let y = if anchor_bottom {
+                        frame.origin.y
+                    } else {
+                        frame.origin.y + frame.size.height - height
+                    };
+                    let resized_frame = NSRect::new(NSPoint::new(x, y), NSSize::new(width, height));
+                    ns_window.setFrame_display_(resized_frame, true);
+                }
+            })
+            .map_err(|error| error.to_string())
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        if !anchor_bottom {
+            return window
+                .set_size(tauri::Size::Logical(tauri::LogicalSize::new(width, height)))
+                .map_err(|error| error.to_string());
+        }
+
+        let old_size = window.outer_size().map_err(|error| error.to_string())?;
+        let old_position = window.outer_position().map_err(|error| error.to_string())?;
+        let scale_factor = window.scale_factor().map_err(|error| error.to_string())?;
+        let new_width = (width * scale_factor).round() as i32;
+        let new_height = (height * scale_factor).round() as i32;
+        let x = old_position.x - (new_width - old_size.width as i32) / 2;
+        let y = old_position.y - (new_height - old_size.height as i32);
+
+        window
+            .set_size(tauri::Size::Logical(tauri::LogicalSize::new(width, height)))
+            .map_err(|error| error.to_string())?;
+        window
+            .set_position(tauri::Position::Physical(tauri::PhysicalPosition::new(
+                x, y,
+            )))
+            .map_err(|error| error.to_string())?;
+        Ok(())
+    }
+}
+
 /// Clamp a requested physical top-left position into the work area of the
 /// monitor nearest to that point. A stale saved coordinate — a monitor that
 /// was unplugged, a resolution or DPI change, or a window dragged below the

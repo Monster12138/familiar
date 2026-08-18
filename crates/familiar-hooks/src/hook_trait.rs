@@ -17,6 +17,39 @@ pub fn backup_path(path: &Path, marker: &str) -> Result<PathBuf> {
     Ok(path.with_file_name(format!("familiar-{}.{marker}.{ts}", stem.to_string_lossy())))
 }
 
+#[async_trait]
+pub trait AgentHook: Send + Sync {
+    fn name(&self) -> &str;
+    fn category(&self) -> AgentCategory;
+    async fn start(&self, sender: mpsc::Sender<AgentEvent>) -> Result<()>;
+    async fn stop(&self) -> Result<()>;
+
+    // Hook injection management
+    fn config_path(&self) -> Option<std::path::PathBuf> {
+        None
+    }
+    fn is_injected(&self) -> bool {
+        false
+    }
+    fn get_injection_payload(&self) -> Option<serde_json::Value> {
+        None
+    }
+    fn inject(&self) -> Result<()> {
+        Err(anyhow::anyhow!("Not implemented for this agent"))
+    }
+    fn uninstall(&self) -> Result<()> {
+        Err(anyhow::anyhow!("Not implemented for this agent"))
+    }
+
+    // Returns (before_content, after_content)
+    fn preview_inject(&self) -> Result<(String, String)> {
+        Err(anyhow::anyhow!("Not implemented for this agent"))
+    }
+    fn preview_uninstall(&self) -> Result<(String, String)> {
+        Err(anyhow::anyhow!("Not implemented for this agent"))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::backup_path;
@@ -63,38 +96,5 @@ mod tests {
     fn backup_path_rejects_path_without_file_name() {
         // An empty path has no file-name component on any platform.
         assert!(backup_path(&PathBuf::new(), "bak").is_err());
-    }
-}
-
-#[async_trait]
-pub trait AgentHook: Send + Sync {
-    fn name(&self) -> &str;
-    fn category(&self) -> AgentCategory;
-    async fn start(&self, sender: mpsc::Sender<AgentEvent>) -> Result<()>;
-    async fn stop(&self) -> Result<()>;
-
-    // Hook injection management
-    fn config_path(&self) -> Option<std::path::PathBuf> {
-        None
-    }
-    fn is_injected(&self) -> bool {
-        false
-    }
-    fn get_injection_payload(&self) -> Option<serde_json::Value> {
-        None
-    }
-    fn inject(&self) -> Result<()> {
-        Err(anyhow::anyhow!("Not implemented for this agent"))
-    }
-    fn uninstall(&self) -> Result<()> {
-        Err(anyhow::anyhow!("Not implemented for this agent"))
-    }
-
-    // Returns (before_content, after_content)
-    fn preview_inject(&self) -> Result<(String, String)> {
-        Err(anyhow::anyhow!("Not implemented for this agent"))
-    }
-    fn preview_uninstall(&self) -> Result<(String, String)> {
-        Err(anyhow::anyhow!("Not implemented for this agent"))
     }
 }

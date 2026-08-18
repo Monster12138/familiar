@@ -13,7 +13,7 @@ use serde_json::Value;
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 use sysinfo::System;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tokio::io::AsyncBufReadExt;
 
 use commands::AppConfigState;
@@ -34,10 +34,22 @@ fn load_config() -> FamiliarConfig {
 
 #[tauri::command]
 fn drag_main_window(app: tauri::AppHandle) {
-    use tauri::Manager;
     if let Some(main_win) = app.get_webview_window("main") {
         let _ = main_win.start_dragging();
     }
+}
+
+#[tauri::command]
+fn resize_main_window(
+    app: tauri::AppHandle,
+    width: f64,
+    height: f64,
+    anchor_bottom: bool,
+) -> Result<(), String> {
+    let main_win = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+    desktop_pet_window::resize(&main_win, width, height, anchor_bottom)
 }
 
 fn main() {
@@ -532,6 +544,7 @@ fn main() {
             commands::open_sprite_dir,
             commands::quit_app,
             drag_main_window,
+            resize_main_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
