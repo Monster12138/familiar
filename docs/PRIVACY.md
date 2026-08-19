@@ -53,8 +53,8 @@ User preferences are stored locally in:
 
 ## Operational Logs
 
-The desktop and headless processes create operational logs in the operating
-system temporary directory (`familiar_tauri.log` and `familiar_daemon.log`).
+The desktop and server processes create operational logs in the operating
+system temporary directory (`familiar_tauri.log` and `familiar_server.log`).
 These logs record operational metadata such as event kind, session identifier,
 and current mood. They do not record raw hook payloads, prompts, command text,
 file paths, search queries, URLs, summaries, or error text.

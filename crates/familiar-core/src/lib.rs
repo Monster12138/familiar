@@ -8,6 +8,7 @@ pub mod plugin;
 pub mod sprite_pack;
 pub mod state;
 pub mod state_machine;
+pub mod state_stream;
 pub mod stats;
 pub mod storage;
 pub mod update;

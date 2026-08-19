@@ -77,7 +77,7 @@
 | 模式 | 场景 | 组件 |
 |---|---|---|
 | **桌面模式**（默认） | 日常使用 | Rust 后端 + WebView + Tray |
-| **Headless 模式** | 远程服务器 / 硬件接入 | `familiar-cli --headless` = Rust 后端 + API，无 UI |
+| **Server 模式** | 远程服务器 / 硬件接入 | `familiar-cli serve` = Rust 后端 + State Stream，无 UI |
 
 ### IPC 通信
 

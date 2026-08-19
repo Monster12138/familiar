@@ -7,10 +7,16 @@ use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FamiliarConfig {
+    #[serde(default)]
+    pub runtime: RuntimeConfig,
     pub general: GeneralConfig,
     pub hooks: HooksConfig,
     pub renderer: RendererConfig,
     pub api: ApiConfig,
+    #[serde(default)]
+    pub server: ServerConfig,
+    #[serde(default)]
+    pub remote: RemoteConfig,
     pub notifications: NotificationsConfig,
     pub achievements: AchievementsConfig,
     #[serde(default)]
@@ -19,6 +25,134 @@ pub struct FamiliarConfig {
     pub cleanup: CleanupConfig,
     #[serde(default)]
     pub update: UpdateConfig,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RuntimeMode {
+    #[default]
+    Local,
+    Remote,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RuntimeConfig {
+    #[serde(default)]
+    pub mode: RuntimeMode,
+}
+
+impl Default for RuntimeConfig {
+    fn default() -> Self {
+        Self {
+            mode: RuntimeMode::Local,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TlsConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub cert_path: Option<String>,
+    #[serde(default)]
+    pub key_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ServerAuthConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub token_env: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StateStreamConfig {
+    #[serde(default = "default_max_updates_per_second")]
+    pub max_updates_per_second: u32,
+    #[serde(default = "default_summary_chars")]
+    pub max_task_summary_chars: usize,
+    #[serde(default = "default_summary_chars")]
+    pub max_activity_summary_chars: usize,
+}
+
+fn default_max_updates_per_second() -> u32 {
+    10
+}
+
+fn default_summary_chars() -> usize {
+    160
+}
+
+impl Default for StateStreamConfig {
+    fn default() -> Self {
+        Self {
+            max_updates_per_second: default_max_updates_per_second(),
+            max_task_summary_chars: default_summary_chars(),
+            max_activity_summary_chars: default_summary_chars(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ServerConfig {
+    #[serde(default)]
+    pub bind: Option<String>,
+    #[serde(default)]
+    pub tls: TlsConfig,
+    #[serde(default)]
+    pub auth: ServerAuthConfig,
+    #[serde(default)]
+    pub state_stream: StateStreamConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemoteConfig {
+    #[serde(default)]
+    pub endpoint: Option<String>,
+    #[serde(default = "default_state_stream_path")]
+    pub path: String,
+    #[serde(default)]
+    pub tls: bool,
+    #[serde(default)]
+    pub token_env: Option<String>,
+    #[serde(default = "default_connect_timeout_secs")]
+    pub connect_timeout_secs: u64,
+    #[serde(default = "default_reconnect_initial_secs")]
+    pub reconnect_initial_secs: u64,
+    #[serde(default = "default_reconnect_max_secs")]
+    pub reconnect_max_secs: u64,
+}
+
+fn default_state_stream_path() -> String {
+    "/api/v1/state-stream".to_string()
+}
+
+fn default_connect_timeout_secs() -> u64 {
+    10
+}
+
+fn default_reconnect_initial_secs() -> u64 {
+    1
+}
+
+fn default_reconnect_max_secs() -> u64 {
+    30
+}
+
+impl Default for RemoteConfig {
+    fn default() -> Self {
+        Self {
+            endpoint: None,
+            path: default_state_stream_path(),
+            tls: false,
+            token_env: None,
+            connect_timeout_secs: default_connect_timeout_secs(),
+            reconnect_initial_secs: default_reconnect_initial_secs(),
+            reconnect_max_secs: default_reconnect_max_secs(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -295,6 +429,7 @@ impl Default for FamiliarConfig {
                 data_retention_days: 90,
                 onboarded: false,
             },
+            runtime: RuntimeConfig::default(),
             hooks: HooksConfig {
                 enabled: vec!["claude-code".to_string(), "codex".to_string()],
                 socket_path: Some("/tmp/familiar.sock".to_string()),
@@ -330,8 +465,13 @@ impl Default for FamiliarConfig {
             },
             api: ApiConfig {
                 enabled: true,
-                port: 19527,
+                port: 19528,
             },
+            server: ServerConfig {
+                bind: Some("127.0.0.1:19528".to_string()),
+                ..ServerConfig::default()
+            },
+            remote: RemoteConfig::default(),
             notifications: NotificationsConfig {
                 dnd_start: "22:00".to_string(),
                 dnd_end: "08:00".to_string(),

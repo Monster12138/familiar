@@ -11,6 +11,7 @@ publish.workspace = true
 [dependencies]
 familiar-core = { path = "../familiar-core" }
 familiar-hooks = { path = "../familiar-hooks" }
+familiar-api = { path = "../familiar-api" }
 clap = { workspace = true }
 tokio = { workspace = true }
 serde_json = { workspace = true }
@@ -18,3 +19,4 @@ anyhow = { workspace = true }
 reqwest = { version = "0.12", features = ["json"] }
 tracing = { workspace = true }
 axum = { workspace = true }
+axum-server = { workspace = true }

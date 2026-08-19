@@ -160,6 +160,11 @@ fn bundled_default_config_candidates() -> Vec<std::path::PathBuf> {
 }
 
 pub fn load_config_from_paths() -> FamiliarConfig {
+    if let Ok(path) = std::env::var("FAMILIAR_CONFIG") {
+        if let Ok(config) = FamiliarConfig::load_from_file(path) {
+            return config;
+        }
+    }
     for p in get_config_search_paths() {
         if p.exists() {
             if let Ok(c) = FamiliarConfig::load_from_file(&p) {

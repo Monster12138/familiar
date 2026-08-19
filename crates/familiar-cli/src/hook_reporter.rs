@@ -33,7 +33,7 @@ pub async fn run(source_name: &str, event_name: &str, stdin_json: Option<&str>) 
     let mut payload_bytes = serde_json::to_vec(&payload)?;
     payload_bytes.push(b'\n');
 
-    // 3. Send to familiar daemon (UDS first on Unix, TCP loopback fallback).
+    // 3. Send to the Familiar server (UDS first on Unix, TCP loopback fallback).
     // Endpoints follow the user config (`hooks.socket_path` / `hooks.tcp_port`).
     let (socket_path, tcp_port) = load_endpoint_config();
     let tcp_addr = tcp_endpoint(tcp_port);
@@ -74,6 +74,11 @@ fn parse_payload(input: &str) -> Value {
 /// so only absolute user config locations are consulted. Missing entries fall
 /// back to the defaults (`/tmp/familiar.sock`, port 19527).
 fn load_endpoint_config() -> (Option<String>, Option<u16>) {
+    if let Ok(path) = std::env::var("FAMILIAR_CONFIG") {
+        if let Ok(config) = familiar_core::config::FamiliarConfig::load_from_file(path) {
+            return (config.hooks.socket_path, config.hooks.tcp_port);
+        }
+    }
     for path in familiar_core::platform::user_config_file_candidates() {
         if let Ok(config) = familiar_core::config::FamiliarConfig::load_from_file(&path) {
             return (config.hooks.socket_path, config.hooks.tcp_port);

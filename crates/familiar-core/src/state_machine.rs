@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{watch, RwLock};
 
 use crate::event::{AgentEvent, AgentEventType};
 use crate::event_bus::EventBus;
@@ -14,6 +14,7 @@ pub struct StateMachine {
     sleep_timeout_secs: i64,
     event_status_map: Arc<std::sync::RwLock<EventStatusMap>>,
     revision: Arc<AtomicU64>,
+    state_updates: watch::Sender<Arc<RenderState>>,
 }
 
 impl StateMachine {
@@ -35,6 +36,7 @@ impl StateMachine {
         sleep_timeout_secs: u32,
         event_status_map: Arc<std::sync::RwLock<EventStatusMap>>,
     ) -> Self {
+        let (state_updates, _) = watch::channel(Arc::new(RenderState::default()));
         Self {
             render_state: Arc::new(RwLock::new(RenderState::default())),
             event_bus,
@@ -42,6 +44,7 @@ impl StateMachine {
             sleep_timeout_secs: sleep_timeout_secs as i64,
             event_status_map,
             revision: Arc::new(AtomicU64::new(1)),
+            state_updates,
         }
     }
 
@@ -51,6 +54,13 @@ impl StateMachine {
 
     pub fn revision(&self) -> u64 {
         self.revision.load(Ordering::SeqCst)
+    }
+
+    /// Subscribes to the latest render state. `watch` intentionally keeps only
+    /// the newest value so a slow remote client cannot create an unbounded
+    /// backlog of stale snapshots.
+    pub fn subscribe_state(&self) -> watch::Receiver<Arc<RenderState>> {
+        self.state_updates.subscribe()
     }
 
     /// Removes an agent session from the render state. Returns `true` if an
@@ -80,6 +90,7 @@ impl StateMachine {
         }
         Self::update_mood(&mut state, chrono::Utc::now(), self.sleep_timeout_secs);
         self.revision.fetch_add(1, Ordering::SeqCst);
+        let _ = self.state_updates.send(Arc::new(state.clone()));
         true
     }
 
@@ -93,6 +104,7 @@ impl StateMachine {
         let celebration_secs = self.celebration_secs;
         let sleep_timeout_secs = self.sleep_timeout_secs;
         let revision_ref_cleanup = self.revision.clone();
+        let state_updates_cleanup = self.state_updates.clone();
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
             loop {
@@ -119,17 +131,20 @@ impl StateMachine {
 
                 if len_before != state.agents.len() || mood_before != state.mood {
                     revision_ref_cleanup.fetch_add(1, Ordering::SeqCst);
+                    let _ = state_updates_cleanup.send(Arc::new(state.clone()));
                 }
             }
         });
 
         let sleep_timeout_secs = self.sleep_timeout_secs;
         let event_status_map = self.event_status_map.clone();
+        let state_updates = self.state_updates.clone();
         tokio::spawn(async move {
             while let Ok(event) = rx.recv().await {
                 let mut state = state_ref.write().await;
                 Self::apply_event(&mut state, &event, sleep_timeout_secs, &event_status_map);
                 revision_ref.fetch_add(1, Ordering::SeqCst);
+                let _ = state_updates.send(Arc::new(state.clone()));
             }
         });
     }
@@ -152,7 +167,20 @@ impl StateMachine {
         event_status_map: &std::sync::RwLock<EventStatusMap>,
     ) {
         state.last_activity_at = event.timestamp;
-        let agent_id = event.id.to_string(); // In a real app we might group by process/session ID
+        let agent_id = event
+            .session_id
+            .as_deref()
+            .filter(|value| !value.is_empty())
+            .map(ToOwned::to_owned)
+            .unwrap_or_else(|| event.id.to_string());
+
+        state.stats.interactions = state.stats.interactions.saturating_add(1);
+        let source_key = format!("{:?}", event.source);
+        let source_stats = state.sources.entry(source_key).or_default();
+        source_stats.events_processed = source_stats.events_processed.saturating_add(1);
+        if matches!(event.event_type, AgentEventType::TaskCompleted { .. }) {
+            state.stats.tasks_completed = state.stats.tasks_completed.saturating_add(1);
+        }
 
         // Clone the (tiny) override map once per event so no lock guard spans
         // the match below. `resolve` returns the configured status for a kind,
@@ -403,6 +431,7 @@ mod tests {
 
         // 1. Send SessionStart to create the agent
         bus.publish(AgentEvent {
+            session_id: None,
             id: agent_id,
             timestamp: chrono::Utc::now(),
             source: AgentSource::Antigravity,
@@ -417,6 +446,7 @@ mod tests {
 
         // 2. Send Thinking to transition it
         bus.publish(AgentEvent {
+            session_id: None,
             id: agent_id,
             timestamp: chrono::Utc::now(),
             source: AgentSource::Antigravity,
@@ -436,6 +466,7 @@ mod tests {
 
         // 2. Send Stop signal (TaskCompleted)
         bus.publish(AgentEvent {
+            session_id: None,
             id: agent_id,
             timestamp: chrono::Utc::now(),
             source: AgentSource::Antigravity,
@@ -465,6 +496,7 @@ mod tests {
 
         let agent_id = Uuid::new_v4();
         let event = |event_type| AgentEvent {
+            session_id: None,
             id: agent_id,
             timestamp: chrono::Utc::now(),
             source: AgentSource::ClaudeCode,
@@ -536,6 +568,7 @@ mod tests {
 
         let agent_id = Uuid::new_v4();
         bus.publish(AgentEvent {
+            session_id: None,
             id: agent_id,
             timestamp: chrono::Utc::now(),
             source: AgentSource::Antigravity,
@@ -573,6 +606,7 @@ mod tests {
         let agent_id = Uuid::new_v4();
 
         bus.publish(AgentEvent {
+            session_id: None,
             id: agent_id,
             timestamp: chrono::Utc::now(),
             source: AgentSource::Antigravity,
@@ -592,6 +626,38 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn session_id_groups_events_with_different_event_ids() {
+        let bus = EventBus::new(100, 1000);
+        let machine = StateMachine::new(bus.clone(), 4, 300);
+        machine.start_processing().await;
+
+        for event_type in [
+            AgentEventType::AgentStarted {
+                instruction: Some("same conversation".into()),
+            },
+            AgentEventType::Thinking,
+        ] {
+            bus.publish(AgentEvent {
+                session_id: Some("conversation-123".into()),
+                id: Uuid::new_v4(),
+                timestamp: chrono::Utc::now(),
+                source: AgentSource::Codex,
+                category: AgentCategory::Coding,
+                event_type,
+                metadata: None,
+            })
+            .await
+            .unwrap();
+        }
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let state = machine.get_state().await;
+        assert_eq!(state.agents.len(), 1);
+        assert_eq!(state.agents[0].id, "conversation-123");
+        assert_eq!(state.agents[0].status, AgentStatus::Thinking);
+    }
+
     fn machine_with_map(
         map: EventStatusMap,
     ) -> (
@@ -607,6 +673,7 @@ mod tests {
 
     fn event_for(agent_id: Uuid, event_type: AgentEventType) -> AgentEvent {
         AgentEvent {
+            session_id: None,
             id: agent_id,
             timestamp: chrono::Utc::now(),
             source: AgentSource::Antigravity,

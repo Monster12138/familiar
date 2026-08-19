@@ -3,6 +3,9 @@ language = "zh-CN"
 data_retention_days = 90
 onboarded = false
 
+[runtime]
+mode = "local"
+
 [hooks]
 enabled = [
     "claude-code",
@@ -56,7 +59,30 @@ port = 9527
 
 [api]
 enabled = true
-port = 19527
+port = 19528
+
+[server]
+# Used by `familiar-cli serve`; set FAMILIAR_CONFIG or pass --config when the
+# server and desktop client use separate configuration files.
+bind = "127.0.0.1:19528"
+
+[server.tls]
+enabled = false
+
+[server.auth]
+enabled = false
+
+[server.state_stream]
+max_updates_per_second = 10
+max_task_summary_chars = 160
+max_activity_summary_chars = 160
+
+[remote]
+path = "/api/v1/state-stream"
+tls = false
+connect_timeout_secs = 10
+reconnect_initial_secs = 1
+reconnect_max_secs = 30
 
 [notifications]
 dnd_start = "22:00"

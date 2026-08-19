@@ -51,11 +51,16 @@ impl AntigravityHook {
     }
 
     fn map_native_hook(&self, event_name: &str, json: &Value) -> Option<AgentEvent> {
-        let agent_id = json
+        let session_id = json
             .get("conversationId")
             .and_then(|v| v.as_str())
-            .and_then(|s| uuid::Uuid::parse_str(s).ok())
-            .unwrap_or_else(uuid::Uuid::nil);
+            .or_else(|| json.get("conversation_id").and_then(|v| v.as_str()))
+            .or_else(|| json.get("sessionId").and_then(|v| v.as_str()))
+            .or_else(|| json.get("session_id").and_then(|v| v.as_str()))
+            .filter(|value| !value.is_empty())
+            .map(ToOwned::to_owned)
+            .unwrap_or_else(|| "antigravity:unknown".to_string());
+        let event_id = || uuid::Uuid::new_v4();
 
         match event_name {
             "SessionStart" => {
@@ -65,7 +70,8 @@ impl AntigravityHook {
                     .or_else(|| json["prompt"].as_str())
                     .map(Self::extract_clean_text);
                 Some(AgentEvent {
-                    id: agent_id,
+                    session_id: Some(session_id.clone()),
+                    id: event_id(),
                     timestamp: chrono::Utc::now(),
                     source: AgentSource::Antigravity,
                     category: AgentCategory::Coding,
@@ -110,7 +116,8 @@ impl AntigravityHook {
                 });
 
                 Some(AgentEvent {
-                    id: agent_id,
+                    session_id: Some(session_id.clone()),
+                    id: event_id(),
                     timestamp: chrono::Utc::now(),
                     source: AgentSource::Antigravity,
                     category: AgentCategory::Coding,
@@ -122,7 +129,8 @@ impl AntigravityHook {
                 })
             }
             "PostToolUse" => Some(AgentEvent {
-                id: agent_id,
+                session_id: Some(session_id.clone()),
+                id: event_id(),
                 timestamp: chrono::Utc::now(),
                 source: AgentSource::Antigravity,
                 category: AgentCategory::Coding,
@@ -132,7 +140,8 @@ impl AntigravityHook {
                 metadata: None,
             }),
             "PreInvocation" | "PostInvocation" => Some(AgentEvent {
-                id: agent_id,
+                session_id: Some(session_id.clone()),
+                id: event_id(),
                 timestamp: chrono::Utc::now(),
                 source: AgentSource::Antigravity,
                 category: AgentCategory::Coding,
@@ -140,7 +149,8 @@ impl AntigravityHook {
                 metadata: None,
             }),
             "Stop" | "SessionEnd" => Some(AgentEvent {
-                id: agent_id,
+                session_id: Some(session_id.clone()),
+                id: event_id(),
                 timestamp: chrono::Utc::now(),
                 source: AgentSource::Antigravity,
                 category: AgentCategory::Coding,
@@ -154,7 +164,8 @@ impl AntigravityHook {
                 let step_type = json["type"].as_str().unwrap_or("");
                 if step_type == "PLANNER_RESPONSE" {
                     Some(AgentEvent {
-                        id: agent_id,
+                        session_id: Some(session_id.clone()),
+                        id: event_id(),
                         timestamp: chrono::Utc::now(),
                         source: AgentSource::Antigravity,
                         category: AgentCategory::Coding,
@@ -175,7 +186,8 @@ impl AntigravityHook {
                         }
                     }
                     Some(AgentEvent {
-                        id: agent_id,
+                        session_id: Some(session_id),
+                        id: event_id(),
                         timestamp: chrono::Utc::now(),
                         source: AgentSource::Antigravity,
                         category: AgentCategory::Coding,
@@ -248,11 +260,12 @@ impl AgentHook for AntigravityHook {
                                 .entry(transcript.clone())
                                 .or_insert_with(|| current_count.saturating_sub(2));
 
-                            let agent_id = dir
+                            let session_id = dir
                                 .file_name()
                                 .and_then(|os_str| os_str.to_str())
-                                .and_then(|s| uuid::Uuid::parse_str(s).ok())
-                                .unwrap_or_else(uuid::Uuid::nil);
+                                .filter(|value| !value.is_empty())
+                                .map(ToOwned::to_owned)
+                                .unwrap_or_else(|| "antigravity:unknown".to_string());
 
                             if current_count > *cursor {
                                 for line in &lines[*cursor..] {
@@ -265,7 +278,8 @@ impl AgentHook for AntigravityHook {
                                                     Self::extract_clean_text(content_str);
                                                 let _ = sender
                                                     .send(AgentEvent {
-                                                        id: agent_id,
+                                                        session_id: Some(session_id.clone()),
+                                                        id: uuid::Uuid::new_v4(),
                                                         timestamp: chrono::Utc::now(),
                                                         source: AgentSource::Antigravity,
                                                         category: AgentCategory::Coding,
@@ -277,7 +291,8 @@ impl AgentHook for AntigravityHook {
                                                     .await;
                                                 let _ = sender
                                                     .send(AgentEvent {
-                                                        id: agent_id,
+                                                        session_id: Some(session_id.clone()),
+                                                        id: uuid::Uuid::new_v4(),
                                                         timestamp: chrono::Utc::now(),
                                                         source: AgentSource::Antigravity,
                                                         category: AgentCategory::Coding,
@@ -292,7 +307,8 @@ impl AgentHook for AntigravityHook {
                                     {
                                         let _ = sender
                                             .send(AgentEvent {
-                                                id: agent_id,
+                                                session_id: Some(session_id.clone()),
+                                                id: uuid::Uuid::new_v4(),
                                                 timestamp: chrono::Utc::now(),
                                                 source: AgentSource::Antigravity,
                                                 category: AgentCategory::Coding,
@@ -519,5 +535,15 @@ mod tests {
             "Stop should map to TaskCompleted, got {:?}",
             event.event_type
         );
+    }
+
+    #[test]
+    fn non_uuid_conversation_id_is_still_a_stable_session() {
+        let hook = AntigravityHook::new();
+        let payload = json!({"conversationId": "human-readable-conversation"});
+        let first = hook.parse("PreInvocation", &payload).unwrap();
+        let second = hook.parse("PreInvocation", &payload).unwrap();
+        assert_eq!(first.session_id, second.session_id);
+        assert_ne!(first.id, second.id);
     }
 }

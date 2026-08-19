@@ -17,20 +17,6 @@ impl CliAgentHookAdapter {
         }
     }
 
-    fn deterministic_uuid(s: &str) -> Uuid {
-        use std::hash::{Hash, Hasher};
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        s.hash(&mut hasher);
-        let h1 = hasher.finish();
-        s.as_bytes().hash(&mut hasher);
-        let h2 = hasher.finish();
-
-        let mut bytes = [0u8; 16];
-        bytes[..8].copy_from_slice(&h1.to_be_bytes());
-        bytes[8..].copy_from_slice(&h2.to_be_bytes());
-        Uuid::from_bytes(bytes)
-    }
-
     pub fn parse_hook_input(&self, stdin_json: &Value) -> Result<AgentEvent> {
         let event_name = stdin_json["hook_event_name"]
             .as_str()
@@ -49,24 +35,16 @@ impl CliAgentHookAdapter {
             .or_else(|| stdin_json["payload"]["sessionId"].as_str())
             .or_else(|| stdin_json["payload"]["thread_id"].as_str());
 
-        let id = match id_str {
-            Some(s) if !s.is_empty() => {
-                if let Ok(u) = Uuid::parse_str(s) {
-                    u
-                } else {
-                    Self::deterministic_uuid(s)
-                }
-            }
-            _ => {
-                let source_key = format!("default_session_{:?}", self.agent_source);
-                Self::deterministic_uuid(&source_key)
-            }
-        };
+        let session_id = id_str
+            .filter(|value| !value.is_empty())
+            .map(ToOwned::to_owned)
+            .unwrap_or_else(|| format!("default_session_{:?}", self.agent_source));
 
         let event_type = self.map_event_type(event_name, stdin_json);
 
         Ok(AgentEvent {
-            id,
+            session_id: Some(session_id),
+            id: Uuid::new_v4(),
             timestamp: Utc::now(),
             source: self.agent_source.clone(),
             category: self.derive_category(&self.agent_source),
@@ -363,5 +341,19 @@ mod tests {
             }
             other => panic!("expected TaskFailed, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn session_identity_is_stable_while_event_ids_are_unique() {
+        let first = parse(
+            "Thinking",
+            json!({"conversation_id": "conversation-not-a-uuid"}),
+        );
+        let second = parse(
+            "Thinking",
+            json!({"conversation_id": "conversation-not-a-uuid"}),
+        );
+        assert_eq!(first.session_id, second.session_id);
+        assert_ne!(first.id, second.id);
     }
 }

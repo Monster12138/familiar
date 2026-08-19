@@ -6,7 +6,32 @@ import { applyTranslations, t } from "./i18n.js";
 
 let renderer = null;
 let currentLang = 'en-US';
+let currentRuntimeMode = 'local';
+let remoteConnectionStatus = 'offline';
 window.celebrationMs = 4000; // default, updated from config
+
+function updateRuntimeModeBadge() {
+    const bar = document.getElementById('runtime-mode-bar');
+    const badge = document.getElementById('runtime-mode-badge');
+    if (!bar || !badge) return;
+    if (currentRuntimeMode !== 'remote') {
+        bar.style.display = 'none';
+        return;
+    }
+    const statusKeys = {
+        connecting: 'runtime_status_connecting',
+        connected: 'runtime_status_connected',
+        reconnecting: 'runtime_status_reconnecting',
+        authentication_failed: 'runtime_status_authentication_failed',
+        incompatible_protocol: 'runtime_status_incompatible_protocol',
+        offline: 'runtime_status_offline',
+    };
+    const statusKey = statusKeys[remoteConnectionStatus] || 'runtime_status_offline';
+    badge.dataset.status = remoteConnectionStatus;
+    badge.title = `${t('runtime_mode_remote', currentLang)} · ${t(statusKey, currentLang)}`;
+    badge.setAttribute('aria-label', badge.title);
+    bar.style.display = 'flex';
+}
 
 async function fetchManifest(spriteName) {
     try {
@@ -123,6 +148,11 @@ async function init() {
         const state = event.payload;
         if (!state) return;
 
+        if (currentRuntimeMode === 'remote' && remoteConnectionStatus !== 'connected') {
+            remoteConnectionStatus = 'connected';
+            updateRuntimeModeBadge();
+        }
+
         // Clear any pending idle fallback
         if (window.idleFallbackTimer) {
             clearTimeout(window.idleFallbackTimer);
@@ -162,6 +192,11 @@ async function init() {
         }
     });
 
+    await listen("connection_status_changed", (event) => {
+        remoteConnectionStatus = event.payload || 'offline';
+        updateRuntimeModeBadge();
+    });
+
     // Listen for config changes from Rust Backend
     await listen("config_changed", (event) => {
         applyConfigToWindow(event.payload);
@@ -197,6 +232,12 @@ window.requestDashboardResize = updateWindowSize;
 
 async function applyConfigToWindow(config) {
     if (!config) return;
+
+    currentRuntimeMode = config.runtime?.mode || 'local';
+    if (currentRuntimeMode === 'remote' && remoteConnectionStatus === 'offline') {
+        remoteConnectionStatus = 'connecting';
+    }
+    updateRuntimeModeBadge();
 
     if (config.general && config.general.language) {
         currentLang = config.general.language;
