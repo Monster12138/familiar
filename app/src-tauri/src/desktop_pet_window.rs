@@ -86,7 +86,7 @@ pub fn resize(
         window
             .run_on_main_thread(move || {
                 use cocoa::appkit::NSWindow;
-                use cocoa::base::id;
+                use cocoa::base::{id, YES};
                 use cocoa::foundation::{NSPoint, NSRect, NSSize};
 
                 let Ok(ns_window_ptr) = window_for_main_thread.ns_window() else {
@@ -108,7 +108,7 @@ pub fn resize(
                         frame.origin.y + frame.size.height - height
                     };
                     let resized_frame = NSRect::new(NSPoint::new(x, y), NSSize::new(width, height));
-                    ns_window.setFrame_display_(resized_frame, true);
+                    ns_window.setFrame_display_(resized_frame, YES);
                 }
             })
             .map_err(|error| error.to_string())
