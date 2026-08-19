@@ -13,7 +13,7 @@ pub enum AgentStatus {
     Failed,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub enum FamiliarMood {
     Interacting,
     Thinking,
@@ -22,6 +22,7 @@ pub enum FamiliarMood {
     Alarmed,
     Celebrating,
     Watching,
+    #[default]
     Idle,
 }
 
@@ -30,20 +31,20 @@ pub enum FamiliarMood {
 /// and hot-reloaded when the config changes.
 pub type EventStatusMap = HashMap<String, AgentStatus>;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SourceStats {
     pub events_processed: u64,
     pub errors_encountered: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DailyStats {
     pub interactions: u32,
     pub active_time_seconds: u64,
     pub tasks_completed: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Notification {
     pub id: uuid::Uuid,
     pub message: String,

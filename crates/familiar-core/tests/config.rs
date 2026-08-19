@@ -1,6 +1,6 @@
 use familiar_core::config::{
     CleanupConfig, DashboardAlignment, DashboardLayout, DashboardPosition, DashboardStyle,
-    EventStatus, FamiliarConfig, UpdateConfig,
+    EventStatus, FamiliarConfig, RuntimeMode, UpdateConfig,
 };
 use familiar_core::state::AgentStatus;
 
@@ -265,6 +265,58 @@ fn event_status_map_serializes_known_statuses() {
             .any(|line| line == "WaitingForInput = \"pending\""),
         "unexpected serialized event status map:\n{serialized}"
     );
+}
+
+#[test]
+fn legacy_config_defaults_to_local_runtime_and_new_fields_serialize() {
+    let legacy = r#"
+[general]
+language = "en-US"
+data_retention_days = 90
+
+[hooks]
+enabled = []
+socket_path = "/tmp/familiar.sock"
+tcp_port = 19527
+
+[renderer]
+enabled = []
+
+[renderer.desktop-pet]
+sprite = "tabby-cat"
+scale = 1.0
+position = "bottom-right"
+always_on_top = true
+opacity = 1.0
+
+[renderer.menu-bar]
+show_active_count = true
+show_today_stats = true
+
+[renderer.dashboard]
+port = 9527
+
+[api]
+enabled = true
+port = 19527
+
+[notifications]
+dnd_start = "22:00"
+dnd_end = "08:00"
+min_level = "info"
+
+[achievements]
+enabled = true
+"#;
+    let path = std::env::temp_dir().join(format!("familiar-runtime-config-{}.toml", std::process::id()));
+    std::fs::write(&path, legacy).expect("write legacy config");
+    let config = FamiliarConfig::load_from_file(&path).expect("load legacy config");
+    std::fs::remove_file(path).expect("remove legacy config");
+    assert_eq!(config.runtime.mode, RuntimeMode::Local);
+
+    let serialized = toml::to_string_pretty(&FamiliarConfig::default()).expect("serialize config");
+    assert!(serialized.contains("mode = \"local\""));
+    assert!(serialized.contains("max_updates_per_second = 10"));
 }
 
 #[test]

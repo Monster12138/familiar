@@ -1,16 +1,15 @@
 pub mod hook_reporter;
 
 use anyhow::Result;
-use axum::{extract::State, routing::post, Json, Router};
 use clap::{Parser, Subcommand};
-use serde_json::Value;
-use std::sync::Arc;
+use familiar_api::StateStreamState;
+use familiar_core::config::FamiliarConfig;
 use tokio::net::TcpListener;
 
 use familiar_core::event_bus::EventBus;
 use familiar_core::logger::{default_log_dir, init_logger};
 use familiar_core::state_machine::StateMachine;
-use familiar_hooks::antigravity::AntigravityHook;
+use std::path::{Path, PathBuf};
 // use familiar_hooks::hook_trait::AgentHook; removed
 
 #[derive(Parser, Debug, Clone)]
@@ -37,14 +36,15 @@ pub enum Commands {
     },
     /// Status subcommand
     Status,
-    /// Headless subcommand
-    Headless,
-}
-
-#[derive(Clone)]
-struct AppState {
-    event_bus: EventBus,
-    antigravity_hook: Arc<AntigravityHook>,
+    /// Run the Familiar server without a desktop UI
+    Serve {
+        /// Explicit configuration file for this server process.
+        #[arg(long, value_name = "PATH")]
+        config: Option<PathBuf>,
+        /// Override `server.bind` for this invocation.
+        #[arg(long, value_name = "HOST:PORT")]
+        bind: Option<String>,
+    },
 }
 
 #[tokio::main]
@@ -62,57 +62,132 @@ async fn main() -> Result<()> {
         Commands::Status => {
             println!("Running status subcommand");
         }
-        Commands::Headless => {
-            println!("Starting Familiar headless daemon...");
-
-            // Initialize logger
-            let _guard = init_logger(default_log_dir(), "familiar_daemon.log")?;
-
-            // Setup core
-            let event_bus = EventBus::new(100, 100);
-            let state_machine = StateMachine::new(event_bus.clone(), 4, 300);
-            state_machine.start_processing().await;
-
-            let state = AppState {
-                event_bus,
-                antigravity_hook: Arc::new(AntigravityHook::new()),
-            };
-
-            let app = Router::new()
-                .route("/api/v1/notify", post(notify_handler))
-                .with_state(state);
-
-            let listener = TcpListener::bind("127.0.0.1:19527").await?;
-            println!("Listening on 127.0.0.1:19527");
-            axum::serve(listener, app).await?;
+        Commands::Serve { config, bind } => {
+            run_server(config.as_deref(), bind.as_deref()).await?;
         }
     }
 
     Ok(())
 }
 
-async fn notify_handler(State(state): State<AppState>, Json(mut payload): Json<Value>) -> String {
-    let source = payload["source_client"].as_str().unwrap_or("").to_string();
-    let event_name = payload["hook_event_name"]
-        .as_str()
-        .unwrap_or("")
-        .to_string();
+async fn run_server(config_path: Option<&Path>, bind_override: Option<&str>) -> Result<()> {
+    let _guard = init_logger(default_log_dir(), "familiar_server.log")?;
+    let config = load_config(config_path)?;
+    let event_bus = EventBus::new(100, 100);
+    let ingest_bus = event_bus.clone();
+    let state_machine = StateMachine::with_event_map(
+        event_bus,
+        config.renderer.desktop_pet.celebration_secs,
+        config.renderer.desktop_pet.sleep_timeout_secs,
+        std::sync::Arc::new(std::sync::RwLock::new(
+            config.renderer.desktop_pet.event_status_agent_map(),
+        )),
+    );
+    state_machine.start_processing().await;
 
-    if let Some(obj) = payload["payload"].as_object_mut() {
-        obj.insert(
-            "hook_event_name".to_string(),
-            Value::String(event_name.clone()),
-        );
+    if let Some(port) = config.hooks.tcp_port {
+        let tcp_bus = ingest_bus.clone();
+        tokio::spawn(async move {
+            if let Err(error) = familiar_hooks::ingest::serve_tcp(tcp_bus, port).await {
+                tracing::error!(%error, "hook TCP listener stopped");
+            }
+        });
+    }
+    #[cfg(unix)]
+    if let Some(path) = config.hooks.socket_path.clone() {
+        tokio::spawn(async move {
+            if let Err(error) = familiar_hooks::ingest::serve_unix(ingest_bus, path).await {
+                tracing::error!(%error, "hook UDS listener stopped");
+            }
+        });
     }
 
-    let data = &payload["payload"];
+    let auth_token = if config.server.auth.enabled {
+        let env_name = config.server.auth.token_env.as_deref().ok_or_else(|| {
+            anyhow::anyhow!("server.auth.token_env is required when auth is enabled")
+        })?;
+        Some(std::env::var(env_name).map_err(|_| {
+            anyhow::anyhow!("server auth token environment variable {env_name} is not set")
+        })?)
+    } else {
+        None
+    };
+    let state = StateStreamState::new(
+        state_machine,
+        config.server.state_stream,
+        auth_token,
+        env!("CARGO_PKG_VERSION"),
+    );
+    let app = familiar_api::create_router(state);
+    let bind = bind_override
+        .map(ToOwned::to_owned)
+        .or(config.server.bind)
+        .unwrap_or_else(|| "127.0.0.1:19528".to_string());
+    let addr: std::net::SocketAddr = bind.parse()?;
 
-    if source == "antigravity" {
-        if let Ok(event) = state.antigravity_hook.parse(&event_name, data) {
-            let _ = state.event_bus.publish(event).await;
-            return "OK".into();
+    if config.server.tls.enabled {
+        let cert = config.server.tls.cert_path.ok_or_else(|| {
+            anyhow::anyhow!("server.tls.cert_path is required when TLS is enabled")
+        })?;
+        let key = config.server.tls.key_path.ok_or_else(|| {
+            anyhow::anyhow!("server.tls.key_path is required when TLS is enabled")
+        })?;
+        let tls_config = axum_server::tls_rustls::RustlsConfig::from_pem_file(cert, key).await?;
+        println!("Familiar server listening on https://{addr}");
+        let handle = axum_server::Handle::new();
+        let shutdown_handle = handle.clone();
+        tokio::spawn(async move {
+            if tokio::signal::ctrl_c().await.is_ok() {
+                shutdown_handle.graceful_shutdown(Some(std::time::Duration::from_secs(10)));
+            }
+        });
+        axum_server::bind_rustls(addr, tls_config)
+            .handle(handle)
+            .serve(app.into_make_service())
+            .await?;
+    } else {
+        println!("Familiar server listening on http://{addr} (TLS disabled)");
+        let listener = TcpListener::bind(addr).await?;
+        axum::serve(listener, app)
+            .with_graceful_shutdown(async {
+                let _ = tokio::signal::ctrl_c().await;
+            })
+            .await?;
+    }
+    Ok(())
+}
+
+fn load_config(explicit_path: Option<&Path>) -> Result<FamiliarConfig> {
+    if let Some(path) = explicit_path {
+        return FamiliarConfig::load_from_file(path);
+    }
+    if let Ok(path) = std::env::var("FAMILIAR_CONFIG") {
+        return FamiliarConfig::load_from_file(path);
+    }
+    for path in familiar_core::platform::user_config_file_candidates() {
+        if path.exists() {
+            return FamiliarConfig::load_from_file(path);
         }
     }
+    Ok(FamiliarConfig::default())
+}
 
-    "Ignored or Failed".into()
+#[cfg(test)]
+mod tests {
+    use super::{Cli, Commands};
+    use clap::Parser;
+
+    #[test]
+    fn serve_is_the_only_server_subcommand() {
+        assert!(matches!(
+            Cli::try_parse_from(["familiar-cli", "serve"])
+                .unwrap()
+                .command,
+            Commands::Serve {
+                config: None,
+                bind: None
+            }
+        ));
+        assert!(Cli::try_parse_from(["familiar-cli", "headless"]).is_err());
+    }
 }

@@ -104,6 +104,11 @@ pub struct EventMetadata {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentEvent {
+    /// Stable conversation/session identity used to group events into one
+    /// rendered agent. This is deliberately separate from `id`, which is the
+    /// identity of this individual event.
+    #[serde(default)]
+    pub session_id: Option<String>,
     pub id: Uuid,
     pub timestamp: DateTime<Utc>,
     pub source: AgentSource,
