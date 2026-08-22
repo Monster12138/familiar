@@ -462,6 +462,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Never leave the secret in the WebView after it has been handed
             // to the Rust side for persistence.
             elRemoteToken.value = '';
+            updateRemoteTokenPlaceholder();
         }
         currentConfig.remote.connect_timeout_secs = boundedInteger(elRemoteConnectTimeout, 10, 1, 600);
         currentConfig.remote.reconnect_initial_secs = reconnectInitial;
