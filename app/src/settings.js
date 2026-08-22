@@ -17,7 +17,7 @@ const EVENT_STATUS_OPTIONS = ['idle', 'thinking', 'working', 'pending', 'complet
 // Built-in (fallback) status per event kind, mirroring StateMachine::apply_event.
 // `null` means the event is a no-op by default (keeps the agent's current status).
 const EVENT_DEFAULT_STATUS = {
-    'AgentStarted': 'working',
+    'AgentStarted': 'idle',
     'Thinking': 'thinking',
     'Processing': 'working',
     'ReadingFile': 'working',
