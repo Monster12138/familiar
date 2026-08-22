@@ -109,6 +109,7 @@ See [docs/PRIVACY.md](docs/PRIVACY.md) for the complete data-flow, configuration
 - [Backend Workflow](docs/BACKEND_WORKFLOW.md) — Rust development workflow
 - [Frontend Workflow](docs/FRONTEND_WORKFLOW.md) — UI development workflow
 - [Release Process](docs/RELEASE_PROCESS.md) — Versioning, macOS packaging, artifacts, tags, and GitHub Releases
+- [Homebrew Packaging](packaging/homebrew/README.md) — CLI Formula and desktop Cask templates
 - [Sprite Pack Guide](docs/SPRITE_PACK_CREATION_GUIDE.md) — Create and package companions
 
 ## Project status

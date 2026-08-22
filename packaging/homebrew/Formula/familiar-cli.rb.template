@@ -1,0 +1,19 @@
+class FamiliarCli < Formula
+  desc "Local-first coding agent companion server and hook CLI"
+  homepage "https://github.com/Monster12138/familiar"
+  url "https://github.com/Monster12138/familiar/archive/refs/tags/v__VERSION__.tar.gz"
+  sha256 "__SOURCE_SHA256__"
+  license "MIT"
+
+  depends_on "rust" => :build
+  depends_on "pkg-config" => :build
+  depends_on "openssl@3" => :build if OS.linux?
+
+  def install
+    system "cargo", "install", "--locked", "--path", "crates/familiar-cli", "--root", prefix
+  end
+
+  test do
+    assert_match version.to_s, shell_output("#{bin}/familiar-cli --version")
+  end
+end
