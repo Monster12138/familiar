@@ -206,6 +206,9 @@ pub struct DesktopPetConfig {
     pub show_dashboard: bool,
     #[serde(default)]
     pub click_through: bool,
+    /// Fade the pet out while the pointer is over its sprite.
+    #[serde(default)]
+    pub hide_on_hover: bool,
     #[serde(default)]
     pub show_window_frame: bool,
     #[serde(default)]
@@ -454,6 +457,7 @@ impl Default for FamiliarConfig {
                     show_pet: true,
                     show_dashboard: true,
                     click_through: false,
+                    hide_on_hover: false,
                     show_window_frame: false,
                     dashboard_style: DashboardStyle::Classic,
                     dashboard_position: DashboardPosition::Bottom,

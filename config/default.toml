@@ -31,6 +31,7 @@ show_task_bubble = true
 show_pet = true
 show_dashboard = true
 click_through = false
+hide_on_hover = false
 show_window_frame = false
 dashboard_style = "classic"
 dashboard_position = "bottom"

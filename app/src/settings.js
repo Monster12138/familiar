@@ -61,6 +61,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const elPetAlwaysTop = document.getElementById('setting-pet-always-top');
     const elPetAllDesktops = document.getElementById('setting-pet-all-desktops');
     const elPetClickThrough = document.getElementById('setting-pet-click-through');
+    const elPetHideOnHover = document.getElementById('setting-pet-hide-on-hover');
     const elPetWindowFrame = document.getElementById('setting-pet-window-frame');
     const elPetOpacity = document.getElementById('setting-pet-opacity');
     const valPetOpacity = document.getElementById('val-pet-opacity');
@@ -475,6 +476,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentConfig.renderer['desktop-pet'].always_on_top = elPetAlwaysTop.checked;
         currentConfig.renderer['desktop-pet'].show_on_all_desktops = elPetAllDesktops.checked;
         currentConfig.renderer['desktop-pet'].click_through = elPetClickThrough.checked;
+        currentConfig.renderer['desktop-pet'].hide_on_hover = elPetHideOnHover.checked;
         currentConfig.renderer['desktop-pet'].show_window_frame = elPetWindowFrame.checked;
         currentConfig.renderer['desktop-pet'].opacity = parseFloat(elPetOpacity.value);
         currentConfig.renderer['desktop-pet'].show_task_bubble = elShowBubble.checked;
@@ -659,6 +661,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             if (petConf.click_through !== undefined) {
                 elPetClickThrough.checked = petConf.click_through;
+            }
+            if (petConf.hide_on_hover !== undefined) {
+                elPetHideOnHover.checked = petConf.hide_on_hover;
             }
             if (petConf.show_window_frame !== undefined) {
                 elPetWindowFrame.checked = petConf.show_window_frame;
@@ -1036,7 +1041,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Bind all controls for auto-save
     const autoSaveControls = [
         elRuntimeMode, elRemoteTls,
-        elPetAlwaysTop, elPetAllDesktops, elPetClickThrough, elPetWindowFrame, elShowBubble, elShowPet, elShowStats,
+        elPetAlwaysTop, elPetAllDesktops, elPetClickThrough, elPetHideOnHover, elPetWindowFrame, elShowBubble, elShowPet, elShowStats,
         elDashboardStyle, elDashboardPosition, elDashboardLayout, elDashboardAlignment,
         elCleanupBackups, elCleanupLogs,
         elUpdateStartup, elUpdateInterval

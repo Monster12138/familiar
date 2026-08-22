@@ -308,7 +308,10 @@ min_level = "info"
 [achievements]
 enabled = true
 "#;
-    let path = std::env::temp_dir().join(format!("familiar-runtime-config-{}.toml", std::process::id()));
+    let path = std::env::temp_dir().join(format!(
+        "familiar-runtime-config-{}.toml",
+        std::process::id()
+    ));
     std::fs::write(&path, legacy).expect("write legacy config");
     let config = FamiliarConfig::load_from_file(&path).expect("load legacy config");
     std::fs::remove_file(path).expect("remove legacy config");
@@ -530,6 +533,37 @@ fn click_through_serializes_as_bool() {
             .lines()
             .any(|line| line == "click_through = true"),
         "unexpected serialized click_through:\n{serialized}"
+    );
+}
+
+#[test]
+fn legacy_config_defaults_to_no_hover_hide() {
+    let legacy_config =
+        include_str!("../../../config/default.toml").replace("hide_on_hover = false\n", "");
+    let path = std::env::temp_dir().join(format!(
+        "familiar-legacy-hover-hide-{}.toml",
+        std::process::id()
+    ));
+
+    std::fs::write(&path, legacy_config).expect("write legacy config");
+    let config = FamiliarConfig::load_from_file(&path).expect("load legacy config");
+    std::fs::remove_file(path).expect("remove legacy config");
+
+    assert!(!config.renderer.desktop_pet.hide_on_hover);
+}
+
+#[test]
+fn hover_hide_serializes_as_bool() {
+    let mut config = FamiliarConfig::default();
+    config.renderer.desktop_pet.hide_on_hover = true;
+
+    let serialized = toml::to_string_pretty(&config).expect("serialize config");
+
+    assert!(
+        serialized
+            .lines()
+            .any(|line| line == "hide_on_hover = true"),
+        "unexpected serialized hover-hide config:\n{serialized}"
     );
 }
 
