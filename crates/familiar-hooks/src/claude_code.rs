@@ -118,16 +118,15 @@ impl AgentHook for ClaudeCodeHook {
     }
 
     fn get_injection_payload(&self) -> Option<serde_json::Value> {
-        let bin_path = crate::bin_path::resolve_cli_bin_path();
-        let hook = |event: &str| serde_json::json!({ "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source claude-code --event {}", bin_path, event) }] });
+        let hook = |event: &str| serde_json::json!({ "hooks": [{ "type": "command", "command": crate::bin_path::hook_command("claude-code", event, true) }] });
         Some(serde_json::json!({
             "hooks": {
                 "SessionStart": [hook("SessionStart")],
                 "UserPromptSubmit": [hook("UserPromptSubmit")],
-                "PreToolUse": [serde_json::json!({ "matcher": "*", "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source claude-code --event PreToolUse", bin_path) }] })],
-                "PostToolUse": [serde_json::json!({ "matcher": "*", "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source claude-code --event PostToolUse", bin_path) }] })],
-                "PostToolUseFailure": [serde_json::json!({ "matcher": "*", "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source claude-code --event PostToolUseFailure", bin_path) }] })],
-                "PermissionRequest": [serde_json::json!({ "matcher": "*", "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source claude-code --event PermissionRequest", bin_path) }] })],
+                "PreToolUse": [serde_json::json!({ "matcher": "*", "hooks": [{ "type": "command", "command": crate::bin_path::hook_command("claude-code", "PreToolUse", true) }] })],
+                "PostToolUse": [serde_json::json!({ "matcher": "*", "hooks": [{ "type": "command", "command": crate::bin_path::hook_command("claude-code", "PostToolUse", true) }] })],
+                "PostToolUseFailure": [serde_json::json!({ "matcher": "*", "hooks": [{ "type": "command", "command": crate::bin_path::hook_command("claude-code", "PostToolUseFailure", true) }] })],
+                "PermissionRequest": [serde_json::json!({ "matcher": "*", "hooks": [{ "type": "command", "command": crate::bin_path::hook_command("claude-code", "PermissionRequest", true) }] })],
                 "SubagentStart": [hook("SubagentStart")],
                 "SubagentStop": [hook("SubagentStop")],
                 "Stop": [hook("Stop")],

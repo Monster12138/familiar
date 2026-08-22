@@ -46,6 +46,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Form elements
     const elLanguage = document.getElementById('setting-language');
     const elApiPort = document.getElementById('setting-api-port');
+    const elRuntimeMode = document.getElementById('setting-runtime-mode');
+    const elRemoteEndpoint = document.getElementById('setting-remote-endpoint');
+    const elRemotePath = document.getElementById('setting-remote-path');
+    const elRemoteTls = document.getElementById('setting-remote-tls');
+    const elRemoteToken = document.getElementById('setting-remote-token');
+    const elRemoteConnectTimeout = document.getElementById('setting-remote-connect-timeout');
+    const elRemoteReconnectInitial = document.getElementById('setting-remote-reconnect-initial');
+    const elRemoteReconnectMax = document.getElementById('setting-remote-reconnect-max');
+    const remoteSettingItems = document.querySelectorAll('.runtime-remote-setting');
     
     const elPetScale = document.getElementById('setting-pet-scale');
     const valPetScale = document.getElementById('val-pet-scale');
@@ -122,6 +131,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentConfig = {};
     let autoSaveTimer = null;
     let currentActiveAgents = [];
+
+    function updateRemoteSettingsVisibility() {
+        const isRemote = elRuntimeMode?.value === 'remote';
+        remoteSettingItems.forEach((item) => {
+            item.classList.toggle('runtime-setting-disabled', !isRemote);
+            item.querySelectorAll('input, select, textarea').forEach((input) => {
+                input.disabled = !isRemote;
+            });
+        });
+    }
+
+    function updateRemoteTokenPlaceholder() {
+        if (!elRemoteToken) return;
+        const key = currentConfig.remote?.token_file
+            ? 'placeholder_remote_token_saved'
+            : 'placeholder_remote_token';
+        elRemoteToken.placeholder = t(key, elLanguage?.value || 'zh-CN');
+    }
 
     // Session card action icons (Feather-style, stroke=currentColor)
     const ICON_EYE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
@@ -408,10 +435,40 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!currentConfig.renderer) currentConfig.renderer = {};
         if (!currentConfig.renderer['desktop-pet']) currentConfig.renderer['desktop-pet'] = {};
         if (!currentConfig.hooks) currentConfig.hooks = {};
+        if (!currentConfig.runtime) currentConfig.runtime = {};
+        if (!currentConfig.remote) currentConfig.remote = {};
         if (!currentConfig.sessions) currentConfig.sessions = { hidden_sessions: [] };
 
         currentConfig.general.language = elLanguage.value;
         currentConfig.api.port = parseInt(elApiPort.value, 10);
+        currentConfig.runtime.mode = elRuntimeMode.value === 'remote' ? 'remote' : 'local';
+
+        const remoteEndpoint = elRemoteEndpoint.value.trim();
+        const remotePath = elRemotePath.value.trim();
+        const remoteToken = elRemoteToken.value.trim();
+        const boundedInteger = (input, fallback, min, max) => {
+            const value = Number.parseInt(input.value, 10);
+            if (!Number.isFinite(value)) return fallback;
+            return Math.min(max, Math.max(min, value));
+        };
+        const reconnectInitial = boundedInteger(elRemoteReconnectInitial, 1, 1, 3600);
+        const reconnectMax = boundedInteger(elRemoteReconnectMax, 30, reconnectInitial, 86400);
+        currentConfig.remote.endpoint = remoteEndpoint || null;
+        currentConfig.remote.path = remotePath || '/api/v1/state-stream';
+        currentConfig.remote.tls = elRemoteTls.checked;
+        if (remoteToken) {
+            const tokenPath = await invoke('save_remote_token', { token: remoteToken });
+            currentConfig.remote.token_file = tokenPath;
+            // Never leave the secret in the WebView after it has been handed
+            // to the Rust side for persistence.
+            elRemoteToken.value = '';
+        }
+        currentConfig.remote.connect_timeout_secs = boundedInteger(elRemoteConnectTimeout, 10, 1, 600);
+        currentConfig.remote.reconnect_initial_secs = reconnectInitial;
+        currentConfig.remote.reconnect_max_secs = reconnectMax;
+        elRemoteConnectTimeout.value = currentConfig.remote.connect_timeout_secs;
+        elRemoteReconnectInitial.value = reconnectInitial;
+        elRemoteReconnectMax.value = reconnectMax;
 
         currentConfig.renderer['desktop-pet'].scale = parseFloat(elPetScale.value);
         currentConfig.renderer['desktop-pet'].always_on_top = elPetAlwaysTop.checked;
@@ -574,6 +631,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (currentConfig.api && currentConfig.api.port) {
             elApiPort.value = currentConfig.api.port;
         }
+
+        const runtimeConfig = currentConfig.runtime || {};
+        elRuntimeMode.value = runtimeConfig.mode === 'remote' ? 'remote' : 'local';
+        const remoteConfig = currentConfig.remote || {};
+        elRemoteEndpoint.value = remoteConfig.endpoint || '';
+        elRemotePath.value = remoteConfig.path || '/api/v1/state-stream';
+        elRemoteTls.checked = remoteConfig.tls === true;
+        elRemoteToken.value = '';
+        updateRemoteTokenPlaceholder();
+        elRemoteConnectTimeout.value = remoteConfig.connect_timeout_secs ?? 10;
+        elRemoteReconnectInitial.value = remoteConfig.reconnect_initial_secs ?? 1;
+        elRemoteReconnectMax.value = remoteConfig.reconnect_max_secs ?? 30;
+        updateRemoteSettingsVisibility();
         
         // Renderer Desktop Pet
         if (currentConfig.renderer && currentConfig.renderer['desktop-pet']) {
@@ -945,6 +1015,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Language setting update UI + auto save
     elLanguage.addEventListener('change', () => {
         applyTranslations(elLanguage.value);
+        updateRemoteTokenPlaceholder();
         loadAndRenderSpritePacks();
         renderEventStatusTable();
         scheduleAutoSave();
@@ -963,6 +1034,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Bind all controls for auto-save
     const autoSaveControls = [
+        elRuntimeMode, elRemoteTls,
         elPetAlwaysTop, elPetAllDesktops, elPetClickThrough, elPetWindowFrame, elShowBubble, elShowPet, elShowStats,
         elDashboardStyle, elDashboardPosition, elDashboardLayout, elDashboardAlignment,
         elCleanupBackups, elCleanupLogs,
@@ -973,12 +1045,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     const autoSaveInputs = [
+        elRemoteEndpoint, elRemotePath, elRemoteToken, elRemoteConnectTimeout,
+        elRemoteReconnectInitial, elRemoteReconnectMax,
         elApiPort, elPetScale, elPetOpacity, elUdsPath, elTcpPort, elCelebrationSecs, elSleepTimeoutSecs,
         elCleanupAgeDays
     ];
     autoSaveInputs.forEach(el => {
         if (el) el.addEventListener('change', scheduleAutoSave);
     });
+
+    if (elRuntimeMode) {
+        elRuntimeMode.addEventListener('change', () => {
+            updateRemoteSettingsVisibility();
+            scheduleAutoSave();
+        });
+    }
 
     if (btnResetEventStatus) {
         btnResetEventStatus.addEventListener('click', resetEventStatus);

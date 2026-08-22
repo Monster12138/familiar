@@ -1,13 +1,14 @@
 use familiar_core::cleanup::{
     bytes_of, delete_files, familiar_log_files_in, filter_by_age, DataCleanupSummary,
 };
-use familiar_core::config::FamiliarConfig;
+use familiar_core::config::{FamiliarConfig, RuntimeMode};
 use familiar_core::event_bus::EventBus;
 use familiar_core::logger::default_log_dir;
 use familiar_core::state::{AgentState, EventStatusMap};
 use familiar_core::state_machine::StateMachine;
 use familiar_hooks::cleanup::{backup_dirs, scan_backups_in};
 use std::collections::HashSet;
+use std::io::Write;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
@@ -469,46 +470,213 @@ pub fn open_login_items_settings() -> Result<(), String> {
     }
 }
 
-use familiar_hooks::antigravity::AntigravityHook;
-use familiar_hooks::claude_code::ClaudeCodeHook;
-use familiar_hooks::codex::CodexHook;
-use familiar_hooks::deepseek_harness::DeepSeekHarnessHook;
 use familiar_hooks::hook_trait::AgentHook;
-use familiar_hooks::qoder::QoderHook;
+use familiar_hooks::manager;
 use serde_json::json;
 
 fn get_hook_by_name(agent: &str) -> Option<Box<dyn AgentHook>> {
-    match agent {
-        "antigravity" => Some(Box::new(AntigravityHook::new())),
-        "claude-code" => Some(Box::new(ClaudeCodeHook::new())),
-        "codex" => Some(Box::new(CodexHook::new())),
-        "deepseek-harness" => Some(Box::new(DeepSeekHarnessHook::new())),
-        "qoder" => Some(Box::new(QoderHook::new())),
-        _ => None,
+    manager::hook_by_name(agent).ok()
+}
+
+fn ensure_local_hooks(config: &FamiliarConfig) -> Result<(), String> {
+    if config.runtime.mode != RuntimeMode::Local {
+        return Err(
+            "Hooks can only be changed from the local runtime; run `familiar-cli hooks` on the remote server"
+                .to_string(),
+        );
     }
+    Ok(())
+}
+
+fn run_local_hooks_cli(args: &[String]) -> Result<Vec<u8>, String> {
+    let cli = familiar_hooks::bin_path::resolve_cli_bin_path();
+    let output = std::process::Command::new(&cli)
+        .args(args)
+        .output()
+        .map_err(|error| format!("failed to start {cli}: {error}"))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(if stderr.trim().is_empty() {
+            format!("familiar-cli exited with {}", output.status)
+        } else {
+            stderr.trim().to_string()
+        });
+    }
+    Ok(output.stdout)
+}
+
+async fn fetch_remote_hooks_status(
+    config: &familiar_core::config::RemoteConfig,
+) -> Result<serde_json::Value, String> {
+    let endpoint = config
+        .endpoint
+        .as_deref()
+        .ok_or_else(|| "remote.endpoint is required in remote mode".to_string())?;
+    let scheme = if config.tls { "https" } else { "http" };
+    let url = format!("{scheme}://{endpoint}/api/v1/hooks/status");
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(
+            config.connect_timeout_secs.max(1),
+        ))
+        .build()
+        .map_err(|error| error.to_string())?;
+    let mut request = client.get(url);
+    if let Some(token) = read_remote_token(config)? {
+        request = request.bearer_auth(token);
+    }
+    let response = request.send().await.map_err(|error| error.to_string())?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(format!("remote Hooks status request failed: HTTP {status}"));
+    }
+    response
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Resolve the local credential file used by the remote desktop client.
+/// Keeping this path separate from `config.toml` prevents config saves and
+/// config previews from ever serializing the bearer token itself.
+pub(crate) fn remote_token_file_path(
+    config: &familiar_core::config::RemoteConfig,
+) -> std::path::PathBuf {
+    config
+        .token_file
+        .as_deref()
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| familiar_core::platform::user_config_dir().join("remote-token"))
+}
+
+pub(crate) fn read_remote_token(
+    config: &familiar_core::config::RemoteConfig,
+) -> Result<Option<String>, String> {
+    let path = remote_token_file_path(config);
+    let value = match std::fs::read_to_string(&path) {
+        Ok(value) => value,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => {
+            return Err(format!(
+                "read remote token file {}: {error}",
+                path.display()
+            ))
+        }
+    };
+    let token = value.trim().to_string();
+    if token.is_empty() {
+        return Err(format!("remote token file is empty: {}", path.display()));
+    }
+    Ok(Some(token))
+}
+
+fn write_remote_token(path: &std::path::Path, token: &str) -> Result<(), String> {
+    if let Some(parent) = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        std::fs::create_dir_all(parent).map_err(|error| {
+            format!(
+                "create remote token directory {}: {error}",
+                parent.display()
+            )
+        })?;
+    }
+
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| format!("invalid remote token file path: {}", path.display()))?;
+    let temporary = path.with_file_name(format!(
+        ".{file_name}.tmp-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|error| format!("get token file timestamp: {error}"))?
+            .as_nanos()
+    ));
+
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let write_result = (|| {
+        let mut file = options
+            .open(&temporary)
+            .map_err(|error| format!("create temporary remote token file: {error}"))?;
+        file.write_all(token.as_bytes())
+            .and_then(|_| file.write_all(b"\n"))
+            .map_err(|error| format!("write temporary remote token file: {error}"))?;
+        file.sync_all()
+            .map_err(|error| format!("flush temporary remote token file: {error}"))?;
+        drop(file);
+        if let Err(error) = std::fs::rename(&temporary, path) {
+            #[cfg(windows)]
+            if error.kind() == std::io::ErrorKind::AlreadyExists {
+                std::fs::remove_file(path)
+                    .map_err(|remove_error| format!("replace remote token file: {remove_error}"))?;
+                std::fs::rename(&temporary, path)
+                    .map_err(|rename_error| format!("replace remote token file: {rename_error}"))?;
+            } else {
+                return Err(format!("replace remote token file: {error}"));
+            }
+            #[cfg(not(windows))]
+            return Err(format!("replace remote token file: {error}"));
+        }
+        Ok(())
+    })();
+    if write_result.is_err() {
+        let _ = std::fs::remove_file(&temporary);
+    }
+    write_result?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut permissions = std::fs::metadata(path)
+            .map_err(|error| format!("read remote token permissions: {error}"))?
+            .permissions();
+        permissions.set_mode(0o600);
+        std::fs::set_permissions(path, permissions)
+            .map_err(|error| format!("restrict remote token permissions: {error}"))?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
-pub fn get_hooks_status() -> Result<serde_json::Value, String> {
-    let hooks: Vec<Box<dyn AgentHook>> = vec![
-        Box::new(AntigravityHook::new()),
-        Box::new(ClaudeCodeHook::new()),
-        Box::new(CodexHook::new()),
-        Box::new(DeepSeekHarnessHook::new()),
-        Box::new(QoderHook::new()),
-    ];
-
-    let mut status_map = serde_json::Map::new();
-    for hook in hooks {
-        let agent_name = hook.name().to_string();
-        let status = json!({
-            "injected": hook.is_injected(),
-            "config_path": hook.config_path().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default()
-        });
-        status_map.insert(agent_name, status);
+pub fn save_remote_token(
+    config_state: tauri::State<'_, Arc<AppConfigState>>,
+    token: String,
+) -> Result<String, String> {
+    let token = token.trim();
+    if token.is_empty() {
+        return Err("remote token cannot be empty".to_string());
     }
+    let path = remote_token_file_path(&config_state.get_config().remote);
+    write_remote_token(&path, token)?;
+    Ok(path.to_string_lossy().into_owned())
+}
 
-    Ok(serde_json::Value::Object(status_map))
+#[tauri::command]
+pub async fn get_hooks_status(
+    config_state: tauri::State<'_, Arc<AppConfigState>>,
+) -> Result<serde_json::Value, String> {
+    let config = config_state.get_config();
+    if config.runtime.mode == RuntimeMode::Remote {
+        return fetch_remote_hooks_status(&config.remote).await;
+    }
+    let output = tokio::task::spawn_blocking(|| {
+        run_local_hooks_cli(&[
+            "hooks".to_string(),
+            "status".to_string(),
+            "--json".to_string(),
+        ])
+    })
+    .await
+    .map_err(|error| error.to_string())??;
+    serde_json::from_slice(&output).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -520,23 +688,51 @@ pub fn get_hook_payload(agent: &str) -> Result<serde_json::Value, String> {
 }
 
 #[tauri::command]
-pub fn inject_hook(agent: &str) -> Result<(), String> {
-    if let Some(hook) = get_hook_by_name(agent) {
-        return hook.inject().map_err(|e| e.to_string());
-    }
-    Err("Unknown agent".into())
+pub async fn inject_hook(
+    agent: String,
+    config_state: tauri::State<'_, Arc<AppConfigState>>,
+) -> Result<(), String> {
+    let config = config_state.get_config();
+    ensure_local_hooks(&config)?;
+    tokio::task::spawn_blocking(move || {
+        run_local_hooks_cli(&[
+            "hooks".to_string(),
+            "install".to_string(),
+            "--agent".to_string(),
+            agent,
+        ])
+        .map(|_| ())
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
-pub fn uninstall_hook(agent: &str) -> Result<(), String> {
-    if let Some(hook) = get_hook_by_name(agent) {
-        return hook.uninstall().map_err(|e| e.to_string());
-    }
-    Err("Unknown agent".into())
+pub async fn uninstall_hook(
+    agent: String,
+    config_state: tauri::State<'_, Arc<AppConfigState>>,
+) -> Result<(), String> {
+    let config = config_state.get_config();
+    ensure_local_hooks(&config)?;
+    tokio::task::spawn_blocking(move || {
+        run_local_hooks_cli(&[
+            "hooks".to_string(),
+            "uninstall".to_string(),
+            "--agent".to_string(),
+            agent,
+        ])
+        .map(|_| ())
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
-pub fn get_config_content(agent: &str) -> Result<String, String> {
+pub fn get_config_content(
+    agent: &str,
+    config_state: tauri::State<'_, Arc<AppConfigState>>,
+) -> Result<String, String> {
+    ensure_local_hooks(&config_state.get_config())?;
     if let Some(hook) = get_hook_by_name(agent) {
         if let Some(path) = hook.config_path() {
             if path.exists() {
@@ -548,28 +744,50 @@ pub fn get_config_content(agent: &str) -> Result<String, String> {
     Err("Unknown agent or config path".into())
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct DiffPreview {
     pub before: String,
     pub after: String,
 }
 
 #[tauri::command]
-pub fn preview_inject_hook(agent: &str) -> Result<DiffPreview, String> {
-    if let Some(hook) = get_hook_by_name(agent) {
-        let (before, after) = hook.preview_inject().map_err(|e| e.to_string())?;
-        return Ok(DiffPreview { before, after });
-    }
-    Err("Unknown agent".into())
+pub async fn preview_inject_hook(
+    agent: String,
+    config_state: tauri::State<'_, Arc<AppConfigState>>,
+) -> Result<DiffPreview, String> {
+    ensure_local_hooks(&config_state.get_config())?;
+    let output = tokio::task::spawn_blocking(move || {
+        run_local_hooks_cli(&[
+            "hooks".to_string(),
+            "preview".to_string(),
+            "--agent".to_string(),
+            agent,
+        ])
+    })
+    .await
+    .map_err(|error| error.to_string())??;
+    serde_json::from_slice(&output).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-pub fn preview_uninstall_hook(agent: &str) -> Result<DiffPreview, String> {
-    if let Some(hook) = get_hook_by_name(agent) {
-        let (before, after) = hook.preview_uninstall().map_err(|e| e.to_string())?;
-        return Ok(DiffPreview { before, after });
-    }
-    Err("Unknown agent".into())
+pub async fn preview_uninstall_hook(
+    agent: String,
+    config_state: tauri::State<'_, Arc<AppConfigState>>,
+) -> Result<DiffPreview, String> {
+    ensure_local_hooks(&config_state.get_config())?;
+    let output = tokio::task::spawn_blocking(move || {
+        run_local_hooks_cli(&[
+            "hooks".to_string(),
+            "preview".to_string(),
+            "--agent".to_string(),
+            agent,
+            "--operation".to_string(),
+            "uninstall".to_string(),
+        ])
+    })
+    .await
+    .map_err(|error| error.to_string())??;
+    serde_json::from_slice(&output).map_err(|error| error.to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -688,7 +906,11 @@ fn extract_hook_points(payload: &serde_json::Value) -> Vec<HookPointInfo> {
 }
 
 #[tauri::command]
-pub fn get_hook_details(agent: &str) -> Result<AgentHookDetail, String> {
+pub fn get_hook_details(
+    agent: &str,
+    config_state: tauri::State<'_, Arc<AppConfigState>>,
+) -> Result<AgentHookDetail, String> {
+    ensure_local_hooks(&config_state.get_config())?;
     let hook = get_hook_by_name(agent).ok_or_else(|| "Unknown agent".to_string())?;
     let payload = hook
         .get_injection_payload()
@@ -721,7 +943,9 @@ pub async fn test_hook_point(
     event_name: &str,
     mode: &str,
     event_bus: tauri::State<'_, EventBus>,
+    config_state: tauri::State<'_, Arc<AppConfigState>>,
 ) -> Result<TestHookResult, String> {
+    ensure_local_hooks(&config_state.get_config())?;
     match mode {
         "event_bus" => test_via_event_bus(agent, event_name, &event_bus).await,
         "command" => test_via_shell(agent, event_name),

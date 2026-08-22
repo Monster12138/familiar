@@ -15,6 +15,8 @@ familiar-api = { path = "../familiar-api" }
 clap = { workspace = true }
 tokio = { workspace = true }
 serde_json = { workspace = true }
+serde = { workspace = true }
+uuid = { workspace = true }
 anyhow = { workspace = true }
 reqwest = { version = "0.12", features = ["json"] }
 tracing = { workspace = true }

@@ -340,33 +340,32 @@ impl AgentHook for AntigravityHook {
     }
 
     fn get_injection_payload(&self) -> Option<serde_json::Value> {
-        let bin_path = crate::bin_path::resolve_cli_bin_path();
         Some(serde_json::json!({
             "familiar": {
                 "PreInvocation": [{
                     "type": "command",
-                    "command": format!("\"{}\" hook --source antigravity --event PreInvocation", bin_path)
+                    "command": crate::bin_path::hook_command("antigravity", "PreInvocation", true)
                 }],
                 "PostInvocation": [{
                     "type": "command",
-                    "command": format!("\"{}\" hook --source antigravity --event PostInvocation", bin_path)
+                    "command": crate::bin_path::hook_command("antigravity", "PostInvocation", true)
                 }],
                 "Stop": [{
                     "type": "command",
-                    "command": format!("\"{}\" hook --source antigravity --event Stop", bin_path)
+                    "command": crate::bin_path::hook_command("antigravity", "Stop", true)
                 }],
                 "PreToolUse": [{
                     "matcher": "*",
                     "hooks": [{
                         "type": "command",
-                        "command": format!("\"{}\" hook --source antigravity --event PreToolUse", bin_path)
+                        "command": crate::bin_path::hook_command("antigravity", "PreToolUse", true)
                     }]
                 }],
                 "PostToolUse": [{
                     "matcher": "*",
                     "hooks": [{
                         "type": "command",
-                        "command": format!("\"{}\" hook --source antigravity --event PostToolUse", bin_path)
+                        "command": crate::bin_path::hook_command("antigravity", "PostToolUse", true)
                     }]
                 }]
             }

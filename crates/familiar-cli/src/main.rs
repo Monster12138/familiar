@@ -1,4 +1,6 @@
+pub mod auth;
 pub mod hook_reporter;
+pub mod hooks;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -33,6 +35,19 @@ pub enum Commands {
         /// and sh when the JSON is single-quoted).
         #[arg(long)]
         stdin_json: Option<String>,
+        /// Explicit configuration file used to resolve the Hook ingest endpoint.
+        #[arg(long, value_name = "PATH")]
+        config: Option<PathBuf>,
+    },
+    /// Manage Agent hook configuration on the current machine.
+    Hooks {
+        #[command(subcommand)]
+        command: hooks::HooksCommand,
+    },
+    /// Initialize or inspect the persisted server authentication token.
+    Auth {
+        #[command(subcommand)]
+        command: auth::AuthCommand,
     },
     /// Status subcommand
     Status,
@@ -56,8 +71,18 @@ async fn main() -> Result<()> {
             source,
             event,
             stdin_json,
+            config,
         } => {
+            if let Some(config) = config {
+                std::env::set_var("FAMILIAR_CONFIG", config);
+            }
             crate::hook_reporter::run(source, event, stdin_json.as_deref()).await?;
+        }
+        Commands::Hooks { command } => {
+            crate::hooks::run(command).await?;
+        }
+        Commands::Auth { command } => {
+            crate::auth::run(command)?;
         }
         Commands::Status => {
             println!("Running status subcommand");
@@ -103,12 +128,20 @@ async fn run_server(config_path: Option<&Path>, bind_override: Option<&str>) -> 
     }
 
     let auth_token = if config.server.auth.enabled {
-        let env_name = config.server.auth.token_env.as_deref().ok_or_else(|| {
-            anyhow::anyhow!("server.auth.token_env is required when auth is enabled")
-        })?;
-        Some(std::env::var(env_name).map_err(|_| {
-            anyhow::anyhow!("server auth token environment variable {env_name} is not set")
-        })?)
+        if let Some(persisted) = crate::auth::resolve_token(&config)? {
+            if persisted.generated {
+                if let Some(path) = config.server.auth.token_file.as_deref() {
+                    println!(
+                        "Familiar auth token initialized at {path}; retrieve it with `familiar-cli auth show --config <path>`"
+                    );
+                }
+            }
+            Some(persisted.token)
+        } else {
+            anyhow::bail!(
+                "server authentication is enabled but no token is available; configure server.auth.token_file and set server.auth.auto_generate = true for first-run initialization"
+            );
+        }
     } else {
         None
     };
@@ -157,7 +190,7 @@ async fn run_server(config_path: Option<&Path>, bind_override: Option<&str>) -> 
     Ok(())
 }
 
-fn load_config(explicit_path: Option<&Path>) -> Result<FamiliarConfig> {
+pub(crate) fn load_config(explicit_path: Option<&Path>) -> Result<FamiliarConfig> {
     if let Some(path) = explicit_path {
         return FamiliarConfig::load_from_file(path);
     }
@@ -189,5 +222,36 @@ mod tests {
             }
         ));
         assert!(Cli::try_parse_from(["familiar-cli", "headless"]).is_err());
+    }
+
+    #[test]
+    fn hooks_management_commands_parse() {
+        assert!(Cli::try_parse_from(["familiar-cli", "hooks", "status", "--json"]).is_ok());
+        assert!(Cli::try_parse_from([
+            "familiar-cli",
+            "hooks",
+            "preview",
+            "--agent",
+            "codex",
+            "--operation",
+            "uninstall"
+        ])
+        .is_ok());
+        // Clap accepts the empty selection so the command can provide the
+        // actionable `--agent`/`--all` error in the normal execution path.
+        assert!(Cli::try_parse_from(["familiar-cli", "hooks", "install"]).is_ok());
+    }
+
+    #[test]
+    fn auth_commands_parse() {
+        assert!(Cli::try_parse_from(["familiar-cli", "auth", "init"]).is_ok());
+        assert!(Cli::try_parse_from([
+            "familiar-cli",
+            "auth",
+            "show",
+            "--config",
+            "/etc/familiar/server.toml"
+        ])
+        .is_ok());
     }
 }

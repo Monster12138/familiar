@@ -105,6 +105,7 @@ See [docs/PRIVACY.md](docs/PRIVACY.md) for the complete data-flow, configuration
 
 - [Privacy & Data Handling](docs/PRIVACY.md) — What Familiar reads, keeps, and logs
 - [Design Notes](docs/DESIGN.md) — Architecture and protocol background
+- [Remote Deployment](docs/REMOTE_DEPLOYMENT.md) — Deploy the server and configure a remote desktop client
 - [Backend Workflow](docs/BACKEND_WORKFLOW.md) — Rust development workflow
 - [Frontend Workflow](docs/FRONTEND_WORKFLOW.md) — UI development workflow
 - [Release Process](docs/RELEASE_PROCESS.md) — Versioning, macOS packaging, artifacts, tags, and GitHub Releases

@@ -63,8 +63,12 @@ pub struct TlsConfig {
 pub struct ServerAuthConfig {
     #[serde(default)]
     pub enabled: bool,
+    /// Persistent token file used by the server for bearer authentication.
     #[serde(default)]
-    pub token_env: Option<String>,
+    pub token_file: Option<String>,
+    /// Generate `token_file` on first server startup when it does not exist.
+    #[serde(default)]
+    pub auto_generate: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -115,8 +119,10 @@ pub struct RemoteConfig {
     pub path: String,
     #[serde(default)]
     pub tls: bool,
+    /// Path to the local file containing the remote server bearer token.
+    /// The token itself is intentionally never serialized into this config.
     #[serde(default)]
-    pub token_env: Option<String>,
+    pub token_file: Option<String>,
     #[serde(default = "default_connect_timeout_secs")]
     pub connect_timeout_secs: u64,
     #[serde(default = "default_reconnect_initial_secs")]
@@ -147,7 +153,7 @@ impl Default for RemoteConfig {
             endpoint: None,
             path: default_state_stream_path(),
             tls: false,
-            token_env: None,
+            token_file: None,
             connect_timeout_secs: default_connect_timeout_secs(),
             reconnect_initial_secs: default_reconnect_initial_secs(),
             reconnect_max_secs: default_reconnect_max_secs(),

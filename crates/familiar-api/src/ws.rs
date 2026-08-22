@@ -99,6 +99,17 @@ impl StateStreamState {
             snapshots: receiver,
         }
     }
+
+    pub fn is_authorized(&self, headers: &HeaderMap) -> bool {
+        let Some(expected) = self.auth_token.as_deref() else {
+            return true;
+        };
+        let supplied = headers
+            .get("authorization")
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.strip_prefix("Bearer "));
+        supplied == Some(expected)
+    }
 }
 
 fn encode_snapshot(
@@ -122,14 +133,8 @@ pub async fn ws_handler(
     headers: HeaderMap,
     ws: WebSocketUpgrade,
 ) -> Response {
-    if let Some(expected) = state.auth_token.as_deref() {
-        let supplied = headers
-            .get("authorization")
-            .and_then(|value| value.to_str().ok())
-            .and_then(|value| value.strip_prefix("Bearer "));
-        if supplied != Some(expected) {
-            return (axum::http::StatusCode::UNAUTHORIZED, "unauthorized").into_response();
-        }
+    if !state.is_authorized(&headers) {
+        return (axum::http::StatusCode::UNAUTHORIZED, "unauthorized").into_response();
     }
     ws.on_upgrade(move |socket| handle_socket(socket, state))
         .into_response()
@@ -183,6 +188,7 @@ async fn send_json<T: serde::Serialize>(socket: &mut WebSocket, value: &T) -> an
 #[cfg(test)]
 mod tests {
     use super::StateStreamState;
+    use axum::http::{HeaderMap, HeaderValue};
     use familiar_core::{
         config::StateStreamConfig, event_bus::EventBus, state_machine::StateMachine,
     };
@@ -201,5 +207,22 @@ mod tests {
         let value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
         assert_eq!(value["type"], "state");
         assert_eq!(value["active_agent_count"], 0);
+    }
+
+    #[tokio::test]
+    async fn authorization_is_shared_by_state_and_hooks_routes() {
+        let bus = EventBus::new(8, 8);
+        let machine = StateMachine::new(bus, 4, 300);
+        let state = StateStreamState::new(
+            machine,
+            StateStreamConfig::default(),
+            Some("secret".to_string()),
+            "test",
+        );
+        assert!(!state.is_authorized(&HeaderMap::new()));
+
+        let mut headers = HeaderMap::new();
+        headers.insert("authorization", HeaderValue::from_static("Bearer secret"));
+        assert!(state.is_authorized(&headers));
     }
 }

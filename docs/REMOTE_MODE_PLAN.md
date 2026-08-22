@@ -208,7 +208,8 @@ key_path = "/etc/familiar/tls/server.key"
 
 [server.auth]
 enabled = true
-token_env = "FAMILIAR_SERVER_TOKEN"
+token_file = "/var/lib/familiar/auth/token"
+auto_generate = true
 
 [server.state_stream]
 max_updates_per_second = 10
@@ -222,6 +223,8 @@ max_activity_summary_chars = 160
 - `server.tls.enabled = false` 时提供 HTTP/WS。
 - TLS 开启但证书或私钥无效时，服务端启动失败，不得静默降级到明文。
 - TLS 和 token 鉴权相互独立；关闭 TLS 不等于关闭鉴权。
+- 服务端鉴权只读取 `server.auth.token_file`；缺失时可由 `auto_generate` 在首次启动创建，
+  后续启动复用同一文件，不再读取旧的服务端 Token 环境变量。
 - TLS 关闭时，日志明确说明当前使用明文连接。
 
 ### 6.2 客户端配置
@@ -234,7 +237,7 @@ mode = "remote"
 endpoint = "familiar.example.com:19528"
 path = "/api/v1/state-stream"
 tls = true
-token_env = "FAMILIAR_REMOTE_TOKEN"
+token_file = "/absolute/path/to/familiar/remote-token"
 connect_timeout_secs = 10
 reconnect_initial_secs = 1
 reconnect_max_secs = 30

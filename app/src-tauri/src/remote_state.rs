@@ -32,13 +32,12 @@ async fn run(
 ) -> anyhow::Result<()> {
     let endpoint = config
         .endpoint
+        .as_deref()
         .ok_or_else(|| anyhow::anyhow!("remote.endpoint is required in remote mode"))?;
     let scheme = if config.tls { "wss" } else { "ws" };
     let url = format!("{scheme}://{}{}", endpoint, config.path);
-    let token = config
-        .token_env
-        .as_deref()
-        .and_then(|name| std::env::var(name).ok());
+    let token =
+        crate::commands::read_remote_token(&config).map_err(|error| anyhow::anyhow!(error))?;
     let mut backoff = config.reconnect_initial_secs.max(1);
     let mut last_server_id = None;
     let mut last_revision = 0u64;
@@ -63,7 +62,10 @@ async fn run(
                 tracing::warn!(%error, "remote state connection failed");
                 let status = match &error {
                     tokio_tungstenite::tungstenite::Error::Http(response)
-                        if response.status().as_u16() == 401 => "authentication_failed",
+                        if response.status().as_u16() == 401 =>
+                    {
+                        "authentication_failed"
+                    }
                     _ => "reconnecting",
                 };
                 let _ = app.emit("connection_status_changed", status);
@@ -83,13 +85,35 @@ async fn run(
         let _ = app.emit("connection_status_changed", "connected");
 
         while let Some(message) = socket.next().await {
-            match message? {
+            let message = match message {
+                Ok(message) => message,
+                Err(error) => {
+                    // A server restart normally appears as a WebSocket I/O
+                    // error rather than a clean Close frame. Treat it as a
+                    // transient disconnect so the outer loop can reconnect.
+                    tracing::warn!(%error, endpoint = %url, "remote state stream read failed");
+                    break;
+                }
+            };
+            match message {
                 Message::Text(text) => {
-                    let value: Value = serde_json::from_str(&text)?;
+                    let value: Value = match serde_json::from_str(&text) {
+                        Ok(value) => value,
+                        Err(error) => {
+                            tracing::warn!(%error, "invalid remote state stream message");
+                            continue;
+                        }
+                    };
                     if value.get("type").and_then(Value::as_str) != Some("state") {
                         continue;
                     }
-                    let snapshot: StateSnapshotV1 = serde_json::from_value(value)?;
+                    let snapshot: StateSnapshotV1 = match serde_json::from_value(value) {
+                        Ok(snapshot) => snapshot,
+                        Err(error) => {
+                            tracing::warn!(%error, "invalid remote state snapshot");
+                            continue;
+                        }
+                    };
                     if snapshot.v != STATE_STREAM_PROTOCOL_VERSION {
                         tracing::warn!(
                             version = snapshot.v,
@@ -124,7 +148,12 @@ async fn run(
                     let _ = app.emit("state_changed", state.clone());
                     let _ = app.emit("settings_state_changed", state);
                 }
-                Message::Ping(payload) => socket.send(Message::Pong(payload)).await?,
+                Message::Ping(payload) => {
+                    if let Err(error) = socket.send(Message::Pong(payload)).await {
+                        tracing::warn!(%error, endpoint = %url, "remote state stream pong failed");
+                        break;
+                    }
+                }
                 Message::Close(_) => break,
                 _ => {}
             }

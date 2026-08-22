@@ -115,6 +115,7 @@ const AGENTS = ['antigravity', 'claude-code', 'codex', 'deepseek-harness', 'qode
 let panelContainer = null;
 let currentLang = 'zh-CN';
 let currentConfig = {};
+let remoteMode = false;
 let currentInjectingAgent = null;
 let currentUninstallingAgent = null;
 let hooksStatusCache = {};
@@ -270,6 +271,13 @@ function renderAgentCards() {
 
     container.innerHTML = '';
 
+    if (remoteMode) {
+        const hint = document.createElement('div');
+        hint.className = 'hook-runtime-hint';
+        hint.textContent = t('msg_remote_hooks_readonly', currentLang);
+        container.appendChild(hint);
+    }
+
     AGENTS.forEach(agent => {
         const status = hooksStatusCache[agent];
         const isInjected = status ? status.injected : false;
@@ -314,19 +322,19 @@ function renderAgentCards() {
         btnInject.className = 'secondary-btn btn-sm';
         btnInject.id = `btn-inject-${agent}`;
         btnInject.textContent = t('btn_inject', currentLang);
-        btnInject.style.display = isInjected ? 'none' : 'inline-block';
+        btnInject.style.display = !remoteMode && !isInjected ? 'inline-block' : 'none';
 
         const btnViewConfig = document.createElement('button');
         btnViewConfig.className = 'secondary-btn btn-sm';
         btnViewConfig.id = `btn-view-config-${agent}`;
         btnViewConfig.textContent = t('btn_view_config', currentLang);
-        btnViewConfig.style.display = isInjected ? 'inline-block' : 'none';
+        btnViewConfig.style.display = !remoteMode && isInjected ? 'inline-block' : 'none';
 
         const btnUninstall = document.createElement('button');
         btnUninstall.className = 'danger-btn btn-sm';
         btnUninstall.id = `btn-uninstall-${agent}`;
         btnUninstall.textContent = t('btn_uninstall', currentLang);
-        btnUninstall.style.display = isInjected ? 'inline-block' : 'none';
+        btnUninstall.style.display = !remoteMode && isInjected ? 'inline-block' : 'none';
 
         actions.appendChild(btnInject);
         actions.appendChild(btnViewConfig);
@@ -420,6 +428,12 @@ function renderAgentCards() {
 async function toggleAgentExpand(agent) {
     const detailEl = document.getElementById(`hook-detail-${agent}`);
     if (!detailEl) return;
+
+    if (remoteMode) {
+        detailEl.classList.toggle('expanded');
+        detailEl.innerHTML = `<div class="hook-runtime-hint">${t('msg_remote_hooks_cli', currentLang)}</div>`;
+        return;
+    }
 
     const wasExpanded = expandedAgents.has(agent);
 
@@ -585,6 +599,12 @@ export async function mountHookPanel(container, lang) {
     // Load config for the event-status map and default language.
     try {
         currentConfig = await invoke('get_config');
+        const nextRemoteMode = currentConfig?.runtime?.mode === 'remote';
+        if (nextRemoteMode !== remoteMode) {
+            remoteMode = nextRemoteMode;
+            expandedAgents.clear();
+            hookDetailsCache = {};
+        }
         if (currentConfig && currentConfig.general && currentConfig.general.language) {
             currentLang = currentConfig.general.language;
         }
