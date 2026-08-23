@@ -119,6 +119,7 @@ let remoteMode = false;
 let currentInjectingAgent = null;
 let currentUninstallingAgent = null;
 let hooksStatusCache = {};
+let hooksStatusLoading = false;
 let hookDetailsCache = {};      // agent -> AgentHookDetail (lazy)
 let expandedAgents = new Set(); // track which agent cards are expanded
 
@@ -270,6 +271,19 @@ function renderAgentCards() {
     if (!container) return;
 
     container.innerHTML = '';
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'hook-panel-toolbar';
+    const retryButton = document.createElement('button');
+    retryButton.type = 'button';
+    retryButton.className = 'secondary-btn btn-sm hook-retry-btn';
+    retryButton.disabled = hooksStatusLoading;
+    retryButton.textContent = hooksStatusLoading
+        ? t('msg_hooks_checking', currentLang)
+        : t('btn_retry_hooks', currentLang);
+    retryButton.addEventListener('click', () => fetchHooksStatus(true));
+    toolbar.appendChild(retryButton);
+    container.appendChild(toolbar);
 
     if (remoteMode) {
         const hint = document.createElement('div');
@@ -480,15 +494,22 @@ async function testHookPoint(agent, eventName) {
     }
 }
 
-async function fetchHooksStatus() {
+async function fetchHooksStatus(showSuccess = false) {
+    if (hooksStatusLoading) return;
+    hooksStatusLoading = true;
+    renderAgentCards();
     try {
         const status = await invoke('get_hooks_status');
         if (status) {
             hooksStatusCache = status;
-            renderAgentCards();
         }
+        if (showSuccess) showToast(t('msg_hooks_check_success', currentLang), 'success');
     } catch (e) {
         console.error("Failed to fetch hooks status", e);
+        showToast(t('msg_hooks_check_failed', currentLang), 'error');
+    } finally {
+        hooksStatusLoading = false;
+        renderAgentCards();
     }
 }
 
@@ -614,5 +635,6 @@ export async function mountHookPanel(container, lang) {
     if (lang) currentLang = lang;
     applyTranslations(currentLang);
 
+    renderAgentCards();
     await fetchHooksStatus();
 }

@@ -60,15 +60,26 @@ async function showHooks() {
     }
 }
 
-function showRemote() {
+async function showRemote() {
     showView('onboard-remote-view');
-    document.getElementById('onboard-remote-endpoint')?.focus();
+    try {
+        const win = getCurrentWebviewWindow();
+        if (win) await win.setFocus();
+    } catch (error) {
+        // The window is already interactive on some macOS WebView versions,
+        // where an explicit focus request may be rejected. Input focus below
+        // remains sufficient and this must not block remote setup.
+        console.debug('Onboarding window focus request was not needed', error);
+    }
+    window.requestAnimationFrame(() => {
+        document.getElementById('onboard-remote-endpoint')?.focus({ preventScroll: true });
+    });
 }
 
 async function proceedFromMode() {
     const mode = document.querySelector('input[name="onboard-mode"]:checked')?.value || 'local';
     try {
-        if (mode === 'remote') showRemote();
+        if (mode === 'remote') await showRemote();
         else await showHooks();
     } catch (error) {
         console.error('Failed to select onboarding mode', error);

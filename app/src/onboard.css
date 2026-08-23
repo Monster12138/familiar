@@ -99,6 +99,7 @@ body {
 
 .onboard-field + .onboard-field { border-top: 1px solid var(--border-color); }
 .onboard-field small { color: var(--text-muted); font-size: 11px; font-weight: 400; line-height: 1.45; }
+.onboard-token-path code { color: var(--text-active); }
 .onboard-field input[type="text"],
 .onboard-field input[type="password"],
 .onboard-field input[type="number"] {
@@ -109,7 +110,24 @@ body {
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.05);
     color: var(--text-main);
+    -webkit-text-fill-color: var(--text-main);
+    caret-color: var(--text-main) !important;
+    cursor: text;
+    outline: none;
+    pointer-events: auto;
+    -webkit-user-select: text;
+    user-select: text;
+    opacity: 1;
 }
+
+.onboard-field input[type="text"]:focus,
+.onboard-field input[type="password"]:focus,
+.onboard-field input[type="number"]:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.18);
+}
+
+.onboard-field input[type="checkbox"] { cursor: pointer; }
 
 .onboard-field-inline { flex-direction: row; align-items: center; justify-content: space-between; }
 .onboard-field-inline > span { display: flex; flex-direction: column; gap: 4px; }
