@@ -9,7 +9,7 @@
 </head>
 <body>
     <div class="onboard">
-        <!-- Step 1: introduction -->
+        <!-- Step 1: choose where agent state comes from -->
         <div id="onboard-intro">
             <header class="onboard-hero">
                 <img src="../src-tauri/icons/icon.png" alt="Familiar" class="onboard-logo">
@@ -17,11 +17,23 @@
                 <p class="onboard-subtitle" data-i18n="onboard_subtitle">一只会回应你工作世界的桌面宠物</p>
             </header>
 
-            <ol class="onboard-steps">
-                <li data-i18n="onboard_step_1">桌宠会随 Agent 的工作活动产生变化</li>
-                <li data-i18n="onboard_step_2">注入 Hooks 即可同步 Agent 状态</li>
-                <li data-i18n="onboard_step_3">数据只在本机处理，隐私优先</li>
-            </ol>
+            <fieldset class="onboard-mode-picker">
+                <legend data-i18n="onboard_mode_title">选择运行模式</legend>
+                <label class="onboard-mode-card">
+                    <input type="radio" name="onboard-mode" value="local" checked>
+                    <span class="onboard-mode-content">
+                        <strong data-i18n="onboard_mode_local_title">本地模式</strong>
+                        <small data-i18n="onboard_mode_local_desc">连接本机 Agent，下一步注入 Hooks。</small>
+                    </span>
+                </label>
+                <label class="onboard-mode-card">
+                    <input type="radio" name="onboard-mode" value="remote">
+                    <span class="onboard-mode-content">
+                        <strong data-i18n="onboard_mode_remote_title">远程模式</strong>
+                        <small data-i18n="onboard_mode_remote_desc">订阅远端 Familiar 服务，下一步配置连接。</small>
+                    </span>
+                </label>
+            </fieldset>
 
             <footer class="onboard-footer">
                 <button id="btn-onboard-next" class="primary-btn" data-i18n="onboard_next">下一步</button>
@@ -35,7 +47,59 @@
             <p class="onboard-hook-desc" data-i18n="desc_hook_injection">自动修改各 Agent 的配置文件，将运行状态实时同步到桌面宠物</p>
             <div id="onboard-hook-panel"></div>
             <footer class="onboard-footer">
-                <button id="btn-onboard-done" class="primary-btn" data-i18n="onboard_done">完成</button>
+                <button class="secondary-btn btn-onboard-back" data-i18n="onboard_back">返回</button>
+                <button id="btn-onboard-local-done" class="primary-btn" data-i18n="onboard_done">完成</button>
+            </footer>
+        </div>
+
+        <!-- Step 2b: remote server connection -->
+        <div id="onboard-remote-view" style="display:none;">
+            <h2 class="onboard-hook-title" data-i18n="onboard_remote_title">连接远端服务</h2>
+            <p class="onboard-hook-desc" data-i18n="onboard_remote_desc">Agent 与 familiar-cli serve 应运行在同一台远程机器。</p>
+
+            <div class="onboard-remote-form settings-card">
+                <label class="onboard-field">
+                    <span data-i18n="lbl_remote_endpoint">服务端地址</span>
+                    <small data-i18n="desc_remote_endpoint">填写主机:端口，例如 familiar.example.com:19528；不要包含 http:// 或 https://。</small>
+                    <input type="text" id="onboard-remote-endpoint" placeholder="familiar.example.com:19528" autocomplete="off">
+                </label>
+                <label class="onboard-field">
+                    <span data-i18n="lbl_remote_path">State Stream 路径</span>
+                    <small data-i18n="desc_remote_path">远程状态 WebSocket 路径，通常保持默认值。</small>
+                    <input type="text" id="onboard-remote-path" value="/api/v1/state-stream">
+                </label>
+                <label class="onboard-field onboard-field-inline">
+                    <span>
+                        <b data-i18n="lbl_remote_tls">启用 TLS</b>
+                        <small data-i18n="desc_remote_tls">使用 WSS 连接；关闭后使用明文 WS，仅建议用于可信内网或已有加密隧道。</small>
+                    </span>
+                    <input type="checkbox" id="onboard-remote-tls">
+                </label>
+                <label class="onboard-field">
+                    <span data-i18n="lbl_remote_token">远程 Token</span>
+                    <small data-i18n="desc_remote_token">填写远程 Token。</small>
+                    <input type="password" id="onboard-remote-token" autocomplete="new-password">
+                </label>
+                <div class="onboard-number-grid">
+                    <label class="onboard-field">
+                        <span data-i18n="lbl_remote_connect_timeout">连接超时</span>
+                        <input type="number" id="onboard-remote-connect-timeout" min="1" max="600" value="10">
+                    </label>
+                    <label class="onboard-field">
+                        <span data-i18n="lbl_remote_reconnect_initial">初始重连间隔</span>
+                        <input type="number" id="onboard-remote-reconnect-initial" min="1" max="3600" value="1">
+                    </label>
+                    <label class="onboard-field">
+                        <span data-i18n="lbl_remote_reconnect_max">最大重连间隔</span>
+                        <input type="number" id="onboard-remote-reconnect-max" min="1" max="86400" value="30">
+                    </label>
+                </div>
+            </div>
+
+            <p class="onboard-restart-note" data-i18n="onboard_remote_restart">完成设置后需要重启 Familiar 才会切换到远程模式。</p>
+            <footer class="onboard-footer">
+                <button class="secondary-btn btn-onboard-back" data-i18n="onboard_back">返回</button>
+                <button id="btn-onboard-remote-done" class="primary-btn" data-i18n="onboard_save_finish">保存并完成</button>
             </footer>
         </div>
     </div>
