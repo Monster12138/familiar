@@ -10,3 +10,6 @@
 /.qoder
 /dist
 /.gemini
+/hardware/esp8266/include/secrets.h
+/hardware/esp8266/.pio/
+/hardware/esp8266/.venv/

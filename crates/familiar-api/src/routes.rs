@@ -1,4 +1,4 @@
-use crate::ws::{ws_handler, StateStreamState};
+use crate::ws::{display_ws_handler, ws_handler, StateStreamState};
 use axum::{extract::State, http::HeaderMap, response::IntoResponse, routing::get, Json, Router};
 use familiar_hooks::manager;
 use serde::Serialize;
@@ -8,6 +8,7 @@ pub fn create_router(state: StateStreamState) -> Router {
     Router::new()
         .route("/health", get(health_check))
         .route("/api/v1/state-stream", get(ws_handler))
+        .route("/api/v1/display-stream", get(display_ws_handler))
         .route("/api/v1/hooks/status", get(hooks_status))
         .with_state(state)
 }

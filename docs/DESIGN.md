@@ -405,13 +405,15 @@ pub struct DailyStats {
 内置 `axum` HTTP/WebSocket 服务器：
 
 ```
-GET  /api/v1/state              → 当前 RenderState
-GET  /api/v1/agents             → 活跃 Agent 列表
-GET  /api/v1/stats/today        → 今日统计
-GET  /api/v1/stats/history      → 历史统计
-WS   /api/v1/ws                 → 实时事件流
-POST /api/v1/notify             → 外部推送通知
+GET  /health                    → 服务健康检查
+WS   /api/v1/state-stream       → 远程桌面的脱敏完整状态流
+WS   /api/v1/display-stream     → ESP8266 等硬件的紧凑显示状态流
+GET  /api/v1/hooks/status       → 远程 Hooks 只读状态
 ```
+
+远程路由共享服务端 Bearer Token 鉴权。硬件显示流只包含协议版本、服务端 ID、
+revision、mood 和活跃 Agent 数，不发送任务摘要、通知或 Agent 标识。ESP8266 +
+ST7789 参考实现及小虎素材转换流程见 `hardware/esp8266/README.md`。
 
 ---
 

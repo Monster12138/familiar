@@ -8,6 +8,31 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 pub const STATE_STREAM_PROTOCOL_VERSION: u16 = 1;
+pub const DISPLAY_STREAM_PROTOCOL_VERSION: u16 = 1;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DisplaySnapshotV1 {
+    #[serde(rename = "type")]
+    pub message_type: String,
+    pub v: u16,
+    pub server_id: Uuid,
+    pub revision: u64,
+    pub mood: FamiliarMood,
+    pub active_agent_count: u16,
+}
+
+impl DisplaySnapshotV1 {
+    pub fn from_render_state(state: &RenderState, server_id: Uuid, revision: u64) -> Self {
+        Self {
+            message_type: "display".to_string(),
+            v: DISPLAY_STREAM_PROTOCOL_VERSION,
+            server_id,
+            revision,
+            mood: state.mood.clone(),
+            active_agent_count: u16::try_from(state.active_agent_count).unwrap_or(u16::MAX),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RemoteAgentStateV1 {
@@ -95,16 +120,9 @@ impl StateSnapshotV1 {
                         .user_instruction
                         .as_deref()
                         .and_then(|value| sanitize_summary(value, max_task_summary_chars)),
-                    activity_summary: agent
-                        .current_activity
-                        .as_deref()
-                        .and_then(|value| {
-                            sanitize_activity_summary(
-                                value,
-                                &agent.status,
-                                max_activity_summary_chars,
-                            )
-                        }),
+                    activity_summary: agent.current_activity.as_deref().and_then(|value| {
+                        sanitize_activity_summary(value, &agent.status, max_activity_summary_chars)
+                    }),
                     last_event_at_ms: agent.last_event_at.map(|value| value.timestamp_millis()),
                 })
                 .collect(),
@@ -231,8 +249,8 @@ fn sanitize_activity_summary(
 #[cfg(test)]
 mod tests {
     use super::{
-        sanitize_activity_summary, sanitize_summary, ServerHelloV1, StateSnapshotV1,
-        STATE_STREAM_PROTOCOL_VERSION,
+        sanitize_activity_summary, sanitize_summary, DisplaySnapshotV1, ServerHelloV1,
+        StateSnapshotV1, DISPLAY_STREAM_PROTOCOL_VERSION, STATE_STREAM_PROTOCOL_VERSION,
     };
     use crate::{
         event::{AgentCategory, AgentEvent, AgentEventType, AgentSource},
@@ -243,6 +261,30 @@ mod tests {
     use chrono::Utc;
     use serde_json::Value;
     use uuid::Uuid;
+
+    #[test]
+    fn display_snapshot_contains_only_hardware_fields() {
+        let state = crate::state::RenderState {
+            mood: crate::state::FamiliarMood::Busy,
+            active_agent_count: 2,
+            notifications: vec![crate::state::Notification {
+                id: Uuid::new_v4(),
+                message: "private notification".into(),
+                created_at: Utc::now(),
+                read: false,
+            }],
+            ..crate::state::RenderState::default()
+        };
+        let snapshot = DisplaySnapshotV1::from_render_state(&state, Uuid::nil(), 7);
+        let value = serde_json::to_value(snapshot).unwrap();
+        assert_eq!(value["type"], "display");
+        assert_eq!(value["v"], DISPLAY_STREAM_PROTOCOL_VERSION);
+        assert_eq!(value["mood"], "Busy");
+        assert_eq!(value["active_agent_count"], 2);
+        assert!(value.get("notifications").is_none());
+        assert!(value.get("agents").is_none());
+        assert!(value.get("stats").is_none());
+    }
 
     #[test]
     fn summary_is_normalized_and_unicode_safe() {

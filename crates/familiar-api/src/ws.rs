@@ -10,7 +10,10 @@ use familiar_core::{
     config::StateStreamConfig,
     state::RenderState,
     state_machine::StateMachine,
-    state_stream::{ServerHelloV1, StateSnapshotV1, STATE_STREAM_PROTOCOL_VERSION},
+    state_stream::{
+        DisplaySnapshotV1, ServerHelloV1, StateSnapshotV1, DISPLAY_STREAM_PROTOCOL_VERSION,
+        STATE_STREAM_PROTOCOL_VERSION,
+    },
 };
 use std::{sync::Arc, time::Duration};
 use tokio::sync::watch;
@@ -24,6 +27,7 @@ pub struct StateStreamState {
     pub heartbeat_secs: u64,
     pub auth_token: Option<Arc<str>>,
     pub snapshots: watch::Receiver<Option<Arc<str>>>,
+    pub display_snapshots: watch::Receiver<Option<Arc<str>>>,
 }
 
 impl StateStreamState {
@@ -35,11 +39,13 @@ impl StateStreamState {
     ) -> Self {
         let server_id = Uuid::new_v4();
         let (sender, receiver) = watch::channel(None);
+        let (display_sender, display_receiver) = watch::channel(None);
         let mut updates = machine.subscribe_state();
         let revision_machine = machine.clone();
         let initial_machine = machine.clone();
         tokio::spawn(async move {
             let mut last_encoded: Option<Arc<str>> = None;
+            let mut last_display_state = None;
             let mut last_sent = tokio::time::Instant::now() - Duration::from_secs(1);
             let min_interval = if config.max_updates_per_second == 0 {
                 Duration::ZERO
@@ -62,6 +68,13 @@ impl StateStreamState {
                 last_encoded = Some(encoded);
                 last_sent = tokio::time::Instant::now();
             }
+            publish_display_snapshot(
+                &display_sender,
+                &initial_state,
+                initial_machine.revision(),
+                server_id,
+                &mut last_display_state,
+            );
             loop {
                 if updates.changed().await.is_err() {
                     break;
@@ -86,6 +99,13 @@ impl StateStreamState {
                 if sender.send(Some(encoded.clone())).is_err() {
                     break;
                 }
+                publish_display_snapshot(
+                    &display_sender,
+                    &state,
+                    revision,
+                    server_id,
+                    &mut last_display_state,
+                );
                 last_encoded = Some(encoded);
                 last_sent = tokio::time::Instant::now();
             }
@@ -97,6 +117,7 @@ impl StateStreamState {
             heartbeat_secs: 30,
             auth_token: auth_token.map(Arc::<str>::from),
             snapshots: receiver,
+            display_snapshots: display_receiver,
         }
     }
 
@@ -109,6 +130,27 @@ impl StateStreamState {
             .and_then(|value| value.to_str().ok())
             .and_then(|value| value.strip_prefix("Bearer "));
         supplied == Some(expected)
+    }
+}
+
+fn publish_display_snapshot(
+    sender: &watch::Sender<Option<Arc<str>>>,
+    state: &RenderState,
+    revision: u64,
+    server_id: Uuid,
+    last_state: &mut Option<(familiar_core::state::FamiliarMood, usize)>,
+) {
+    let display_state = (state.mood.clone(), state.active_agent_count);
+    if last_state.as_ref() == Some(&display_state) {
+        return;
+    }
+    let snapshot = DisplaySnapshotV1::from_render_state(state, server_id, revision);
+    match serde_json::to_string(&snapshot) {
+        Ok(encoded) => {
+            let _ = sender.send(Some(Arc::<str>::from(encoded)));
+            *last_state = Some(display_state);
+        }
+        Err(error) => tracing::warn!(%error, "failed to encode display stream snapshot"),
     }
 }
 
@@ -137,6 +179,18 @@ pub async fn ws_handler(
         return (axum::http::StatusCode::UNAUTHORIZED, "unauthorized").into_response();
     }
     ws.on_upgrade(move |socket| handle_socket(socket, state))
+        .into_response()
+}
+
+pub async fn display_ws_handler(
+    State(state): State<StateStreamState>,
+    headers: HeaderMap,
+    ws: WebSocketUpgrade,
+) -> Response {
+    if !state.is_authorized(&headers) {
+        return (axum::http::StatusCode::UNAUTHORIZED, "unauthorized").into_response();
+    }
+    ws.on_upgrade(move |socket| handle_display_socket(socket, state))
         .into_response()
 }
 
@@ -179,6 +233,56 @@ async fn handle_socket(mut socket: WebSocket, state: StateStreamState) {
     }
 }
 
+async fn handle_display_socket(mut socket: WebSocket, state: StateStreamState) {
+    let hello = ServerHelloV1 {
+        message_type: "hello".to_string(),
+        v: DISPLAY_STREAM_PROTOCOL_VERSION,
+        server_id: state.server_id,
+        server_version: state.server_version.clone(),
+        heartbeat_secs: state.heartbeat_secs,
+    };
+    if send_json(&mut socket, &hello).await.is_err() {
+        return;
+    }
+    stream_snapshots(
+        &mut socket,
+        state.display_snapshots.clone(),
+        state.heartbeat_secs,
+    )
+    .await;
+}
+
+async fn stream_snapshots(
+    socket: &mut WebSocket,
+    mut snapshots: watch::Receiver<Option<Arc<str>>>,
+    heartbeat_secs: u64,
+) {
+    let mut heartbeat = tokio::time::interval(Duration::from_secs(heartbeat_secs.max(1)));
+    loop {
+        tokio::select! {
+            changed = snapshots.changed() => {
+                if changed.is_err() { return; }
+                let snapshot = snapshots.borrow().clone();
+                let Some(snapshot) = snapshot else { continue };
+                if socket.send(Message::Text(snapshot.to_string())).await.is_err() { return; }
+            }
+            incoming = socket.recv() => {
+                match incoming {
+                    Some(Ok(Message::Ping(payload))) => {
+                        if socket.send(Message::Pong(payload)).await.is_err() { return; }
+                    }
+                    Some(Ok(Message::Close(_))) | None => return,
+                    Some(Ok(_)) => {}
+                    Some(Err(_)) => return,
+                }
+            }
+            _ = heartbeat.tick() => {
+                if socket.send(Message::Ping(Vec::new())).await.is_err() { return; }
+            }
+        }
+    }
+}
+
 async fn send_json<T: serde::Serialize>(socket: &mut WebSocket, value: &T) -> anyhow::Result<()> {
     let encoded = serde_json::to_string(value)?;
     socket.send(Message::Text(encoded)).await?;
@@ -187,11 +291,35 @@ async fn send_json<T: serde::Serialize>(socket: &mut WebSocket, value: &T) -> an
 
 #[cfg(test)]
 mod tests {
-    use super::StateStreamState;
+    use super::{publish_display_snapshot, StateStreamState};
     use axum::http::{HeaderMap, HeaderValue};
     use familiar_core::{
-        config::StateStreamConfig, event_bus::EventBus, state_machine::StateMachine,
+        config::StateStreamConfig,
+        event_bus::EventBus,
+        state::{FamiliarMood, RenderState},
+        state_machine::StateMachine,
     };
+    use tokio::sync::watch;
+    use uuid::Uuid;
+
+    #[test]
+    fn display_stream_ignores_unrelated_state_changes() {
+        let (sender, mut receiver) = watch::channel(None);
+        let mut last_state = None;
+        let state = RenderState::default();
+        publish_display_snapshot(&sender, &state, 1, Uuid::nil(), &mut last_state);
+        assert!(receiver.has_changed().unwrap());
+        receiver.borrow_and_update();
+
+        let mut changed = state;
+        changed.stats.interactions = 99;
+        publish_display_snapshot(&sender, &changed, 2, Uuid::nil(), &mut last_state);
+        assert!(!receiver.has_changed().unwrap());
+
+        changed.mood = FamiliarMood::Busy;
+        publish_display_snapshot(&sender, &changed, 3, Uuid::nil(), &mut last_state);
+        assert!(receiver.has_changed().unwrap());
+    }
 
     #[tokio::test]
     async fn state_stream_publishes_initial_snapshot() {
@@ -207,6 +335,25 @@ mod tests {
         let value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
         assert_eq!(value["type"], "state");
         assert_eq!(value["active_agent_count"], 0);
+    }
+
+    #[tokio::test]
+    async fn display_stream_publishes_private_data_free_initial_snapshot() {
+        let bus = EventBus::new(8, 8);
+        let machine = StateMachine::new(bus, 4, 300);
+        let state = StateStreamState::new(machine, StateStreamConfig::default(), None, "test");
+        let mut snapshots = state.display_snapshots.clone();
+        tokio::time::timeout(std::time::Duration::from_secs(1), snapshots.changed())
+            .await
+            .expect("initial display state should be published")
+            .expect("display snapshot publisher should remain alive");
+        let encoded = snapshots.borrow().clone().expect("display payload");
+        let value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(value["type"], "display");
+        assert_eq!(value["active_agent_count"], 0);
+        assert!(value.get("agents").is_none());
+        assert!(value.get("notifications").is_none());
+        assert!(value.get("stats").is_none());
     }
 
     #[tokio::test]
