@@ -740,6 +740,17 @@ input:checked + .slider:before {
     padding: 12px;
 }
 
+.hook-panel-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 10px;
+}
+
+.hook-retry-btn:disabled {
+    cursor: wait;
+    opacity: 0.65;
+}
+
 .hook-runtime-hint {
     margin: 0 0 12px;
     padding: 10px 12px;

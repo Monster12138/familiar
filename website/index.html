@@ -28,15 +28,83 @@
     <main id="top">
         <section class="hero">
             <div class="container hero-inner">
-                <img src="assets/icon.png" alt="Familiar mascot" class="hero-logo">
-                <h1 class="hero-title">Familiar</h1>
-                <p class="hero-tagline" data-i18n="hero_tagline">一只会回应你工作世界的桌面宠物。</p>
-                <p class="hero-sub" data-i18n="hero_sub">仅本地计算的 Agent 桌面伴侣：把 Agent 活动转化为可爱桌宠的一举一动。</p>
-                <div class="hero-actions">
-                    <a class="btn btn-primary" href="https://github.com/Monster12138/familiar/releases" data-i18n="btn_download">下载 Familiar</a>
-                    <a class="btn btn-secondary" href="https://github.com/Monster12138/familiar" data-i18n="btn_source">GitHub 仓库</a>
+                <div class="hero-copy">
+                    <span class="hero-eyebrow" data-i18n="hero_eyebrow">你的 Agent，终于有了表情</span>
+                    <h1 class="hero-title">Familiar</h1>
+                    <p class="hero-tagline" data-i18n="hero_tagline">一只会回应你工作世界的桌面宠物。</p>
+                    <p class="hero-sub" data-i18n="hero_sub">仅本地计算的 Agent 桌面伴侣：把 Agent 活动转化为可爱桌宠的一举一动。</p>
+                    <div class="hero-actions">
+                        <a class="btn btn-primary" href="https://github.com/Monster12138/familiar/releases" data-i18n="btn_download">下载 Familiar</a>
+                        <a class="btn btn-secondary" href="https://github.com/Monster12138/familiar" data-i18n="btn_source">GitHub 仓库</a>
+                    </div>
+                    <p class="hero-note" data-i18n="hero_note">macOS · Windows · Linux 支持开发中，最新版本见 GitHub Releases。</p>
                 </div>
-                <p class="hero-note" data-i18n="hero_note">macOS · Windows · Linux 支持开发中，最新版本见 GitHub Releases。</p>
+
+                <div class="agent-demo" aria-label="Coding agents converge into Familiar desktop pet reactions" data-i18n-aria="demo_aria">
+                    <div class="agent-stack" aria-hidden="true">
+                        <div class="agent-card agent-card-claude">
+                            <span class="agent-mark"><img src="assets/agents/claude-code.svg" alt=""></span>
+                            <span>Claude Code</span>
+                            <i class="agent-pulse"></i>
+                        </div>
+                        <div class="agent-card agent-card-codex">
+                            <span class="agent-mark"><img src="assets/agents/chatgpt.svg" alt=""></span>
+                            <span>ChatGPT</span>
+                            <i class="agent-pulse"></i>
+                        </div>
+                        <div class="agent-card agent-card-deepseek">
+                            <span class="agent-mark"><img src="assets/agents/deepseek.svg" alt=""></span>
+                            <span>DeepSeek Harness</span>
+                            <i class="agent-pulse"></i>
+                        </div>
+                    </div>
+
+                    <div class="event-flow" aria-hidden="true">
+                        <svg class="flow-svg" viewBox="0 0 84 252" preserveAspectRatio="none">
+                            <path d="M 0 40 L 84 126"></path>
+                            <path d="M 0 126 L 84 126"></path>
+                            <path d="M 0 212 L 84 126"></path>
+                            <rect class="flow-packet-svg" x="-4.5" y="-4.5" width="9" height="9">
+                                <animateMotion dur="2.7s" repeatCount="indefinite" path="M 0 40 L 84 126"></animateMotion>
+                            </rect>
+                            <rect class="flow-packet-svg" x="-4.5" y="-4.5" width="9" height="9">
+                                <animateMotion dur="2.7s" begin="-1.8s" repeatCount="indefinite" path="M 0 126 L 84 126"></animateMotion>
+                            </rect>
+                            <rect class="flow-packet-svg" x="-4.5" y="-4.5" width="9" height="9">
+                                <animateMotion dur="2.7s" begin="-.9s" repeatCount="indefinite" path="M 0 212 L 84 126"></animateMotion>
+                            </rect>
+                        </svg>
+                        <span class="flow-node">+</span>
+                    </div>
+
+                    <div class="familiar-stage">
+                        <div class="stage-topbar">
+                            <span class="stage-lights" aria-hidden="true">● ● ●</span>
+                            <span>FAMILIAR.LOCAL</span>
+                        </div>
+                        <div class="desktop-preview">
+                            <div class="task-bubble" id="task-bubble">
+                                <div class="bubble-head">
+                                    <span class="bubble-badge" id="bubble-badge">Codex</span>
+                                    <span class="bubble-prompt" id="bubble-prompt" data-i18n="bubble_prompt_idle">等待下一个任务</span>
+                                </div>
+                                <div class="bubble-activity">
+                                    <span class="bubble-spinner" id="bubble-spinner" aria-hidden="true"></span>
+                                    <span id="pet-status" data-i18n="pet_idle">等待事件</span>
+                                </div>
+                            </div>
+                            <div class="pet-stage-real">
+                                <img class="pet-sprite" id="pet-sprite" src="assets/tabby-cat/idle.png" alt="Familiar 小虎桌宠" data-i18n-alt="pet_aria">
+                                <div class="mini-dashboard" aria-label="System dashboard">
+                                    <div class="mini-stat"><span>CPU</span><i><b style="width: 18%"></b></i><strong>18%</strong></div>
+                                    <div class="mini-stat"><span>RAM</span><i><b style="width: 42%"></b></i><strong>42%</strong></div>
+                                    <div class="mini-stat"><span>DSK</span><i><b style="width: 63%"></b></i><strong>63%</strong></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stage-foot" data-i18n="demo_local">HOOK 事件 → 宠物响应</div>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -57,8 +125,8 @@
                         <p data-i18n="feat_privacy_desc">数据只在本机处理，无遥测，运行日志最小化。</p>
                     </article>
                     <article class="feature-card">
-                        <h3 data-i18n="feat_stats_title">本机状态视图</h3>
-                        <p data-i18n="feat_stats_desc">桌宠旁实时显示 CPU、内存与磁盘状态。</p>
+                        <h3 data-i18n="feat_stats_title">支持远程连接</h3>
+                        <p data-i18n="feat_stats_desc">订阅远程服务器状态，让本地桌宠同步呈现远端 Agent 活动。</p>
                     </article>
                     <article class="feature-card">
                         <h3 data-i18n="feat_perf_title">轻量低占用</h3>
@@ -91,6 +159,11 @@
                         </tr>
                         <tr>
                             <td>Codex CLI</td>
+                            <td>Hooks</td>
+                            <td><span class="badge badge-ok" data-i18n="status_available">可用</span></td>
+                        </tr>
+                        <tr>
+                            <td>DeepSeek Harness</td>
                             <td>Hooks</td>
                             <td><span class="badge badge-ok" data-i18n="status_available">可用</span></td>
                         </tr>
@@ -145,6 +218,6 @@
         </div>
     </footer>
 
-    <script src="js/main.js" type="module"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>
