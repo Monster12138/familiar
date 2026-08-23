@@ -10,6 +10,7 @@ publish.workspace = true
 
 [dependencies]
 familiar-core = { path = "../familiar-core" }
+familiar-hooks = { path = "../familiar-hooks" }
 axum = { workspace = true }
 tokio = { workspace = true }
 serde_json = { workspace = true }

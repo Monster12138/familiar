@@ -84,15 +84,14 @@ impl AgentHook for CodexHook {
     }
 
     fn get_injection_payload(&self) -> Option<serde_json::Value> {
-        let bin_path = crate::bin_path::resolve_cli_bin_path();
         Some(serde_json::json!({
             "hooks": {
-                "SessionStart": [{ "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source codex --event SessionStart", bin_path) }] }],
-                "SessionEnd": [{ "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source codex --event SessionEnd", bin_path) }] }],
-                "PreToolUse": [{ "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source codex --event PreToolUse", bin_path) }] }],
-                "PostToolUse": [{ "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source codex --event PostToolUse", bin_path) }] }],
-                "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source codex --event UserPromptSubmit", bin_path) }] }],
-                "Stop": [{ "hooks": [{ "type": "command", "command": format!("\"{}\" hook --source codex --event Stop", bin_path) }] }]
+                "SessionStart": [{ "hooks": [{ "type": "command", "command": crate::bin_path::hook_command("codex", "SessionStart", true) }] }],
+                "SessionEnd": [{ "hooks": [{ "type": "command", "command": crate::bin_path::hook_command("codex", "SessionEnd", true) }] }],
+                "PreToolUse": [{ "hooks": [{ "type": "command", "command": crate::bin_path::hook_command("codex", "PreToolUse", true) }] }],
+                "PostToolUse": [{ "hooks": [{ "type": "command", "command": crate::bin_path::hook_command("codex", "PostToolUse", true) }] }],
+                "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": crate::bin_path::hook_command("codex", "UserPromptSubmit", true) }] }],
+                "Stop": [{ "hooks": [{ "type": "command", "command": crate::bin_path::hook_command("codex", "Stop", true) }] }]
             }
         }))
     }

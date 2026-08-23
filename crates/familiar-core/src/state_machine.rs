@@ -152,7 +152,7 @@ impl StateMachine {
     /// A new prompt starts a fresh round. Clear any stale terminal state
     /// (`Completed`/`Failed`) so the pet leaves the celebrating state and the
     /// cleanup timer is not kept deferring removal by refreshed timestamps.
-    /// `target` is the mapped `AgentStarted` status (defaults to `Working`).
+    /// `target` is the mapped `AgentStarted` status (defaults to `Idle`).
     fn reset_stale_terminal_status(agent: &mut AgentState, target: AgentStatus) {
         if matches!(agent.status, AgentStatus::Completed | AgentStatus::Failed) {
             agent.status = target;
@@ -210,13 +210,13 @@ impl StateMachine {
                     agent.user_instruction = Some(inst.clone());
                     Self::reset_stale_terminal_status(
                         agent,
-                        resolve("AgentStarted", AgentStatus::Working),
+                        resolve("AgentStarted", AgentStatus::Idle),
                     );
                 }
                 AgentEventType::AgentStarted { instruction: None } => {
                     Self::reset_stale_terminal_status(
                         agent,
-                        resolve("AgentStarted", AgentStatus::Working),
+                        resolve("AgentStarted", AgentStatus::Idle),
                     );
                 }
                 AgentEventType::Thinking => {
@@ -288,7 +288,7 @@ impl StateMachine {
                 match &event.event_type {
                     AgentEventType::AgentStarted { instruction } => {
                         new_agent.user_instruction = instruction.clone();
-                        new_agent.status = resolve("AgentStarted", AgentStatus::Working);
+                        new_agent.status = resolve("AgentStarted", AgentStatus::Idle);
                         new_agent.current_activity = Some("Started session".to_string());
                     }
                     AgentEventType::Thinking => {
@@ -489,7 +489,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_new_prompt_resets_completed_to_working() {
+    async fn test_new_prompt_resets_completed_to_idle() {
         let bus = EventBus::new(100, 1000);
         let machine = StateMachine::new(bus.clone(), 4, 300);
         machine.start_processing().await;
@@ -533,12 +533,12 @@ mod tests {
 
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         let state = machine.get_state().await;
-        assert_eq!(state.agents[0].status, AgentStatus::Working);
+        assert_eq!(state.agents[0].status, AgentStatus::Idle);
         assert_eq!(
             state.agents[0].current_activity.as_deref(),
             Some("Started session")
         );
-        assert_eq!(state.mood, FamiliarMood::Busy);
+        assert_eq!(state.mood, FamiliarMood::Idle);
     }
 
     #[tokio::test]
@@ -715,6 +715,27 @@ mod tests {
         let state = machine.get_state().await;
         assert_eq!(state.agents[0].status, AgentStatus::Thinking);
         assert_eq!(state.mood, FamiliarMood::Thinking);
+    }
+
+    #[tokio::test]
+    async fn test_agent_started_defaults_to_idle() {
+        let (machine, _arc, bus) = machine_with_map(EventStatusMap::new());
+        machine.start_processing().await;
+
+        let agent_id = Uuid::new_v4();
+        bus.publish(event_for(
+            agent_id,
+            AgentEventType::AgentStarted {
+                instruction: Some("Start a task".into()),
+            },
+        ))
+        .await
+        .unwrap();
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let state = machine.get_state().await;
+        assert_eq!(state.agents[0].status, AgentStatus::Idle);
+        assert_eq!(state.mood, FamiliarMood::Idle);
     }
 
     #[tokio::test]

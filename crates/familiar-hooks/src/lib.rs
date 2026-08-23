@@ -7,4 +7,5 @@ pub mod codex;
 pub mod deepseek_harness;
 pub mod hook_trait;
 pub mod ingest;
+pub mod manager;
 pub mod qoder;

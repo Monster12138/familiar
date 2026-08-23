@@ -8,7 +8,28 @@ let renderer = null;
 let currentLang = 'en-US';
 let currentRuntimeMode = 'local';
 let remoteConnectionStatus = 'offline';
+let petHoverHideEnabled = false;
 window.celebrationMs = 4000; // default, updated from config
+
+function setPetHoverHideEnabled(enabled) {
+    petHoverHideEnabled = enabled === true;
+    if (!petHoverHideEnabled) {
+        document.getElementById('unified-container')?.classList.remove('hover-hidden');
+    }
+}
+
+function setupPetHoverHide() {
+    const windowSurface = document.getElementById('unified-container');
+    if (!windowSurface || windowSurface.dataset.hoverHideBound === 'true') return;
+
+    windowSurface.dataset.hoverHideBound = 'true';
+    windowSurface.addEventListener('pointerenter', () => {
+        if (petHoverHideEnabled) windowSurface.classList.add('hover-hidden');
+    });
+    windowSurface.addEventListener('pointerleave', () => {
+        windowSurface.classList.remove('hover-hidden');
+    });
+}
 
 function updateRuntimeModeBadge() {
     const bar = document.getElementById('runtime-mode-bar');
@@ -132,6 +153,7 @@ async function init() {
 
     renderer = new PixelSpriteRenderer();
     renderer.init(container);
+    setupPetHoverHide();
 
     try {
         const config = await invoke("get_config");
@@ -245,6 +267,7 @@ async function applyConfigToWindow(config) {
     }
 
     if (!config.renderer || !config.renderer['desktop-pet']) {
+        setPetHoverHideEnabled(false);
         document.body.style.opacity = '1';
         return;
     }
@@ -276,6 +299,7 @@ async function applyConfigToWindow(config) {
     if (petContainerUI) {
         petContainerUI.style.display = (petConf.show_pet !== false) ? 'flex' : 'none';
     }
+    setPetHoverHideEnabled(petConf.hide_on_hover === true);
     
     const frameContainer = document.getElementById('unified-container');
     if (frameContainer) {

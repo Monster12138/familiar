@@ -71,6 +71,46 @@ pub fn resolve_cli_bin_path() -> String {
     "familiar-cli".to_string()
 }
 
+/// Build the command written into an Agent's Hook configuration. When the
+/// management CLI was invoked with an explicit `--config`, the path is
+/// carried into the injected command so the later Agent process reports to
+/// the same server configuration even when that file is outside the normal
+/// user config search paths.
+pub fn hook_command(source: &str, event: &str, quote_cli_path: bool) -> String {
+    let cli = resolve_cli_bin_path();
+    let config = std::env::var("FAMILIAR_HOOK_CONFIG")
+        .ok()
+        .filter(|path| !path.trim().is_empty());
+    hook_command_with_config(source, event, quote_cli_path, config.as_deref(), &cli)
+}
+
+fn hook_command_with_config(
+    source: &str,
+    event: &str,
+    quote_cli_path: bool,
+    config_path: Option<&str>,
+    cli: &str,
+) -> String {
+    let executable = if quote_cli_path {
+        format!("\"{cli}\"")
+    } else {
+        cli.to_string()
+    };
+    let config_arg = config_path
+        .filter(|path| !path.trim().is_empty())
+        .map(|path| format!(" --config {}", quote_hook_arg(path)))
+        .unwrap_or_default();
+    format!("{executable} hook --source {source} --event {event}{config_arg}")
+}
+
+fn quote_hook_arg(value: &str) -> String {
+    if cfg!(windows) {
+        format!("\"{}\"", value.replace('"', "\\\""))
+    } else {
+        format!("'{}'", value.replace('\'', "'\\''"))
+    }
+}
+
 /// When the running executable lives under a cargo `target/<profile>` dir
 /// (a dev build of familiar-app or a test binary), prefer the `release`
 /// sibling of familiar-cli. The debug binary carries MSVC debug-runtime
@@ -159,5 +199,18 @@ mod tests {
         assert_eq!(release_sibling_cli(&exe), None);
 
         std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn hook_command_carries_explicit_config_path() {
+        let command = hook_command_with_config(
+            "codex",
+            "SessionStart",
+            true,
+            Some("/srv/familiar/server.toml"),
+            "/opt/familiar-cli",
+        );
+        assert!(command.contains("--config"));
+        assert!(command.contains("server.toml"));
     }
 }

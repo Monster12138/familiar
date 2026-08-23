@@ -97,21 +97,18 @@ impl AgentHook for DeepSeekHarnessHook {
     }
 
     fn get_injection_payload(&self) -> Option<serde_json::Value> {
-        let bin_path = crate::bin_path::resolve_cli_bin_path();
         // Commands run through the DSH bridge's shell executor (PowerShell on
         // Windows), which cannot parse a quoted-path call like
         // `"C:\path\familiar-cli.exe" args`. Emit a bare unquoted path — valid
         // in PowerShell and bash alike as long as the CLI lives on a
         // space-free path (the standard install layout).
-        let hook = |event: &str| {
-            serde_json::json!({ "hooks": [{ "type": "command", "command": format!("{} hook --source deepseek-harness --event {}", bin_path, event) }] })
-        };
+        let hook = |event: &str| serde_json::json!({ "hooks": [{ "type": "command", "command": crate::bin_path::hook_command("deepseek-harness", event, false) }] });
         Some(serde_json::json!({
             "hooks": {
                 "SessionStart": [hook("SessionStart")],
                 "UserPromptSubmit": [hook("UserPromptSubmit")],
-                "PreToolUse": [serde_json::json!({ "matcher": "*", "hooks": [{ "type": "command", "command": format!("{} hook --source deepseek-harness --event PreToolUse", bin_path) }] })],
-                "PostToolUse": [serde_json::json!({ "matcher": "*", "hooks": [{ "type": "command", "command": format!("{} hook --source deepseek-harness --event PostToolUse", bin_path) }] })],
+                "PreToolUse": [serde_json::json!({ "matcher": "*", "hooks": [{ "type": "command", "command": crate::bin_path::hook_command("deepseek-harness", "PreToolUse", false) }] })],
+                "PostToolUse": [serde_json::json!({ "matcher": "*", "hooks": [{ "type": "command", "command": crate::bin_path::hook_command("deepseek-harness", "PostToolUse", false) }] })],
                 "Stop": [hook("Stop")],
                 "SubagentStart": [hook("SubagentStart")],
                 "SubagentStop": [hook("SubagentStop")]

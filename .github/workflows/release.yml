@@ -1,4 +1,4 @@
-name: Publish Tauri release
+name: Publish Familiar release
 
 on:
   workflow_dispatch:
@@ -35,6 +35,100 @@ jobs:
               --draft \
               --notes "Multi-platform bundles generated from $RELEASE_TAG. Review platform signing status and checksums before publishing this draft."
           fi
+
+  publish-cli:
+    name: Build CLI ${{ matrix.name }}
+    needs: create-release
+    runs-on: ${{ matrix.platform }}
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS arm64
+            platform: macos-latest
+            rust_target: aarch64-apple-darwin
+            artifact_platform: macos_arm64
+            executable: familiar-cli
+          - name: macOS x64
+            platform: macos-15-intel
+            rust_target: x86_64-apple-darwin
+            artifact_platform: macos_x64
+            executable: familiar-cli
+          - name: Linux x64
+            platform: ubuntu-22.04
+            rust_target: x86_64-unknown-linux-gnu
+            artifact_platform: linux_x64
+            executable: familiar-cli
+          - name: Windows x64
+            platform: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+            artifact_platform: windows_x64
+            executable: familiar-cli.exe
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Install Linux CLI build dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libssl-dev
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: Build familiar-cli
+        run: cargo build --locked --release --target "${{ matrix.rust_target }}" -p familiar-cli
+
+      - name: Package CLI archive (Unix)
+        if: matrix.platform != 'windows-latest'
+        shell: bash
+        env:
+          RUST_TARGET: ${{ matrix.rust_target }}
+          ARTIFACT_PLATFORM: ${{ matrix.artifact_platform }}
+          EXECUTABLE: ${{ matrix.executable }}
+        run: |
+          set -euo pipefail
+          version="${RELEASE_TAG#v}"
+          staging="cli-staging/familiar-cli"
+          mkdir -p "$staging" cli-artifacts
+          cp "target/${RUST_TARGET}/release/${EXECUTABLE}" "$staging/${EXECUTABLE}"
+          cp LICENSE-APACHE LICENSE-MIT "$staging/"
+          mkdir -p "$staging/config"
+          cp config/default.toml "$staging/config/default.toml"
+          tar -C cli-staging -czf "cli-artifacts/familiar-cli_${version}_${ARTIFACT_PLATFORM}.tar.gz" familiar-cli
+
+      - name: Package CLI archive (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        env:
+          RUST_TARGET: ${{ matrix.rust_target }}
+          EXECUTABLE: ${{ matrix.executable }}
+          ARTIFACT_PLATFORM: ${{ matrix.artifact_platform }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $version = $env:RELEASE_TAG -replace '^v', ''
+          $staging = "cli-staging/familiar-cli"
+          New-Item -ItemType Directory -Force -Path $staging, "cli-artifacts", "$staging/config" | Out-Null
+          Copy-Item "target/$($env:RUST_TARGET)/release/$($env:EXECUTABLE)" "$staging/$($env:EXECUTABLE)"
+          Copy-Item LICENSE-APACHE, LICENSE-MIT "$staging/"
+          Copy-Item config/default.toml "$staging/config/default.toml"
+          Compress-Archive -Path "cli-staging/familiar-cli" -DestinationPath "cli-artifacts/familiar-cli_${version}_$($env:ARTIFACT_PLATFORM).zip" -Force
+
+      - name: Upload CLI archive to draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          draft: true
+          files: cli-artifacts/*
 
   publish-tauri:
     name: Build ${{ matrix.name }}
@@ -121,6 +215,27 @@ jobs:
           projectPath: app
           args: ${{ matrix.args }}
 
+      - name: Verify embedded CLI (Unix)
+        if: matrix.platform != 'windows-latest'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -x target/release/familiar-cli
+          if [[ "${{ matrix.platform_slug }}" == "macos" ]]; then
+            bundle_cli="$(find target -path '*/bundle/macos/Familiar.app/Contents/Resources/bin/familiar-cli' -type f -print -quit)"
+            test -n "$bundle_cli"
+            test -x "$bundle_cli"
+          fi
+
+      - name: Verify embedded CLI (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if (-not (Test-Path "target/release/familiar-cli.exe")) {
+            throw "target/release/familiar-cli.exe was not built"
+          }
+
       # Tauri default artifact names only contain the architecture and not the platform, so uniformly insert the platform name after the version number to make it easier to distinguish the target system from the Release attachments
       - name: Rename artifacts with platform name
         shell: bash
@@ -157,7 +272,7 @@ jobs:
 
   finalize-release:
     name: Generate and upload SHA256SUMS
-    needs: publish-tauri
+    needs: [publish-cli, publish-tauri]
     runs-on: ubuntu-latest
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}

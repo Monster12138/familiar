@@ -1,0 +1,19 @@
+cask "familiar" do
+  version "__VERSION__"
+  sha256 arm: "__ARM_SHA256__", intel: "__INTEL_SHA256__"
+
+  on_arm do
+    url "https://github.com/Monster12138/familiar/releases/download/v#{version}/Familiar_#{version}_macos_aarch64.dmg"
+  end
+
+  on_intel do
+    url "https://github.com/Monster12138/familiar/releases/download/v#{version}/Familiar_#{version}_macos_x64.dmg"
+  end
+
+  name "Familiar"
+  desc "Local-first desktop companion for coding agents"
+  homepage "https://github.com/Monster12138/familiar"
+
+  app "Familiar.app"
+  binary "#{appdir}/Familiar.app/Contents/Resources/bin/familiar-cli", target: "familiar-cli"
+end

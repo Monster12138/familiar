@@ -1,8 +1,8 @@
 # Familiar 发布流程
 
-本文档描述 Familiar 的版本升级、发布验证、macOS 与 Windows 打包、本地制品归档、Git 分支与 Tag，以及 GitHub Release 发布流程。
+本文档描述 Familiar 的版本升级、发布验证、CLI 与桌面端打包、本地制品归档、Git 分支与 Tag，以及 GitHub Release 发布流程。
 
-当前自动化尚未覆盖完整的发布链路。执行发布前应确认操作者明确授权了提交、推送、创建 Tag 和发布外部制品。
+GitHub Actions 会为同一个版本同时上传独立 CLI 归档和 Tauri 桌面安装包。执行发布前仍应确认操作者明确授权了提交、推送、创建 Tag 和发布外部制品。
 
 ## 1. 发布目录约定
 
@@ -17,8 +17,14 @@
 release-artifacts/
 └── vX.Y.Z/
     ├── Familiar_X.Y.Z_aarch64.dmg
+    ├── Familiar_X.Y.Z_macos_x64.dmg
     ├── Familiar_X.Y.Z_x64-setup.exe
     ├── familiar_X.Y.Z_amd64.deb
+    ├── familiar_X.Y.Z_amd64.AppImage
+    ├── familiar-cli_X.Y.Z_macos_arm64.tar.gz
+    ├── familiar-cli_X.Y.Z_macos_x64.tar.gz
+    ├── familiar-cli_X.Y.Z_linux_x64.tar.gz
+    ├── familiar-cli_X.Y.Z_windows_x64.zip
     └── SHA256SUMS
 ```
 
@@ -151,7 +157,28 @@ rustfmt --check path/to/changed.rs
 
 ## 7. 构建安装包
 
-### 7.1 macOS（Apple Silicon）
+### 7.1 独立 CLI 产物
+
+发布工作流会为以下目标构建 `familiar-cli`：
+
+| 目标 | Release 归档 |
+| --- | --- |
+| macOS arm64 | `familiar-cli_X.Y.Z_macos_arm64.tar.gz` |
+| macOS x86_64 | `familiar-cli_X.Y.Z_macos_x64.tar.gz` |
+| Linux x86_64 | `familiar-cli_X.Y.Z_linux_x64.tar.gz` |
+| Windows x86_64 | `familiar-cli_X.Y.Z_windows_x64.zip` |
+
+归档包含 CLI 可执行文件、双许可证文件和 `config/default.toml` 模板。服务器安装只需要此 CLI，不依赖 Tauri、WebView 或桌面资源：
+
+```bash
+tar -xzf familiar-cli_X.Y.Z_linux_x64.tar.gz
+install -m 0755 familiar-cli/familiar-cli ~/.local/bin/familiar-cli
+familiar-cli serve --config /etc/familiar/server.toml
+```
+
+Tauri 的 `beforeBuildCommand` 会在桌面打包前构建同版本 CLI；平台配置再将它放入应用资源目录。因此桌面包和独立 CLI 使用同一版本、同一套 hooks 与 server 行为。
+
+### 7.2 macOS（Apple Silicon）
 
 当前本地发布目标为 Apple Silicon macOS：
 
@@ -183,7 +210,7 @@ file "$APP/Contents/Resources/bin/familiar-cli"
 
 两个二进制都应报告 `Mach-O 64-bit executable arm64`，两个 bundle 版本都应与发布版本一致。
 
-### 7.2 Windows（x86_64）
+### 7.3 Windows（x86_64）
 
 在 Windows 机器上（需要 MSVC 构建工具、Windows SDK 和 WebView2 Runtime）：
 
@@ -207,7 +234,7 @@ app/src-tauri/target/release/bundle/nsis/Familiar_X.Y.Z_x64-setup.exe
 Windows 安装包当前未做代码签名，Release Notes 必须说明 SmartScreen 可能
 要求用户手动确认首次安装。
 
-### 7.3 Linux（x86_64）
+### 7.4 Linux（x86_64）
 
 在 Linux 机器或 WSL2 Ubuntu 上（需要 GCC、pkg-config、`libwebkit2gtk-4.1-dev`、
 `libgtk-3-dev`、`libayatana-appindicator3-dev`、`librsvg2-dev` 等开发包）：
@@ -239,7 +266,138 @@ WSL 下开发调试启动 GUI 时可能需要 `WEBKIT_DISABLE_DMABUF_RENDERER=1
 LIBGL_ALWAYS_SOFTWARE=1 GDK_BACKEND=x11` 规避 WSLg 的渲染问题；
 打包构建本身不受影响。
 
-## 8. 签名与公证检查
+## 8. Homebrew 发布
+
+Homebrew 发布采用两个包类型：
+
+- `familiar-cli` Formula：服务器和 CLI-only 安装，从固定 Git Tag 构建源码。
+- `familiar` Cask：macOS 桌面应用，同时通过 `Familiar.app/Contents/Resources/bin/familiar-cli` 暴露内置 CLI。
+
+模板位于 [`packaging/homebrew/`](../packaging/homebrew/)。当前 tap 仓库为
+[`Monster12138/homebrew-familiar`](https://github.com/Monster12138/homebrew-familiar)。
+
+### 8.1 首次创建 tap
+
+需要先完成 GitHub CLI 登录，并确认具有创建公开仓库和推送代码的权限：
+
+```bash
+gh auth login
+gh auth status
+brew tap-new Monster12138/familiar
+```
+
+将模板复制到本地 tap：
+
+```bash
+TAP_DIR="$(brew --repository Monster12138/familiar)"
+mkdir -p "$TAP_DIR/Formula" "$TAP_DIR/Casks"
+cp packaging/homebrew/Formula/familiar-cli.rb.template \
+  "$TAP_DIR/Formula/familiar-cli.rb"
+cp packaging/homebrew/Casks/familiar.rb.template \
+  "$TAP_DIR/Casks/familiar.rb"
+```
+
+将模板中的占位符替换为实际版本和 SHA-256 后，提交并创建 GitHub 仓库：
+
+```bash
+cd "$TAP_DIR"
+git add README.md Formula/familiar-cli.rb Casks/familiar.rb
+git diff --cached --check
+git commit -m "feat: add Familiar formula and cask"
+gh repo create Monster12138/homebrew-familiar \
+  --public --source "$TAP_DIR" --push
+```
+
+如果推送因为 tap-new 生成的 GitHub Actions 文件缺少 `workflow` 权限而被拒绝，
+可以为 `gh` 增加该权限，或在不使用 tap 自动构建 workflow 时删除这些模板文件后再提交：
+
+```bash
+gh auth refresh -h github.com -s workflow
+# 或者：删除 $TAP_DIR/.github/workflows/ 和 $TAP_DIR/.github/dependabot.yml，
+# 再执行 git add、git commit 和推送。
+```
+
+如果本机 SSH 22 端口不可用，使用 `gh` 管理的 HTTPS 凭据推送：
+
+```bash
+git -C "$TAP_DIR" -c credential.helper= \
+  -c 'credential.helper=!gh auth git-credential' \
+  push -u https://github.com/Monster12138/homebrew-familiar.git main
+```
+
+### 8.2 每个版本更新 tap
+
+必须先完成 Familiar 主仓库的 Tag、GitHub Release 和公开 Release 资产，再更新 tap。
+以 `vX.Y.Z` 为例：
+
+```bash
+VERSION=X.Y.Z
+TAG="v${VERSION}"
+TAP_DIR="$(brew --repository Monster12138/familiar)"
+WORK_DIR="$(mktemp -d)"
+
+gh release download "$TAG" \
+  --repo Monster12138/familiar \
+  --pattern "Familiar_${VERSION}_macos_aarch64.dmg" \
+  --pattern "Familiar_${VERSION}_macos_x64.dmg" \
+  --dir "$WORK_DIR"
+
+curl -LfsS -o "$WORK_DIR/source.tar.gz" \
+  "https://github.com/Monster12138/familiar/archive/refs/tags/${TAG}.tar.gz"
+
+SOURCE_SHA="$(shasum -a 256 "$WORK_DIR/source.tar.gz" | awk '{print $1}')"
+ARM_SHA="$(shasum -a 256 "$WORK_DIR/Familiar_${VERSION}_macos_aarch64.dmg" | awk '{print $1}')"
+INTEL_SHA="$(shasum -a 256 "$WORK_DIR/Familiar_${VERSION}_macos_x64.dmg" | awk '{print $1}')"
+```
+
+更新 Formula 的源码版本和 Cask 的两个架构校验和：
+
+```bash
+perl -0pi -e \
+  "s#v[0-9]+\\.[0-9]+\\.[0-9]+\\.tar\\.gz#v${VERSION}.tar.gz#;
+   s/sha256 \"[0-9a-f]{64}\"/sha256 \"$SOURCE_SHA\"/" \
+  "$TAP_DIR/Formula/familiar-cli.rb"
+
+perl -0pi -e \
+  "s/version \"[^\"]+\"/version \"$VERSION\"/;
+   s/sha256 arm: \"[^\"]+\", intel: \"[^\"]+\"/sha256 arm: \"$ARM_SHA\", intel: \"$INTEL_SHA\"/" \
+  "$TAP_DIR/Casks/familiar.rb"
+```
+
+本地审计和测试：
+
+```bash
+brew audit --new --strict --formula Monster12138/familiar/familiar-cli
+brew audit --new --strict --cask Monster12138/familiar/familiar
+brew test Monster12138/familiar/familiar-cli
+```
+
+Formula 审计和构建应通过。Cask 若因仓库知名度不满足官方 `homebrew/cask` 要求而失败，
+不影响自定义 tap；但签名审计失败时，用户首次启动可能遇到 Gatekeeper 提示，不能宣称该版本已完成签名和 notarization。
+
+提交并推送 tap：
+
+```bash
+cd "$TAP_DIR"
+git add README.md Formula/familiar-cli.rb Casks/familiar.rb
+git diff --cached --check
+git commit -m "chore: update Familiar to v${VERSION}"
+git push origin main
+```
+
+用户安装或升级：
+
+```bash
+brew install Monster12138/familiar/familiar-cli
+brew install --cask Monster12138/familiar/familiar
+brew update
+brew upgrade familiar-cli
+brew upgrade --cask familiar
+```
+
+Formula 不依赖桌面运行时，因此 Linux 服务器不会安装 Tauri。Cask 只负责 macOS 桌面分发，应用包应使用 Developer ID 签名并完成 notarization。
+
+## 9. 签名与公证检查
 
 查看当前机器是否存在 Developer ID 签名身份：
 
@@ -260,7 +418,7 @@ spctl -a -vv -t exec "$APP"
 - Release Notes 必须明确说明 Gatekeeper 可能要求用户手动允许首次启动。
 - 正式对外发布前应优先补齐 Developer ID 签名和 notarization。
 
-## 9. 生成并归档制品
+## 10. 生成并归档制品
 
 SHA-256 校验和由 CI（`release.yml` 的 `finalize-release` job）在构建完成后自动
 计算，并以 `SHA256SUMS` 附件上传到 Release；Release Notes 不再包含校验和段落。
@@ -290,7 +448,7 @@ git check-ignore -v "$ARTIFACT_DIR/Familiar_${VERSION#v}_aarch64.dmg"
 git status --short
 ```
 
-## 10. 创建发布提交
+## 11. 创建发布提交
 
 只暂存本次发布涉及的源码、版本元数据和进入 Git 的 Release Notes：
 
@@ -304,7 +462,7 @@ git commit -m "chore: prepare $VERSION release"
 
 不要暂存 `release-artifacts/`、`target/` 或其他本地状态。提交完成后再次检查 `git status --short`。
 
-## 11. 推送分支
+## 12. 推送分支
 
 常规 SSH 推送：
 
@@ -321,7 +479,7 @@ git -c credential.helper= \
   "codex/release-$VERSION:codex/release-$VERSION"
 ```
 
-## 12. 创建并推送 Tag
+## 13. 创建并推送 Tag
 
 Tag 必须在版本、Release Notes、验证结果和发布提交全部完成后创建：
 
@@ -341,7 +499,7 @@ git -c credential.helper= \
 
 已经推送的 Tag 不得移动、覆盖或强制推送。若发布内容需要修正，应升级 patch 版本并创建新 Tag。
 
-## 13. 创建 GitHub Release
+## 14. 创建 GitHub Release
 
 使用本地归档目录中的已验证文件（多平台发布时把 Windows 安装包一并附上）：
 
@@ -360,7 +518,7 @@ Alpha、Beta 或 RC 版本增加 `--prerelease`。正式语义化版本不加该
 
 发布动作是外部状态变更。只有用户明确要求发布时才能执行，不得因为完成了本地构建就自动创建 Release。
 
-## 14. 发布后复核
+## 15. 发布后复核
 
 ```bash
 gh release view "$VERSION" \

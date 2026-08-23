@@ -31,6 +31,7 @@ show_task_bubble = true
 show_pet = true
 show_dashboard = true
 click_through = false
+hide_on_hover = false
 show_window_frame = false
 dashboard_style = "classic"
 dashboard_position = "bottom"
@@ -71,6 +72,10 @@ enabled = false
 
 [server.auth]
 enabled = false
+# Optional persistent auth token support. Set enabled = true and
+# auto_generate = true to create this file on the first `familiar-cli serve`.
+# token_file = "/var/lib/familiar/auth/token"
+# auto_generate = true
 
 [server.state_stream]
 max_updates_per_second = 10
@@ -80,6 +85,8 @@ max_activity_summary_chars = 160
 [remote]
 path = "/api/v1/state-stream"
 tls = false
+# The desktop UI stores the remote bearer token in this separate file.
+# token_file = "/absolute/path/to/familiar/remote-token"
 connect_timeout_secs = 10
 reconnect_initial_secs = 1
 reconnect_max_secs = 30

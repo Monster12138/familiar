@@ -382,6 +382,7 @@ fn main() {
             commands::ignore_update,
             commands::get_config,
             commands::save_config,
+            commands::save_remote_token,
             commands::run_data_cleanup,
             commands::get_system_stats,
             commands::get_active_sessions,

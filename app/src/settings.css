@@ -187,6 +187,22 @@ body {
     overflow: hidden;
 }
 
+.runtime-restart-note {
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.5;
+    margin: -4px 0 12px;
+}
+
+.runtime-setting-disabled {
+    opacity: 0.55;
+}
+
+.runtime-setting-disabled input,
+.runtime-setting-disabled select {
+    cursor: not-allowed;
+}
+
 .setting-item {
     display: flex;
     justify-content: space-between;
@@ -722,6 +738,16 @@ input:checked + .slider:before {
 /* --- Hooks Status List (wrapper) --- */
 #hook-status-list {
     padding: 12px;
+}
+
+.hook-runtime-hint {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.5;
 }
 
 .modal-overlay {

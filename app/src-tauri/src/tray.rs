@@ -5,6 +5,9 @@ use tauri::{
     App, Manager,
 };
 
+#[cfg(target_os = "windows")]
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
+
 // Windows renders a blank tray square when no icon is provided, so embed the 32x32 PNG at compile time.
 const TRAY_ICON: &[u8] = include_bytes!("../icons/32x32.png");
 
@@ -25,9 +28,38 @@ pub fn create_tray(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&settings_i, &onboard_i, &quit_i])?;
 
-    let _tray = TrayIconBuilder::new()
+    let tray = TrayIconBuilder::new()
         .icon(Image::from_bytes(TRAY_ICON)?)
-        .menu(&menu)
+        .menu(&menu);
+
+    #[cfg(target_os = "windows")]
+    let tray = tray
+        // A left click is reserved for bringing the desktop pet back.
+        .show_menu_on_left_click(false)
+        .on_tray_icon_event(|tray, event| {
+            let show_pet = match event {
+                TrayIconEvent::Click {
+                    button: MouseButton::Left,
+                    button_state: MouseButtonState::Up,
+                    ..
+                }
+                | TrayIconEvent::DoubleClick {
+                    button: MouseButton::Left,
+                    ..
+                } => true,
+                _ => false,
+            };
+
+            if show_pet {
+                if let Some(window) = tray.app_handle().get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.unminimize();
+                    let _ = window.set_focus();
+                }
+            }
+        });
+
+    let _tray = tray
         .on_menu_event(|app, event| {
             let handle = app.clone();
             match event.id.as_ref() {
