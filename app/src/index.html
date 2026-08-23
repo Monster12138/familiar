@@ -32,6 +32,11 @@
         transform-origin: top left;
         width: max-content;
         box-sizing: border-box;
+        /* Hover transparency is applied here (not on <body>) so the context
+           menu, a sibling of this container, always stays opaque. Starts hidden
+           until config loads to avoid a flash of unstyled content. */
+        opacity: 0;
+        transition: opacity 0.15s ease;
         /* The glass frame is this container's own border (toggled via the
            .show-frame class), so it hugs the content by construction. The
            border is always present — transparent when off — so toggling
@@ -141,7 +146,7 @@
       }
     </style>
   </head>
-  <body style="opacity: 0; transition: opacity 0.15s ease;">
+  <body>
     <div id="unified-container">
       <div id="runtime-mode-bar">
         <div id="runtime-mode-badge" aria-live="polite" aria-label="Remote connection">
@@ -193,6 +198,13 @@
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
         </svg>
         <span data-i18n="menu_settings">设置</span>
+      </div>
+      <div class="menu-item" id="menu-click-through">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2v-4M9 21H5a2 2 0 0 1-2-2v-4"></path>
+        </svg>
+        <span data-i18n="menu_click_through">鼠标穿透</span>
+        <span class="menu-check">✓</span>
       </div>
       <div class="menu-divider"></div>
       <div class="menu-item" id="menu-quit">

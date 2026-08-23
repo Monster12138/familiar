@@ -232,7 +232,7 @@ fn apply_and_emit_config(
 ) -> Result<(), String> {
     use tauri::Manager;
     if let Some(window) = app_handle.get_webview_window("main") {
-        crate::desktop_pet_window::apply_settings(&window, &config.renderer.desktop_pet)?;
+        crate::desktop_pet_window::apply_settings(&window, &config.renderer.desktop_pet, false)?;
     }
 
     use tauri::Emitter;
@@ -378,7 +378,8 @@ pub async fn open_settings_window(app_handle: tauri::AppHandle) -> Result<(), St
         tauri::WebviewUrl::App("settings.html".into()),
     )
     .title("Familiar Settings")
-    .inner_size(800.0, 600.0)
+    .inner_size(900.0, 640.0)
+    .min_inner_size(680.0, 480.0)
     .resizable(true)
     .build()
     .map_err(|e| e.to_string())?;

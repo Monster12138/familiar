@@ -8,26 +8,41 @@ let renderer = null;
 let currentLang = 'en-US';
 let currentRuntimeMode = 'local';
 let remoteConnectionStatus = 'offline';
-let petHoverHideEnabled = false;
+let clickThroughEnabled = false;
 window.celebrationMs = 4000; // default, updated from config
 
-function setPetHoverHideEnabled(enabled) {
-    petHoverHideEnabled = enabled === true;
-    if (!petHoverHideEnabled) {
-        document.getElementById('unified-container')?.classList.remove('hover-hidden');
-    }
+// Hover transparency: while the pointer rests over the pet we dim the content
+// so what's behind is not blocked. `hoverOpacity === null` disables the effect.
+// Hover is detected by a native tracking area (see the Rust `hover` module),
+// which emits `pet_hover_changed`; a non-activating panel doesn't deliver
+// mouseover to the webview until clicked, so DOM mouseenter alone is unreliable.
+let baseOpacity = 1;
+let hoverOpacity = null;
+let hoverHideEnabled = true;
+let isHovering = false;
+
+function getOpacityTarget() {
+    // Dim the content container (pet + bubble + dashboard) rather than <body>
+    // so the right-click context menu — a sibling of #unified-container — stays
+    // fully opaque.
+    return document.getElementById('unified-container') || document.body;
 }
 
-function setupPetHoverHide() {
-    const windowSurface = document.getElementById('unified-container');
-    if (!windowSurface || windowSurface.dataset.hoverHideBound === 'true') return;
+function applyOpacity() {
+    const target = (isHovering && hoverHideEnabled && hoverOpacity !== null)
+        ? hoverOpacity
+        : baseOpacity;
+    getOpacityTarget().style.opacity = String(target);
+}
 
-    windowSurface.dataset.hoverHideBound = 'true';
-    windowSurface.addEventListener('pointerenter', () => {
-        if (petHoverHideEnabled) windowSurface.classList.add('hover-hidden');
-    });
-    windowSurface.addEventListener('pointerleave', () => {
-        windowSurface.classList.remove('hover-hidden');
+async function setupHoverTransparency() {
+    getOpacityTarget().style.transition = 'opacity 0.15s ease';
+    // System-wide mouse-move monitors (Rust) report hover regardless of whether
+    // the non-activating panel is focused, so this fires the moment the pointer
+    // reaches the pet — no click needed.
+    await listen('pet_hover_changed', (event) => {
+        isHovering = !!event.payload;
+        applyOpacity();
     });
 }
 
@@ -70,12 +85,25 @@ async function fetchManifest(spriteName) {
 function setupContextMenu() {
     const contextMenu = document.getElementById("context-menu");
     const menuSettings = document.getElementById("menu-settings");
+    const menuClickThrough = document.getElementById("menu-click-through");
+
+    // Show/hide the menu and, while it is open, suspend left-click pass-through
+    // so the menu items stay clickable; restore the configured pass-through on
+    // close.
+    function setMenuOpen(open) {
+        contextMenu.style.display = open ? "block" : "none";
+        invoke("set_click_through_enabled", { enabled: open ? false : clickThroughEnabled })
+            .catch((e) => console.error("Failed to toggle click-through:", e));
+    }
 
     // Custom Context Menu
     document.addEventListener('contextmenu', e => {
         e.preventDefault();
         // Position menu at mouse coordinates
-        contextMenu.style.display = "block";
+        setMenuOpen(true);
+        if (menuClickThrough) {
+            menuClickThrough.classList.toggle('checked', clickThroughEnabled);
+        }
         
         // Ensure menu doesn't go off screen
         const menuWidth = contextMenu.offsetWidth || 150;
@@ -93,7 +121,7 @@ function setupContextMenu() {
 
     document.addEventListener('click', e => {
         if (e.target !== contextMenu && !contextMenu.contains(e.target)) {
-            contextMenu.style.display = "none";
+            setMenuOpen(false);
         }
     });
 
@@ -101,7 +129,7 @@ function setupContextMenu() {
 
     // Settings Modal Open
     menuSettings.addEventListener("click", async () => {
-        contextMenu.style.display = "none";
+        setMenuOpen(false);
         try {
             await invoke("open_settings_window");
         } catch (e) {
@@ -109,10 +137,27 @@ function setupContextMenu() {
         }
     });
 
+    // Toggle click-through without opening the settings window.
+    if (menuClickThrough) {
+        menuClickThrough.addEventListener("click", async () => {
+            const next = !clickThroughEnabled;
+            try {
+                const config = await invoke("get_config");
+                config.renderer['desktop-pet'].click_through = next;
+                await invoke("save_config", { config });
+                clickThroughEnabled = next;
+                menuClickThrough.classList.toggle('checked', next);
+            } catch (e) {
+                console.error("Failed to toggle click-through:", e);
+            }
+            setMenuOpen(false);
+        });
+    }
+
     // Quit Application
     if (menuQuit) {
         menuQuit.addEventListener("click", async () => {
-            contextMenu.style.display = "none";
+            setMenuOpen(false);
             try {
                 await invoke("quit_app");
             } catch (e) {
@@ -150,17 +195,17 @@ async function init() {
     // Dragging is now handled specifically by PixelSpriteRenderer, BubbleOverlay, and stats.js
 
     setupContextMenu();
+    await setupHoverTransparency();
 
     renderer = new PixelSpriteRenderer();
     renderer.init(container);
-    setupPetHoverHide();
 
     try {
         const config = await invoke("get_config");
         await applyConfigToWindow(config);
     } catch (e) {
         console.error("Failed to load initial config", e);
-        document.body.style.opacity = '1';
+        getOpacityTarget().style.opacity = '1';
     }
 
     await loadActiveSpritePack();
@@ -267,8 +312,9 @@ async function applyConfigToWindow(config) {
     }
 
     if (!config.renderer || !config.renderer['desktop-pet']) {
-        setPetHoverHideEnabled(false);
-        document.body.style.opacity = '1';
+        baseOpacity = 1;
+        hoverOpacity = null;
+        applyOpacity();
         return;
     }
     
@@ -278,7 +324,14 @@ async function applyConfigToWindow(config) {
         loadActiveSpritePack();
     }
 
-    document.body.style.opacity = petConf.opacity !== undefined ? petConf.opacity : 1;
+    baseOpacity = petConf.opacity !== undefined ? petConf.opacity : 1;
+    // Only dim on hover when it is actually more transparent than the base.
+    hoverOpacity = (petConf.hover_opacity !== undefined && petConf.hover_opacity < baseOpacity)
+        ? petConf.hover_opacity
+        : null;
+    hoverHideEnabled = petConf.hide_on_hover === true;
+    clickThroughEnabled = petConf.click_through === true;
+    applyOpacity();
     
     if (petConf.scale !== undefined && renderer) {
         window.petScale = petConf.scale;
@@ -299,7 +352,6 @@ async function applyConfigToWindow(config) {
     if (petContainerUI) {
         petContainerUI.style.display = (petConf.show_pet !== false) ? 'flex' : 'none';
     }
-    setPetHoverHideEnabled(petConf.hide_on_hover === true);
     
     const frameContainer = document.getElementById('unified-container');
     if (frameContainer) {

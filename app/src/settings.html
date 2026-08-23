@@ -150,6 +150,28 @@
                             </div>
                         </div>
                         <div class="divider"></div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <div class="setting-title" data-i18n="lbl_hover_opacity">悬停透明度</div>
+                                <div class="setting-desc" data-i18n="desc_hover_opacity">鼠标悬停在桌宠上时的透明度，避免遮挡后面的内容；开启鼠标穿透时同样生效 (0.1 - 1.0)</div>
+                            </div>
+                            <div class="custom-range">
+                                <input type="range" id="setting-pet-hover-opacity" min="0.1" max="1.0" step="0.05" value="0.35">
+                                <span class="range-value" id="val-pet-hover-opacity">0.35</span>
+                            </div>
+                        </div>
+                        <div class="divider"></div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <div class="setting-title" data-i18n="lbl_snap_corner">角落吸附</div>
+                                <div class="setting-desc" data-i18n="desc_snap_corner">拖拽结束时，若靠近屏幕角落则自动吸附到最近的角落</div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-pet-snap-corner" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="divider"></div>
                         <div class="setting-item horizontal">
                             <div class="setting-info">
                                 <div class="setting-title" data-i18n="lbl_celebration_secs">庆祝动作时长</div>
