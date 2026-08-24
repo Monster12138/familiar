@@ -483,6 +483,11 @@ input:checked + .slider:before {
 .danger-btn:hover {
     background-color: rgba(255, 59, 48, 0.2);
 }
+.btn-delete-pack.confirming {
+    color: #fff;
+    background-color: #FF3B30;
+    border-color: #FF3B30;
+}
 /* --- Hook Agent Collapsible Cards --- */
 .hook-agent-card {
     background-color: var(--bg-card);

@@ -276,12 +276,18 @@ function setupContextMenu() {
 }
 
 let currentSpriteId = null;
+let currentSpriteRevision = null;
 
-async function loadActiveSpritePack() {
+async function loadActiveSpritePack(force = true) {
     try {
         const packInfo = await invoke("get_active_sprite_pack");
         if (packInfo && packInfo.manifest) {
+            const samePack = currentSpriteId === packInfo.manifest.id
+                && currentSpriteRevision === packInfo.asset_revision;
+            if (!force && samePack) return;
+
             currentSpriteId = packInfo.manifest.id;
+            currentSpriteRevision = packInfo.asset_revision;
             await renderer.loadSpritePack(packInfo);
             renderer.playAnimation("idle");
         }
@@ -373,8 +379,17 @@ async function init() {
     });
 
     // Listen for config changes from Rust Backend
-    await listen("config_changed", (event) => {
-        applyConfigToWindow(event.payload);
+    await listen("config_changed", async (event) => {
+        await applyConfigToWindow(event.payload);
+    });
+
+    await listen("sprite_pack_imported", async (event) => {
+        const imported = event.payload;
+        if (!imported || !imported.manifest || imported.manifest.id !== currentSpriteId) return;
+
+        currentSpriteRevision = imported.asset_revision;
+        await renderer.loadSpritePack(imported);
+        renderer.playAnimation("idle");
     });
 }
 
@@ -431,8 +446,8 @@ async function applyConfigToWindow(config) {
     
     const petConf = config.renderer['desktop-pet'];
     
-    if (petConf.sprite && currentSpriteId && petConf.sprite !== currentSpriteId) {
-        loadActiveSpritePack();
+    if (petConf.sprite && currentSpriteId) {
+        await loadActiveSpritePack(false);
     }
 
     baseOpacity = petConf.opacity !== undefined ? petConf.opacity : 1;
