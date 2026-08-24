@@ -378,7 +378,7 @@ mod hover {
     }
 }
 
-// --- Windows hover detection via a low-level mouse hook --------------------
+// --- Windows mouse monitoring via a low-level mouse hook -------------------
 //
 // The pet window can be hit-test transparent (click-through), which starves
 // the webview of mouse-move events, so DOM :hover is unreliable there. macOS
@@ -386,9 +386,11 @@ mod hover {
 // we use a WH_MOUSE_LL low-level mouse hook instead. It observes every mouse
 // move on the desktop (a pure event callback — no polling), compares the
 // cursor against the pet window rect and emits `pet_hover_changed` on state
-// changes, matching the macOS module's contract.
+// changes, matching the macOS module's contract. The same hook also tracks the
+// physical left-button state so the drag handler in main.rs can tell real
+// drags apart from spurious Moved events.
 #[cfg(target_os = "windows")]
-mod hover {
+pub(crate) mod hover {
     use std::ffi::c_void;
     use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
     use std::sync::OnceLock;
@@ -397,14 +399,25 @@ mod hover {
     use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
     use windows::Win32::UI::WindowsAndMessaging::{
         CallNextHookEx, DispatchMessageW, GetMessageW, GetWindowRect, SetWindowsHookExW,
-        TranslateMessage, MSG, MSLLHOOKSTRUCT, WH_MOUSE_LL, WM_MOUSEMOVE,
+        TranslateMessage, MSG, MSLLHOOKSTRUCT, WH_MOUSE_LL, WM_LBUTTONDOWN, WM_LBUTTONUP,
+        WM_MOUSEMOVE,
     };
 
     static APP: OnceLock<tauri::AppHandle> = OnceLock::new();
     static PANEL_HWND: AtomicIsize = AtomicIsize::new(0);
     static LAST_HOVER: AtomicBool = AtomicBool::new(false);
+    /// Physical left-button state, sampled by the hook.
+    static LEFT_BUTTON_DOWN: AtomicBool = AtomicBool::new(false);
     /// Keeps the hook alive for the process lifetime.
     static HOOK: AtomicIsize = AtomicIsize::new(0);
+
+    /// MK_LBUTTON: the left button is held while a mouse move was sampled.
+    const MK_LBUTTON: u32 = 0x0001;
+
+    /// Whether the physical left mouse button is currently held.
+    pub(crate) fn left_button_down() -> bool {
+        LEFT_BUTTON_DOWN.load(Ordering::Relaxed)
+    }
 
     /// Whether a physical screen point lies within a physical screen rect
     /// (inclusive edges).
@@ -435,14 +448,25 @@ mod hover {
     /// WH_MOUSE_LL callback; runs on the hook thread and must stay cheap and
     /// non-blocking.
     unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-        if code >= 0 && wparam.0 as u32 == WM_MOUSEMOVE {
+        if code >= 0 {
             let info = &*(lparam.0 as *const MSLLHOOKSTRUCT);
-            let inside = cursor_over_window(info.pt);
-            let last = LAST_HOVER.swap(inside, Ordering::SeqCst);
-            if inside != last {
-                if let Some(app) = APP.get() {
-                    let _ = app.emit("pet_hover_changed", inside);
+            match wparam.0 as u32 {
+                WM_MOUSEMOVE => {
+                    // MSLLHOOKSTRUCT.flags carries the held-button state on
+                    // mouse moves, so this self-heals if a button message is
+                    // ever missed.
+                    LEFT_BUTTON_DOWN.store(info.flags & MK_LBUTTON != 0, Ordering::Relaxed);
+                    let inside = cursor_over_window(info.pt);
+                    let last = LAST_HOVER.swap(inside, Ordering::SeqCst);
+                    if inside != last {
+                        if let Some(app) = APP.get() {
+                            let _ = app.emit("pet_hover_changed", inside);
+                        }
+                    }
                 }
+                WM_LBUTTONDOWN => LEFT_BUTTON_DOWN.store(true, Ordering::Relaxed),
+                WM_LBUTTONUP => LEFT_BUTTON_DOWN.store(false, Ordering::Relaxed),
+                _ => {}
             }
         }
         // Every event must continue down the hook chain.
@@ -688,16 +712,106 @@ pub fn snap_to_corner(
         .map(|(_, corner)| corner)
 }
 
+/// Per-side escape latch for the edge snap. While a drag holds the pet pinned
+/// flush against a work-area edge, every Moved event re-snaps it back to the
+/// edge and the pet cannot be dragged out; once the drag pulls the pet away
+/// from an edge it was sitting exactly on, that edge is marked escaped and
+/// stops grabbing until the drag leaves its snap zone.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct EdgeEscape {
+    pub left: bool,
+    pub right: bool,
+    pub top: bool,
+    pub bottom: bool,
+}
+
+/// Outcome of one snap decision: the position to apply and the escape flags
+/// to carry into the next event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SnapResult {
+    pub position: tauri::PhysicalPosition<i32>,
+    pub escaped: EdgeEscape,
+}
+
+/// Pure snap decision for a single drag event. `pos` is the candidate
+/// top-left, `prev` the last applied top-left (None when unknown — the first
+/// event of a drag), `work` the monitor work area `(left, top, right,
+/// bottom)` and `size` the window's outer size, all in physical pixels.
+/// Returns the position to apply (snapped toward an approaching edge,
+/// unchanged otherwise) plus the updated escape flags.
+fn snap_position(
+    pos: (i32, i32),
+    prev: Option<(i32, i32)>,
+    work: (i32, i32, i32, i32),
+    size: (i32, i32),
+    threshold: i32,
+    mut escaped: EdgeEscape,
+) -> ((i32, i32), EdgeEscape) {
+    let (work_left, work_top, work_right, work_bottom) = work;
+    let edge_left_x = work_left;
+    let edge_right_x = work_right - size.0;
+    let edge_top_y = work_top;
+    let edge_bottom_y = work_bottom - size.1;
+
+    // Broke free: the pet was sitting exactly on an edge and the drag has now
+    // pulled it inward — that edge lets go for the rest of this drag.
+    if let Some((prev_x, prev_y)) = prev {
+        if prev_x == edge_left_x && pos.0 > prev_x {
+            escaped.left = true;
+        }
+        if prev_x == edge_right_x && pos.0 < prev_x {
+            escaped.right = true;
+        }
+        if prev_y == edge_top_y && pos.1 > prev_y {
+            escaped.top = true;
+        }
+        if prev_y == edge_bottom_y && pos.1 < prev_y {
+            escaped.bottom = true;
+        }
+    }
+
+    // Once the pet is far from an axis's edges, that axis's latch has served
+    // its purpose and snapping can grab again on approach.
+    if (pos.0 - edge_left_x).abs() > threshold && (pos.0 - edge_right_x).abs() > threshold {
+        escaped.left = false;
+        escaped.right = false;
+    }
+    if (pos.1 - edge_top_y).abs() > threshold && (pos.1 - edge_bottom_y).abs() > threshold {
+        escaped.top = false;
+        escaped.bottom = false;
+    }
+
+    let mut x = pos.0;
+    let mut y = pos.1;
+    if !escaped.left && (x - edge_left_x).abs() <= threshold {
+        x = edge_left_x;
+    } else if !escaped.right && (x - edge_right_x).abs() <= threshold {
+        x = edge_right_x;
+    }
+    if !escaped.top && (y - edge_top_y).abs() <= threshold {
+        y = edge_top_y;
+    } else if !escaped.bottom && (y - edge_bottom_y).abs() <= threshold {
+        y = edge_bottom_y;
+    }
+
+    ((x, y), escaped)
+}
+
 /// Snap the window position to the nearest work-area **edge** when within
 /// `threshold` physical pixels. Unlike `snap_to_corner` (which requires
 /// proximity to a corner on both axes), this snaps each axis independently so
 /// the user can drag to any screen edge and feel an immediate magnetic pull.
-/// Returns `None` when no edge is close enough.
+/// Edges the current drag has already escaped from are skipped (see
+/// [`EdgeEscape`]). Returns `None` when snapping is disabled or the monitor
+/// cannot be determined — the caller then keeps the dragged position and the
+/// escape flags unchanged.
 pub fn snap_to_edges(
     window: &tauri::WebviewWindow,
     pos: tauri::PhysicalPosition<i32>,
+    prev: Option<(i32, i32)>,
+    escaped: EdgeEscape,
     threshold: f32,
-) -> Option<tauri::PhysicalPosition<i32>> {
+) -> Option<SnapResult> {
     if !threshold.is_finite() || threshold <= 0.0 {
         return None;
     }
@@ -710,40 +824,23 @@ pub fn snap_to_edges(
 
     let (width, height) = window_physical_size(window);
     let work = *monitor.work_area();
-    let t = threshold as i32;
-
-    let left = work.position.x;
-    let top = work.position.y;
-    let right = left + work.size.width as i32 - width;
-    let bottom = top + work.size.height as i32 - height;
-
-    let mut x = pos.x;
-    let mut y = pos.y;
-    let mut snapped = false;
-
-    // Horizontal edges
-    if (x - left).abs() <= t {
-        x = left;
-        snapped = true;
-    } else if (x - right).abs() <= t {
-        x = right;
-        snapped = true;
-    }
-
-    // Vertical edges
-    if (y - top).abs() <= t {
-        y = top;
-        snapped = true;
-    } else if (y - bottom).abs() <= t {
-        y = bottom;
-        snapped = true;
-    }
-
-    if snapped {
-        Some(tauri::PhysicalPosition::new(x, y))
-    } else {
-        None
-    }
+    let ((x, y), escaped) = snap_position(
+        (pos.x, pos.y),
+        prev,
+        (
+            work.position.x,
+            work.position.y,
+            work.position.x + work.size.width as i32,
+            work.position.y + work.size.height as i32,
+        ),
+        (width, height),
+        threshold as i32,
+        escaped,
+    );
+    Some(SnapResult {
+        position: tauri::PhysicalPosition::new(x, y),
+        escaped,
+    })
 }
 
 /// Express a physical position as `(rx, ry)` ratios within the work area of the
@@ -1065,4 +1162,163 @@ fn apply_macos_desktop_behavior(
             }
         })
         .map_err(|error| error.to_string())
+}
+
+#[cfg(test)]
+mod snap_tests {
+    use super::*;
+
+    // 1920x1080 work area, 200x300 pet window, 60px snap threshold.
+    fn work() -> (i32, i32, i32, i32) {
+        (0, 0, 1920, 1080)
+    }
+
+    fn size() -> (i32, i32) {
+        (200, 300)
+    }
+
+    const THRESHOLD: i32 = 60;
+
+    #[test]
+    fn snaps_when_approaching_an_edge() {
+        // Right edge sits at 1920 - 200 = 1720; 1750 is within the threshold.
+        let ((x, y), escaped) = snap_position(
+            (1750, 400),
+            Some((1810, 400)),
+            work(),
+            size(),
+            THRESHOLD,
+            EdgeEscape::default(),
+        );
+        assert_eq!((x, y), (1720, 400));
+        assert_eq!(escaped, EdgeEscape::default());
+    }
+
+    #[test]
+    fn snaps_nothing_when_far_from_edges() {
+        let ((x, y), escaped) = snap_position(
+            (500, 400),
+            Some((500, 400)),
+            work(),
+            size(),
+            THRESHOLD,
+            EdgeEscape::default(),
+        );
+        assert_eq!((x, y), (500, 400));
+        assert_eq!(escaped, EdgeEscape::default());
+    }
+
+    #[test]
+    fn escapes_right_edge_when_pulled_away() {
+        // Pet pinned flush against the right edge (x = 1720), user pulls left.
+        let ((x, y), escaped) = snap_position(
+            (1700, 400),
+            Some((1720, 400)),
+            work(),
+            size(),
+            THRESHOLD,
+            EdgeEscape::default(),
+        );
+        assert_eq!(
+            (x, y),
+            (1700, 400),
+            "pulled position must not be re-snapped"
+        );
+        assert!(escaped.right);
+        assert!(!escaped.left);
+    }
+
+    #[test]
+    fn escaped_edge_does_not_regrab_within_zone() {
+        let escaped = EdgeEscape {
+            right: true,
+            ..EdgeEscape::default()
+        };
+        // Still inside the right-edge snap zone; must stay free.
+        let ((x, _), _) = snap_position(
+            (1750, 400),
+            Some((1720, 400)),
+            work(),
+            size(),
+            THRESHOLD,
+            escaped,
+        );
+        assert_eq!(x, 1750);
+    }
+
+    #[test]
+    fn escape_latch_resets_in_free_space() {
+        let escaped = EdgeEscape {
+            right: true,
+            ..EdgeEscape::default()
+        };
+        let (_, escaped) = snap_position(
+            (1500, 400), // > 60px away from both x edges (1720 and 0)
+            Some((1600, 400)),
+            work(),
+            size(),
+            THRESHOLD,
+            escaped,
+        );
+        assert!(!escaped.right);
+    }
+
+    #[test]
+    fn approaches_corner_snaps_both_axes() {
+        let ((x, y), escaped) = snap_position(
+            (1770, 830), // 50px from right edge (1720) and bottom edge (780)
+            Some((1740, 800)),
+            work(),
+            size(),
+            THRESHOLD,
+            EdgeEscape::default(),
+        );
+        assert_eq!((x, y), (1720, 780));
+        assert_eq!(escaped, EdgeEscape::default());
+    }
+
+    #[test]
+    fn escapes_bottom_edge_when_pulled_up() {
+        // Pull up 40px: still inside the bottom-edge snap zone, so the latch
+        // must persist and the position must not be re-snapped down.
+        let ((_, y), escaped) = snap_position(
+            (400, 740),
+            Some((400, 780)),
+            work(),
+            size(),
+            THRESHOLD,
+            EdgeEscape::default(),
+        );
+        assert_eq!(y, 740);
+        assert!(escaped.bottom);
+    }
+
+    #[test]
+    fn escape_latch_clears_once_past_the_snap_zone() {
+        // Pull up 80px: beyond the 60px threshold, so the latch has served its
+        // purpose (and nothing would re-snap at this distance anyway).
+        let (_, escaped) = snap_position(
+            (400, 700),
+            Some((400, 780)),
+            work(),
+            size(),
+            THRESHOLD,
+            EdgeEscape::default(),
+        );
+        assert!(!escaped.bottom);
+    }
+
+    #[test]
+    fn zero_threshold_never_snaps() {
+        let ((x, y), escaped) = snap_position(
+            (1750, 400),
+            Some((1720, 400)),
+            work(),
+            size(),
+            0,
+            EdgeEscape::default(),
+        );
+        assert_eq!((x, y), (1750, 400));
+        assert_eq!(escaped, EdgeEscape::default());
+    }
 }
