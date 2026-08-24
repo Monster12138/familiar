@@ -418,14 +418,12 @@ fn main() {
             use std::time::{Duration, Instant};
             use tauri::Manager;
 
-            // (last_pos, last_move_time, debounce_task_running, last_snapped_pos,
-            //  escaped_edges)
+            // (last_pos, last_move_time, debounce_task_running, last_snapped_pos)
             let pos_state = Arc::new(Mutex::new((
                 None::<(i32, i32)>,
                 Instant::now(),
                 false,
                 None::<(i32, i32)>,
-                desktop_pet_window::EdgeEscape::default(),
             )));
             let app_config_state_for_pos = app_config_state.clone();
 
@@ -488,10 +486,10 @@ fn main() {
                                         &main_win,
                                         dragged,
                                         lock.0,
-                                        lock.4,
+                                        desktop_pet_window::drag_escape(),
                                         pet_conf.snap_threshold,
                                     ) {
-                                        lock.4 = result.escaped;
+                                        desktop_pet_window::set_drag_escape(result.escaped);
                                         if result.position.x != dragged.x
                                             || result.position.y != dragged.y
                                         {
@@ -515,7 +513,7 @@ fn main() {
                         } else {
                             // No drag in progress; a new drag starts with a
                             // clean escape latch.
-                            lock.4 = desktop_pet_window::EdgeEscape::default();
+                            desktop_pet_window::reset_drag_escape();
                             (pos.x, pos.y)
                         };
 

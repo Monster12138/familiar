@@ -1,4 +1,5 @@
 use familiar_core::config::DesktopPetConfig;
+use std::sync::Mutex;
 
 #[cfg(target_os = "macos")]
 use tauri::Manager;
@@ -400,7 +401,7 @@ pub(crate) mod hover {
     use windows::Win32::UI::WindowsAndMessaging::{
         CallNextHookEx, DispatchMessageW, GetMessageW, GetWindowRect, SetWindowsHookExW,
         TranslateMessage, MSG, MSLLHOOKSTRUCT, WH_MOUSE_LL, WM_LBUTTONDOWN, WM_LBUTTONUP,
-        WM_MOUSEMOVE,
+        WM_MOUSEMOVE, WM_NCMOUSEMOVE,
     };
 
     static APP: OnceLock<tauri::AppHandle> = OnceLock::new();
@@ -451,11 +452,12 @@ pub(crate) mod hover {
         if code >= 0 {
             let info = &*(lparam.0 as *const MSLLHOOKSTRUCT);
             match wparam.0 as u32 {
-                WM_MOUSEMOVE => {
-                    // MSLLHOOKSTRUCT.flags carries the held-button state on
-                    // mouse moves, so this self-heals if a button message is
-                    // ever missed.
-                    LEFT_BUTTON_DOWN.store(info.flags & MK_LBUTTON != 0, Ordering::Relaxed);
+                // During a caption drag the cursor counts as being over the
+                // non-client area, so both move message kinds reach the hook.
+                // The button state rides in wParam's MK_* bits, NOT in
+                // MSLLHOOKSTRUCT.flags (those are LLMHF_* injection flags).
+                WM_MOUSEMOVE | WM_NCMOUSEMOVE => {
+                    LEFT_BUTTON_DOWN.store(wparam.0 as u32 & MK_LBUTTON != 0, Ordering::Relaxed);
                     let inside = cursor_over_window(info.pt);
                     let last = LAST_HOVER.swap(inside, Ordering::SeqCst);
                     if inside != last {
@@ -464,7 +466,13 @@ pub(crate) mod hover {
                         }
                     }
                 }
-                WM_LBUTTONDOWN => LEFT_BUTTON_DOWN.store(true, Ordering::Relaxed),
+                // A fresh press starts a clean drag: drop any escape latch
+                // left over from an earlier drag that ended without a final
+                // Moved event (where the main-thread reset never ran).
+                WM_LBUTTONDOWN => {
+                    LEFT_BUTTON_DOWN.store(true, Ordering::Relaxed);
+                    super::reset_drag_escape();
+                }
                 WM_LBUTTONUP => LEFT_BUTTON_DOWN.store(false, Ordering::Relaxed),
                 _ => {}
             }
@@ -723,6 +731,34 @@ pub struct EdgeEscape {
     pub right: bool,
     pub top: bool,
     pub bottom: bool,
+}
+
+/// Escape latch for the drag in progress. Lives at module level because the
+/// Windows mouse hook must reset it on a fresh left-button press (a drag can
+/// end without a final Moved event, which would otherwise leave a stale latch
+/// that silently disables snapping for the next drag). The critical section is
+/// a few bytes of copying, so contention with the hook thread is negligible.
+static DRAG_ESCAPE: Mutex<EdgeEscape> = Mutex::new(EdgeEscape {
+    left: false,
+    right: false,
+    top: false,
+    bottom: false,
+});
+
+/// Snapshot of the current drag's escape latch.
+pub(crate) fn drag_escape() -> EdgeEscape {
+    *DRAG_ESCAPE.lock().unwrap()
+}
+
+/// Replace the current drag's escape latch.
+pub(crate) fn set_drag_escape(escaped: EdgeEscape) {
+    *DRAG_ESCAPE.lock().unwrap() = escaped;
+}
+
+/// Clear the escape latch. Called on a fresh left-button press (Windows hook),
+/// when no drag is running, and after a drag ends.
+pub(crate) fn reset_drag_escape() {
+    *DRAG_ESCAPE.lock().unwrap() = EdgeEscape::default();
 }
 
 /// Outcome of one snap decision: the position to apply and the escape flags
@@ -1320,5 +1356,24 @@ mod snap_tests {
         );
         assert_eq!((x, y), (1750, 400));
         assert_eq!(escaped, EdgeEscape::default());
+    }
+
+    #[test]
+    fn drag_escape_global_state_roundtrips_and_resets() {
+        // This is the only test touching the shared latch; cargo runs tests
+        // in one process, so it must restore the default before returning.
+        set_drag_escape(EdgeEscape {
+            right: true,
+            ..EdgeEscape::default()
+        });
+        assert_eq!(
+            drag_escape(),
+            EdgeEscape {
+                right: true,
+                ..EdgeEscape::default()
+            }
+        );
+        reset_drag_escape();
+        assert_eq!(drag_escape(), EdgeEscape::default());
     }
 }
