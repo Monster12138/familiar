@@ -5,7 +5,6 @@ Contributors and are available, at your option, under either the MIT License or
 the Apache License, Version 2.0:
 
 - all files in `sprites/british-blue/`;
-- all files in `sprites/douhua-cat/`;
 - all files in `sprites/huajuan-cat/`;
 - all files in `sprites/tabby-cat/`;
 - the corresponding `.fpack` archives in `sprites/`;

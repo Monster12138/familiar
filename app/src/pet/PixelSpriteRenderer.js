@@ -104,13 +104,20 @@ export class PixelSpriteRenderer extends SpriteRenderer {
         const packId = this.manifest.id || this.manifest.name || 'british-blue';
         if (this.packInfo && !this.packInfo.is_builtin && this.packInfo.path) {
             try {
-                return convertFileSrc(`${this.packInfo.path}/${fileName}`);
+                return this._withAssetRevision(convertFileSrc(`${this.packInfo.path}/${fileName}`));
             } catch (e) {
-                return `/sprites/${packId}/${fileName}`;
+                return this._withAssetRevision(`/sprites/${packId}/${fileName}`);
             }
         }
 
-        return `/sprites/${packId}/${fileName}`;
+        return this._withAssetRevision(`/sprites/${packId}/${fileName}`);
+    }
+
+    _withAssetRevision(url) {
+        const revision = this.packInfo && this.packInfo.asset_revision;
+        if (!revision) return url;
+        const separator = url.includes('?') ? '&' : '?';
+        return `${url}${separator}v=${encodeURIComponent(revision)}`;
     }
 
     _resizeElement(element, width, height) {

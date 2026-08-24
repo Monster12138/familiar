@@ -1095,7 +1095,10 @@ pub fn get_sprite_packs(app_handle: tauri::AppHandle) -> Result<Vec<SpritePackIn
 }
 
 #[tauri::command]
-pub async fn import_sprite_pack(path: Option<String>) -> Result<SpritePackInfo, String> {
+pub async fn import_sprite_pack(
+    app_handle: tauri::AppHandle,
+    path: Option<String>,
+) -> Result<SpritePackInfo, String> {
     let import_path = if let Some(p) = path.filter(|s| !s.is_empty()) {
         std::path::PathBuf::from(p)
     } else {
@@ -1111,7 +1114,22 @@ pub async fn import_sprite_pack(path: Option<String>) -> Result<SpritePackInfo, 
         }
     };
 
-    SpritePackManager::import_pack(&import_path).map_err(|e| e.to_string())
+    let imported = SpritePackManager::import_pack(&import_path).map_err(|e| e.to_string())?;
+    use tauri::Emitter;
+    let _ = app_handle.emit("sprite_pack_imported", &imported);
+    Ok(imported)
+}
+
+#[tauri::command]
+pub fn delete_sprite_pack(
+    config_state: tauri::State<'_, Arc<AppConfigState>>,
+    id: String,
+) -> Result<(), String> {
+    if config_state.get_config().renderer.desktop_pet.sprite == id {
+        return Err("Cannot delete the active sprite pack; switch packs first".to_string());
+    }
+
+    SpritePackManager::delete_user_pack(&id).map_err(|error| error.to_string())
 }
 
 #[tauri::command]

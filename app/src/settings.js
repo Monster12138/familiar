@@ -837,6 +837,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             packs.forEach(pack => {
                 const manifest = pack.manifest;
                 const isActive = manifest.id === activeSprite;
+                const description = simplifyPackDescription(manifest.description);
 
                 let previewSrc = '';
                 const previewFile = manifest.preview || 'idle.png';
@@ -845,6 +846,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else {
                     previewSrc = convertFileSrc(`${pack.path}/${previewFile}`);
                 }
+                previewSrc = withAssetRevision(previewSrc, pack);
 
                 const card = document.createElement('div');
                 card.className = `sprite-pack-card ${isActive ? 'active' : ''}`;
@@ -863,19 +865,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <div class="sprite-pack-author">${t('lbl_pack_author', lang)}: ${manifest.author || 'Unknown'}</div>
                         </div>
                     </div>
-                    <div class="sprite-pack-desc">${manifest.description || ''}</div>
+                    <div class="sprite-pack-desc">${description}</div>
                     <div class="sprite-pack-meta-row">
                         <span class="sprite-pack-badge ${badgeClass}">${badgeText}</span>
                         ${manifest.created_at ? `<span>${t('lbl_pack_created', lang)}: ${manifest.created_at}</span>` : ''}
                         ${manifest.email ? `<span>${t('lbl_pack_email', lang)}: ${manifest.email}</span>` : ''}
                     </div>
                     <div class="sprite-pack-footer" style="display:flex; gap:8px;">
-                        <button class="secondary-btn btn-sm btn-preview-pack" style="white-space:nowrap; display:inline-flex; align-items:center; gap:4px; padding: 6px 10px;">
+                        ${!pack.is_builtin && !isActive ? `
+                        <button class="danger-btn btn-sm btn-delete-pack" title="${t('btn_delete_pack', lang)}" aria-label="${t('btn_delete_pack', lang)}" style="display:inline-flex; align-items:center; justify-content:center; padding:6px 10px;">
+                            ${ICON_TRASH}
+                        </button>` : ''}
+                        <button class="secondary-btn btn-sm btn-preview-pack" title="${t('btn_preview_pack', lang)}" aria-label="${t('btn_preview_pack', lang)}" style="display:inline-flex; align-items:center; justify-content:center; padding:6px 10px;">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                 <circle cx="12" cy="12" r="3"></circle>
                             </svg>
-                            <span data-i18n="btn_preview_pack">${t('btn_preview_pack', lang)}</span>
                         </button>
                         <button class="sprite-pack-use-btn ${isActive ? 'in-use' : 'secondary-btn'}" ${isActive ? 'disabled' : ''} style="flex:1;">
                             ${buttonText}
@@ -887,7 +892,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (imgEl) {
                     imgEl.onerror = () => {
                         if (pack.path) {
-                            imgEl.src = convertFileSrc(`${pack.path}/${previewFile}`);
+                            imgEl.src = withAssetRevision(convertFileSrc(`${pack.path}/${previewFile}`), pack);
                         } else {
                             imgEl.style.opacity = '0.2';
                         }
@@ -899,6 +904,41 @@ document.addEventListener('DOMContentLoaded', async () => {
                     previewBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
                         openPreviewModal(pack);
+                    });
+                }
+
+                const deleteBtn = card.querySelector('.btn-delete-pack');
+                if (deleteBtn) {
+                    let deleteConfirmTimer = null;
+                    deleteBtn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+
+                        if (!deleteBtn.classList.contains('confirming')) {
+                            deleteBtn.classList.add('confirming');
+                            const prompt = t('msg_delete_pack_confirm', lang).replace('{name}', manifest.name);
+                            deleteBtn.title = prompt;
+                            deleteBtn.setAttribute('aria-label', prompt);
+                            showToast(prompt);
+                            deleteConfirmTimer = setTimeout(() => {
+                                deleteBtn.classList.remove('confirming');
+                                deleteBtn.title = t('btn_delete_pack', lang);
+                                deleteBtn.setAttribute('aria-label', t('btn_delete_pack', lang));
+                            }, 5000);
+                            return;
+                        }
+
+                        if (deleteConfirmTimer) clearTimeout(deleteConfirmTimer);
+                        deleteBtn.disabled = true;
+
+                        try {
+                            await invoke('delete_sprite_pack', { id: manifest.id });
+                            await loadAndRenderSpritePacks();
+                            showToast(t('msg_delete_pack_success', lang), 'success');
+                        } catch (error) {
+                            deleteBtn.disabled = false;
+                            deleteBtn.classList.remove('confirming');
+                            showToast(t('msg_delete_pack_failed', lang) + String(error), 'error', 5000);
+                        }
                     });
                 }
 
@@ -918,6 +958,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) {
             console.error("Failed to load sprite packs:", e);
         }
+    }
+
+    function simplifyPackDescription(description) {
+        return String(description || '').replace(/的极简复古像素风桌面宠物\s*$/, '');
     }
 
     function openPreviewModal(pack) {
@@ -967,6 +1011,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else {
                     imgSrc = convertFileSrc(`${pack.path}/${fileName}`);
                 }
+                imgSrc = withAssetRevision(imgSrc, pack);
 
                 const displayName = stateLabels[stateKey] || stateKey;
 
@@ -984,7 +1029,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (stateImg) {
                     stateImg.onerror = () => {
                         if (pack.path) {
-                            stateImg.src = convertFileSrc(`${pack.path}/${fileName}`);
+                            stateImg.src = withAssetRevision(convertFileSrc(`${pack.path}/${fileName}`), pack);
                         } else {
                             stateImg.style.opacity = '0.2';
                         }
@@ -996,6 +1041,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         previewModalOverlay.classList.add('active');
+    }
+
+    function withAssetRevision(url, pack) {
+        const revision = pack && pack.asset_revision;
+        if (!revision) return url;
+        const separator = url.includes('?') ? '&' : '?';
+        return `${url}${separator}v=${encodeURIComponent(revision)}`;
     }
 
     function closePreviewModal() {
@@ -1036,10 +1088,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     currentConfig.renderer['desktop-pet'].sprite = imported.manifest.id;
                     await loadAndRenderSpritePacks();
                     scheduleAutoSave();
+                    showToast(t('msg_import_success', lang), 'success');
                 }
             } catch (err) {
                 if (err !== 'Cancelled' && err !== 'User cancelled selection') {
-                    alert(t('msg_import_failed', lang) + err);
+                    showToast(t('msg_import_failed', lang) + String(err), 'error', 5000);
                 }
             }
         });

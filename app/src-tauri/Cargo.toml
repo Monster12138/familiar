@@ -11,7 +11,7 @@ publish.workspace = true
 [dependencies]
 familiar-core = { path = "../../crates/familiar-core" }
 familiar-api = { path = "../../crates/familiar-api" }
-tauri = { version = "2.0.0-rc", features = ["macos-private-api", "tray-icon", "image-png"] }
+tauri = { version = "2.0.0-rc", features = ["protocol-asset", "macos-private-api", "tray-icon", "image-png"] }
 tauri-plugin-single-instance = "2"
 tokio = { workspace = true }
 tokio-tungstenite = { workspace = true, features = ["native-tls"] }
