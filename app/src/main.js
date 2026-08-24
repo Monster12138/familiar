@@ -9,6 +9,10 @@ let currentLang = 'en-US';
 let currentRuntimeMode = 'local';
 let remoteConnectionStatus = 'offline';
 let clickThroughEnabled = false;
+window.clickThroughEnabled = false;
+// While the context menu is open the window is temporarily grown to fit it;
+// updateWindowSize must not fight that resize until the menu closes.
+let contextMenuOpen = false;
 window.celebrationMs = 4000; // default, updated from config
 
 // Hover transparency: while the pointer rests over the pet we dim the content
@@ -90,34 +94,137 @@ function setupContextMenu() {
     // Show/hide the menu and, while it is open, suspend left-click pass-through
     // so the menu items stay clickable; restore the configured pass-through on
     // close.
+    //
+    // The menu must never leave the screen: query the window's screen rect and
+    // the monitor work area, clamp the menu origin into the work area, then
+    // grow the (transparent) window to the union of both rects. Growing left/
+    // up moves the window origin, so the pet container is offset by the same
+    // delta — the pet itself never moves.
+    let menuFrameRestore = null;
+
+    async function positionMenuAt(clientX, clientY) {
+        const menuWidth = contextMenu.offsetWidth || 150;
+        const menuHeight = contextMenu.offsetHeight || 40;
+
+        let geom;
+        try {
+            geom = await invoke("get_menu_geometry");
+        } catch (e) {
+            console.error("Failed to get window geometry:", e);
+            contextMenu.style.left = `${Math.max(0, clientX)}px`;
+            contextMenu.style.top = `${Math.max(0, clientY)}px`;
+            return;
+        }
+
+        // Menu origin at the cursor, clamped into the monitor work area.
+        let mx = Math.min(geom.x + clientX, geom.work_right - menuWidth);
+        let my = Math.min(geom.y + clientY, geom.work_bottom - menuHeight);
+        mx = Math.max(mx, geom.work_left);
+        my = Math.max(my, geom.work_top);
+
+        // Window frame = union of the current rect and the menu rect.
+        const nx = Math.min(geom.x, mx);
+        const ny = Math.min(geom.y, my);
+        const right = Math.max(geom.x + geom.width, mx + menuWidth);
+        const bottom = Math.max(geom.y + geom.height, my + menuHeight);
+
+        menuFrameRestore = { x: geom.x, y: geom.y, width: geom.width, height: geom.height };
+        const container = document.getElementById("unified-container");
+        if (container) {
+            container.style.marginLeft = `${geom.x - nx}px`;
+            container.style.marginTop = `${geom.y - ny}px`;
+        }
+        try {
+            await invoke("set_main_window_frame", {
+                x: nx, y: ny, width: right - nx, height: bottom - ny,
+            });
+        } catch (e) {
+            console.error("Failed to grow window for menu:", e);
+        }
+
+        contextMenu.style.left = `${mx - nx}px`;
+        contextMenu.style.top = `${my - ny}px`;
+    }
+
+    function restoreWindowFrame() {
+        const container = document.getElementById("unified-container");
+        if (container) {
+            container.style.marginLeft = "";
+            container.style.marginTop = "";
+        }
+        if (menuFrameRestore) {
+            const frame = menuFrameRestore;
+            menuFrameRestore = null;
+            invoke("set_main_window_frame", frame)
+                .catch((e) => console.error("Failed to restore window frame:", e));
+        }
+        // Reconcile if the content size changed while the menu was open.
+        updateWindowSize();
+    }
+
     function setMenuOpen(open) {
+        contextMenuOpen = open;
         contextMenu.style.display = open ? "block" : "none";
         invoke("set_click_through_enabled", { enabled: open ? false : clickThroughEnabled })
             .catch((e) => console.error("Failed to toggle click-through:", e));
+        if (open) {
+            armMenuIdleTimer();
+        } else {
+            disarmMenuIdleTimer();
+            restoreWindowFrame();
+        }
+    }
+
+    // Unlike native menus, our HTML menu is not dismissed by clicks that land
+    // outside the window (a non-activating panel never sees them), so it would
+    // linger on screen. Auto-close it after a short idle period instead; while
+    // the pointer rests on the menu the timeout is suspended.
+    const MENU_IDLE_MS = 5000;
+    let menuIdleTimer = null;
+    let lastMenuActivity = 0;
+
+    document.addEventListener("mousemove", () => {
+        if (contextMenuOpen) lastMenuActivity = Date.now();
+    });
+
+    function armMenuIdleTimer() {
+        lastMenuActivity = Date.now();
+        if (menuIdleTimer) clearInterval(menuIdleTimer);
+        menuIdleTimer = setInterval(() => {
+            if (contextMenu.matches(":hover")) return;
+            if (Date.now() - lastMenuActivity >= MENU_IDLE_MS) setMenuOpen(false);
+        }, 1000);
+    }
+
+    function disarmMenuIdleTimer() {
+        if (menuIdleTimer) {
+            clearInterval(menuIdleTimer);
+            menuIdleTimer = null;
+        }
+    }
+
+    // Open the menu at window-relative CSS coordinates. Shared by the webview's
+    // own contextmenu event (pass-through off) and the Rust right-click monitor
+    // (pass-through on, when the webview never sees the click because the
+    // window is hit-test transparent).
+    function openContextMenuAt(clientX, clientY) {
+        setMenuOpen(true);
+        if (menuClickThrough) {
+            menuClickThrough.classList.toggle('checked', clickThroughEnabled);
+        }
+        positionMenuAt(clientX, clientY);
     }
 
     // Custom Context Menu
     document.addEventListener('contextmenu', e => {
         e.preventDefault();
-        // Position menu at mouse coordinates
-        setMenuOpen(true);
-        if (menuClickThrough) {
-            menuClickThrough.classList.toggle('checked', clickThroughEnabled);
-        }
-        
-        // Ensure menu doesn't go off screen
-        const menuWidth = contextMenu.offsetWidth || 150;
-        const menuHeight = contextMenu.offsetHeight || 40;
-        
-        let x = e.clientX;
-        let y = e.clientY;
-        
-        if (x + menuWidth > window.innerWidth) x = window.innerWidth - menuWidth;
-        if (y + menuHeight > window.innerHeight) y = window.innerHeight - menuHeight;
-        
-        contextMenu.style.left = `${x}px`;
-        contextMenu.style.top = `${y}px`;
+        openContextMenuAt(e.clientX, e.clientY);
     });
+
+    // Right-click captured by the Rust monitor while pass-through is on.
+    listen('pet_context_menu', (event) => {
+        openContextMenuAt(event.payload.x, event.payload.y);
+    }).catch((e) => console.error("Failed to listen for pet_context_menu:", e));
 
     document.addEventListener('click', e => {
         if (e.target !== contextMenu && !contextMenu.contains(e.target)) {
@@ -146,6 +253,7 @@ function setupContextMenu() {
                 config.renderer['desktop-pet'].click_through = next;
                 await invoke("save_config", { config });
                 clickThroughEnabled = next;
+                window.clickThroughEnabled = next;
                 menuClickThrough.classList.toggle('checked', next);
             } catch (e) {
                 console.error("Failed to toggle click-through:", e);
@@ -274,6 +382,9 @@ let lastWidth = 0;
 let lastHeight = 0;
 
 function updateWindowSize() {
+    // The context menu temporarily grows the window; don't shrink it back
+    // mid-menu.
+    if (contextMenuOpen) return;
     const container = document.getElementById('unified-container');
     if (!container) return;
     const rect = container.getBoundingClientRect();
@@ -331,6 +442,7 @@ async function applyConfigToWindow(config) {
         : null;
     hoverHideEnabled = petConf.hide_on_hover === true;
     clickThroughEnabled = petConf.click_through === true;
+    window.clickThroughEnabled = clickThroughEnabled;
     applyOpacity();
     
     if (petConf.scale !== undefined && renderer) {

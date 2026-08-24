@@ -60,6 +60,30 @@ fn set_click_through_enabled(enabled: bool) {
     desktop_pet_window::set_click_through_enabled(enabled);
 }
 
+#[tauri::command]
+fn get_menu_geometry(app: tauri::AppHandle) -> Result<desktop_pet_window::MenuGeometry, String> {
+    use tauri::Manager;
+    let main_win = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+    desktop_pet_window::menu_geometry(&main_win)
+}
+
+#[tauri::command]
+fn set_main_window_frame(
+    app: tauri::AppHandle,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    use tauri::Manager;
+    let main_win = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+    desktop_pet_window::set_frame(&main_win, x, y, width, height)
+}
+
 /// Tracks the brief startup window during which the front end resizes the pet
 /// window (sprite load, dashboard render). Those anchored resizes shift the
 /// window's top-left, which would drift a restored position; while `settled` is
@@ -94,8 +118,7 @@ fn resize_main_window(
             guard.settled.store(true, Ordering::SeqCst);
         } else {
             let config = config_state.get_config();
-            let spec =
-                desktop_pet_window::parse_position(&config.renderer.desktop_pet.position);
+            let spec = desktop_pet_window::parse_position(&config.renderer.desktop_pet.position);
             let resolved = desktop_pet_window::resolve_position(&main_win, spec);
             let _ = main_win.set_position(tauri::Position::Physical(resolved));
         }
@@ -255,8 +278,7 @@ fn main() {
             let watcher_config_state = app_config_state_for_setup.clone();
             tauri::async_runtime::spawn(async move {
                 use tauri::Manager;
-                let mut interval =
-                    tokio::time::interval(std::time::Duration::from_secs(2));
+                let mut interval = tokio::time::interval(std::time::Duration::from_secs(2));
                 loop {
                     interval.tick().await;
                     let Some(main_win) = watcher_app_handle.get_webview_window("main") else {
@@ -396,14 +418,93 @@ fn main() {
             use std::time::{Duration, Instant};
             use tauri::Manager;
 
-            let pos_state = Arc::new(Mutex::new((None::<(i32, i32)>, Instant::now(), false)));
+            // (last_pos, last_move_time, debounce_task_running, last_snapped_pos)
+            let pos_state = Arc::new(Mutex::new((
+                None::<(i32, i32)>,
+                Instant::now(),
+                false,
+                None::<(i32, i32)>,
+            )));
             let app_config_state_for_pos = app_config_state.clone();
 
             move |window, event| {
                 if window.label() == "main" {
                     if let tauri::WindowEvent::Moved(pos) = event {
                         let mut lock = pos_state.lock().unwrap();
-                        lock.0 = Some((pos.x, pos.y));
+
+                        // Live edge snapping: while dragging, if the position is
+                        // within the snap threshold of a work-area edge, snap
+                        // immediately so the user feels a magnetic pull.
+                        // Only snap when the left mouse button is held (a real
+                        // drag); spurious Moved events must not move the window.
+                        #[cfg(target_os = "macos")]
+                        let mouse_down = unsafe {
+                            use objc::{class, msg_send, sel, sel_impl};
+                            let buttons: u64 = msg_send![class!(NSEvent), pressedMouseButtons];
+                            buttons & 1 != 0
+                        };
+                        #[cfg(not(target_os = "macos"))]
+                        let mouse_down = true;
+
+                        let pet_conf = app_config_state_for_pos.get_config().renderer.desktop_pet;
+
+                        let effective_pos = if mouse_down {
+                            if let Some(main_win) = window.app_handle().get_webview_window("main") {
+                                let phys = tauri::PhysicalPosition::new(pos.x, pos.y);
+
+                                // Never allow dragging the pet off-screen:
+                                // clamp into the work area unless the window
+                                // is crossing between monitors.
+                                let dragged = match desktop_pet_window::clamp_drag_position(
+                                    &main_win, phys,
+                                ) {
+                                    Some(clamped) => {
+                                        if clamped.x != pos.x || clamped.y != pos.y {
+                                            let _ = main_win
+                                                .set_position(tauri::Position::Physical(clamped));
+                                        }
+                                        clamped
+                                    }
+                                    None => phys,
+                                };
+
+                                if pet_conf.snap_to_corner {
+                                    // Skip re-snapping to the same position
+                                    // (feedback loop guard: set_position
+                                    // triggers another Moved).
+                                    let already = lock
+                                        .3
+                                        .is_some_and(|(sx, sy)| sx == dragged.x && sy == dragged.y);
+                                    if already {
+                                        lock.3 = None;
+                                        (dragged.x, dragged.y)
+                                    } else if let Some(snapped) = desktop_pet_window::snap_to_edges(
+                                        &main_win,
+                                        dragged,
+                                        pet_conf.snap_threshold,
+                                    ) {
+                                        if snapped.x != dragged.x || snapped.y != dragged.y {
+                                            let _ = main_win
+                                                .set_position(tauri::Position::Physical(snapped));
+                                            lock.3 = Some((snapped.x, snapped.y));
+                                            (snapped.x, snapped.y)
+                                        } else {
+                                            (dragged.x, dragged.y)
+                                        }
+                                    } else {
+                                        (dragged.x, dragged.y)
+                                    }
+                                } else {
+                                    (dragged.x, dragged.y)
+                                }
+                            } else {
+                                (pos.x, pos.y)
+                            }
+                        } else {
+                            (pos.x, pos.y)
+                        };
+
+                        lock.0 = Some(effective_pos);
                         lock.1 = Instant::now();
 
                         if !lock.2 {
@@ -430,32 +531,7 @@ fn main() {
                                             if let Some(main_win) =
                                                 app_handle.get_webview_window("main")
                                             {
-                                                let mut final_pos =
-                                                    tauri::PhysicalPosition::new(x, y);
-                                                let pet_conf = app_config_state_clone
-                                                    .get_config()
-                                                    .renderer
-                                                    .desktop_pet;
-
-                                                // Corner snapping: attract the pet
-                                                // to the nearest work-area corner
-                                                // when a drag ends close to it.
-                                                if pet_conf.snap_to_corner {
-                                                    if let Some(snapped) =
-                                                        desktop_pet_window::snap_to_corner(
-                                                            &main_win,
-                                                            final_pos,
-                                                            pet_conf.snap_threshold,
-                                                        )
-                                                    {
-                                                        if snapped != final_pos {
-                                                            let _ = main_win.set_position(
-                                                                tauri::Position::Physical(snapped),
-                                                            );
-                                                        }
-                                                        final_pos = snapped;
-                                                    }
-                                                }
+                                                let final_pos = tauri::PhysicalPosition::new(x, y);
 
                                                 // Persist as resolution-independent
                                                 // ratios so the pet keeps its place
@@ -473,7 +549,8 @@ fn main() {
                                                         format!("{},{}", final_pos.x, final_pos.y)
                                                     });
 
-                                                let mut config = app_config_state_clone.get_config();
+                                                let mut config =
+                                                    app_config_state_clone.get_config();
                                                 config.renderer.desktop_pet.position =
                                                     position_value;
                                                 let _ = crate::commands::save_config_internal(
@@ -529,6 +606,8 @@ fn main() {
             drag_main_window,
             resize_main_window,
             set_click_through_enabled,
+            get_menu_geometry,
+            set_main_window_frame,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
