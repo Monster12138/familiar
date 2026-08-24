@@ -23,10 +23,24 @@ enabled = [
 [renderer.desktop-pet]
 sprite = "tabby-cat"
 scale = 1.3
+# Position. Accepts a named anchor (top-left / top-right / bottom-left /
+# bottom-right / center), legacy absolute pixels "x,y", or resolution-
+# independent ratios "rel:rx,ry" (0.0-1.0 within the active monitor's work
+# area). The app persists dragged positions as "rel:..." automatically so the
+# pet keeps its relative spot when monitors change.
 position = "bottom-right"
 always_on_top = true
 show_on_all_desktops = true
 opacity = 1.0
+# Opacity applied while the pointer hovers over the pet (0.1 - 1.0). Keeps the
+# pet from blocking the content behind it; clicks are unaffected. Works even
+# when click_through is enabled (detected via cursor position). Set to a value
+# >= opacity to disable.
+hover_opacity = 0.35
+# Snap the pet to the nearest screen corner when a drag ends within
+# snap_threshold physical pixels of it.
+snap_to_corner = true
+snap_threshold = 60.0
 show_task_bubble = true
 show_pet = true
 show_dashboard = true

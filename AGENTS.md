@@ -86,6 +86,14 @@ npm run build
 npm run tauri dev
 ```
 
+Install a local macOS build into `/Applications` (release build; quits and
+relaunches a running Familiar):
+
+```bash
+scripts/install-macos.sh          # pull origin main first, clean tree required
+scripts/install-macos.sh --local  # install the current working tree as-is
+```
+
 `npm run build` is the available automated frontend validation. There are
 currently no frontend lint or test scripts. Use `npm run tauri dev` only when
 interactive desktop verification is relevant.
@@ -196,6 +204,23 @@ user's other hooks or config.
 - For frontend changes, run `npm run build` and manually exercise the affected
   Tauri window when feasible.
 - Check `git diff --check` before handing off.
+
+### One-click install test after changes
+
+After finishing a change (and its focused checks), run
+`scripts/install-macos.sh --local` (macOS only) to build the current workspace
+and install + launch it into `/Applications` so the user can test — do this
+proactively, without waiting for the user to ask. The script runs a release
+build and takes many minutes; run it in the background and follow it through
+to the final "完成" line.
+
+- `--local` skips the `git pull` and clean-tree guard and installs the working
+  tree as-is (including uncommitted changes), which is what install-testing a
+  change needs.
+- The default mode (no argument) still pulls and requires a clean tree; it is
+  for the user's own update flow, not for testing agent changes.
+- The script quits and replaces the running Familiar app; that is its intended
+  behavior.
 
 Do not claim that a broad command passed if only a focused check ran. Include
 the exact failing command and cause when verification is incomplete.

@@ -56,6 +56,19 @@
   margin: 4px 2px;
 }
 
+/* Toggle state checkmark, shown when the menu item's owner adds .checked. */
+#context-menu .menu-check {
+  margin-left: auto;
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0.9;
+  visibility: hidden;
+}
+
+#context-menu .menu-item.checked .menu-check {
+  visibility: visible;
+}
+
 /* Settings Modal */
 #settings-modal-backdrop {
   display: none;

@@ -198,6 +198,10 @@ pub struct DesktopPetConfig {
     #[serde(default = "default_true")]
     pub show_on_all_desktops: bool,
     pub opacity: f32,
+    /// Opacity applied while the pointer hovers over the pet, so it does not
+    /// block the content behind it. Values >= `opacity` disable the effect.
+    #[serde(default = "default_hover_opacity")]
+    pub hover_opacity: f32,
     #[serde(default = "default_true")]
     pub show_task_bubble: bool,
     #[serde(default = "default_true")]
@@ -209,6 +213,13 @@ pub struct DesktopPetConfig {
     /// Fade the pet out while the pointer is over its sprite.
     #[serde(default)]
     pub hide_on_hover: bool,
+    /// Snap the pet to the nearest screen corner when a drag ends close to it.
+    #[serde(default = "default_true")]
+    pub snap_to_corner: bool,
+    /// Distance threshold (physical pixels) within which a corner attracts the
+    /// pet on drag end.
+    #[serde(default = "default_snap_threshold")]
+    pub snap_threshold: f32,
     #[serde(default)]
     pub show_window_frame: bool,
     #[serde(default)]
@@ -242,6 +253,14 @@ impl DesktopPetConfig {
 
 fn default_true() -> bool {
     true
+}
+
+fn default_hover_opacity() -> f32 {
+    0.35
+}
+
+fn default_snap_threshold() -> f32 {
+    60.0
 }
 
 fn default_cleanup_age_days() -> u32 {
@@ -458,6 +477,9 @@ impl Default for FamiliarConfig {
                     show_dashboard: true,
                     click_through: false,
                     hide_on_hover: false,
+                    hover_opacity: 0.35,
+                    snap_to_corner: true,
+                    snap_threshold: 60.0,
                     show_window_frame: false,
                     dashboard_style: DashboardStyle::Classic,
                     dashboard_position: DashboardPosition::Bottom,

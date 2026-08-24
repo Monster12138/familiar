@@ -33,6 +33,9 @@ export class PixelSpriteRenderer extends SpriteRenderer {
 
         this.imgElement.addEventListener('mousedown', (e) => {
             if (e.button !== 0) return;
+            // When click-through is active, left clicks are forwarded to the
+            // window behind — do NOT start a native drag in that case.
+            if (window.clickThroughEnabled) return;
             const rect = this.imgElement.getBoundingClientRect();
             if (rect.width === 0 || rect.height === 0) return;
 

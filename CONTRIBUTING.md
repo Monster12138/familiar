@@ -40,6 +40,14 @@ All contributors are expected to adhere to our [Code of Conduct](CODE_OF_CONDUCT
    npm run tauri dev
    ```
 
+4. **Install a local macOS build** (optional, macOS only):
+   ```bash
+   scripts/install-macos.sh --local
+   ```
+   Builds the release bundle and installs it to `/Applications`, replacing and
+   relaunching any running Familiar. Without `--local` the script first pulls
+   `origin main` and requires a clean working tree.
+
 ## Pull Request Guidelines
 
 1. **Focused Scopes**: Keep PRs focused on a single feature, bug fix, or documentation update.

@@ -65,6 +65,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const elPetWindowFrame = document.getElementById('setting-pet-window-frame');
     const elPetOpacity = document.getElementById('setting-pet-opacity');
     const valPetOpacity = document.getElementById('val-pet-opacity');
+    const elPetHoverOpacity = document.getElementById('setting-pet-hover-opacity');
+    const valPetHoverOpacity = document.getElementById('val-pet-hover-opacity');
+    const elPetSnapCorner = document.getElementById('setting-pet-snap-corner');
     const elShowBubble = document.getElementById('setting-show-bubble');
     const elShowPet = document.getElementById('setting-show-pet');
     const elShowStats = document.getElementById('setting-show-stats');
@@ -401,6 +404,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     setupRangeSync(elPetScale, valPetScale, 1);
     setupRangeSync(elPetOpacity, valPetOpacity, 2);
+    setupRangeSync(elPetHoverOpacity, valPetHoverOpacity, 2);
     // celebration secs uses integer display with 's' suffix
     if (elCelebrationSecs && valCelebrationSecs) {
         const updateCelebVal = () => { valCelebrationSecs.textContent = elCelebrationSecs.value + 's'; };
@@ -479,6 +483,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentConfig.renderer['desktop-pet'].hide_on_hover = elPetHideOnHover.checked;
         currentConfig.renderer['desktop-pet'].show_window_frame = elPetWindowFrame.checked;
         currentConfig.renderer['desktop-pet'].opacity = parseFloat(elPetOpacity.value);
+        currentConfig.renderer['desktop-pet'].hover_opacity = parseFloat(elPetHoverOpacity.value);
+        currentConfig.renderer['desktop-pet'].snap_to_corner = elPetSnapCorner.checked;
         currentConfig.renderer['desktop-pet'].show_task_bubble = elShowBubble.checked;
         currentConfig.renderer['desktop-pet'].show_pet = elShowPet.checked;
         currentConfig.renderer['desktop-pet'].show_dashboard = elShowStats.checked;
@@ -672,6 +678,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 elPetOpacity.value = petConf.opacity;
                 if (valPetOpacity) valPetOpacity.textContent = Number(petConf.opacity).toFixed(2);
             }
+            if (petConf.hover_opacity !== undefined) {
+                elPetHoverOpacity.value = petConf.hover_opacity;
+                if (valPetHoverOpacity) valPetHoverOpacity.textContent = Number(petConf.hover_opacity).toFixed(2);
+            }
+            if (petConf.snap_to_corner !== undefined) {
+                elPetSnapCorner.checked = petConf.snap_to_corner;
+            }
             if (petConf.show_task_bubble !== undefined) elShowBubble.checked = petConf.show_task_bubble;
             if (petConf.show_pet !== undefined) elShowPet.checked = petConf.show_pet;
             if (petConf.show_dashboard !== undefined) elShowStats.checked = petConf.show_dashboard;
@@ -757,6 +770,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 appWin.listen('update_available', (event) => {
                     if (event.payload && event.payload.has_update) {
                         openUpdateModal(event.payload);
+                    }
+                });
+            }
+
+            // Keep the cached position in sync with live drags. Position has no
+            // settings control; without this a settings save would revert a
+            // freshly dragged position to the value cached when settings opened.
+            if (appWin && appWin.listen) {
+                appWin.listen('config_changed', (event) => {
+                    const pet = event.payload && event.payload.renderer
+                        && event.payload.renderer['desktop-pet'];
+                    if (pet && currentConfig && currentConfig.renderer
+                        && currentConfig.renderer['desktop-pet']) {
+                        currentConfig.renderer['desktop-pet'].position = pet.position;
                     }
                 });
             }
@@ -1041,7 +1068,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Bind all controls for auto-save
     const autoSaveControls = [
         elRuntimeMode, elRemoteTls,
-        elPetAlwaysTop, elPetAllDesktops, elPetClickThrough, elPetHideOnHover, elPetWindowFrame, elShowBubble, elShowPet, elShowStats,
+        elPetAlwaysTop, elPetAllDesktops, elPetClickThrough, elPetHideOnHover, elPetWindowFrame, elPetSnapCorner, elShowBubble, elShowPet, elShowStats,
         elDashboardStyle, elDashboardPosition, elDashboardLayout, elDashboardAlignment,
         elCleanupBackups, elCleanupLogs,
         elUpdateStartup, elUpdateInterval
@@ -1053,7 +1080,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const autoSaveInputs = [
         elRemoteEndpoint, elRemotePath, elRemoteToken, elRemoteConnectTimeout,
         elRemoteReconnectInitial, elRemoteReconnectMax,
-        elApiPort, elPetScale, elPetOpacity, elUdsPath, elTcpPort, elCelebrationSecs, elSleepTimeoutSecs,
+        elApiPort, elPetScale, elPetOpacity, elPetHoverOpacity, elUdsPath, elTcpPort, elCelebrationSecs, elSleepTimeoutSecs,
         elCleanupAgeDays
     ];
     autoSaveInputs.forEach(el => {
