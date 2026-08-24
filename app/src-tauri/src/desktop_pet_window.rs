@@ -65,6 +65,11 @@ pub fn apply_settings(
         .set_ignore_cursor_events(config.click_through)
         .map_err(|error| error.to_string())?;
 
+    // Windows hover detection must keep working while click-through is on,
+    // where the webview never sees pointer events (see the `hover` module).
+    #[cfg(target_os = "windows")]
+    hover::install(window)?;
+
     // Position is owned by the drag-save handler, the startup restore and the
     // off-screen watchdog. Only restore it on startup; applying it on every
     // settings change would yank the window back to a possibly stale position
@@ -370,6 +375,143 @@ mod hover {
                 });
             })
             .map_err(|error| error.to_string())
+    }
+}
+
+// --- Windows hover detection via a low-level mouse hook --------------------
+//
+// The pet window can be hit-test transparent (click-through), which starves
+// the webview of mouse-move events, so DOM :hover is unreliable there. macOS
+// solves this with NSEvent monitors; Windows has no equivalent global API, so
+// we use a WH_MOUSE_LL low-level mouse hook instead. It observes every mouse
+// move on the desktop (a pure event callback — no polling), compares the
+// cursor against the pet window rect and emits `pet_hover_changed` on state
+// changes, matching the macOS module's contract.
+#[cfg(target_os = "windows")]
+mod hover {
+    use std::ffi::c_void;
+    use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
+    use std::sync::OnceLock;
+    use tauri::{Emitter, Manager};
+
+    use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        CallNextHookEx, DispatchMessageW, GetMessageW, GetWindowRect, SetWindowsHookExW,
+        TranslateMessage, MSG, MSLLHOOKSTRUCT, WH_MOUSE_LL, WM_MOUSEMOVE,
+    };
+
+    static APP: OnceLock<tauri::AppHandle> = OnceLock::new();
+    static PANEL_HWND: AtomicIsize = AtomicIsize::new(0);
+    static LAST_HOVER: AtomicBool = AtomicBool::new(false);
+    /// Keeps the hook alive for the process lifetime.
+    static HOOK: AtomicIsize = AtomicIsize::new(0);
+
+    /// Whether a physical screen point lies within a physical screen rect
+    /// (inclusive edges).
+    fn point_in_rect(point: POINT, rect: RECT) -> bool {
+        point.x >= rect.left
+            && point.x <= rect.right
+            && point.y >= rect.top
+            && point.y <= rect.bottom
+    }
+
+    /// Whether the cursor currently rests over the pet window rect.
+    fn cursor_over_window(cursor: POINT) -> bool {
+        let hwnd = HWND(PANEL_HWND.load(Ordering::SeqCst) as *mut c_void);
+        if hwnd.0.is_null() {
+            return false;
+        }
+        unsafe {
+            let mut rect = RECT::default();
+            if GetWindowRect(hwnd, &mut rect).is_err() {
+                return false;
+            }
+            // Both the hook point and the window rect are in physical screen
+            // coordinates, so they compare directly across monitors.
+            point_in_rect(cursor, rect)
+        }
+    }
+
+    /// WH_MOUSE_LL callback; runs on the hook thread and must stay cheap and
+    /// non-blocking.
+    unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+        if code >= 0 && wparam.0 as u32 == WM_MOUSEMOVE {
+            let info = &*(lparam.0 as *const MSLLHOOKSTRUCT);
+            let inside = cursor_over_window(info.pt);
+            let last = LAST_HOVER.swap(inside, Ordering::SeqCst);
+            if inside != last {
+                if let Some(app) = APP.get() {
+                    let _ = app.emit("pet_hover_changed", inside);
+                }
+            }
+        }
+        // Every event must continue down the hook chain.
+        CallNextHookEx(None, code, wparam, lparam)
+    }
+
+    /// Install the low-level mouse hook on a dedicated message-loop thread.
+    /// Idempotent; the window handle is refreshed on every call in case the
+    /// pet window is ever recreated.
+    pub fn install(window: &tauri::WebviewWindow) -> Result<(), String> {
+        let _ = APP.set(window.app_handle().clone());
+        let hwnd = window.hwnd().map_err(|error| error.to_string())?;
+        PANEL_HWND.store(hwnd.0 as isize, Ordering::SeqCst);
+
+        static ONCE: std::sync::Once = std::sync::Once::new();
+        ONCE.call_once(|| {
+            let builder = std::thread::Builder::new().name("familiar-hover-hook".to_string());
+            if let Err(error) = builder.spawn(move || unsafe {
+                let Ok(hook) = SetWindowsHookExW(WH_MOUSE_LL, Some(hook_proc), None, 0) else {
+                    tracing::error!("hover: failed to install low-level mouse hook");
+                    return;
+                };
+                HOOK.store(hook.0 as isize, Ordering::SeqCst);
+                tracing::info!("hover: low-level mouse hook installed");
+
+                // A low-level hook fires only while the installing thread pumps
+                // messages; run the loop until the process exits.
+                let mut message = MSG::default();
+                while GetMessageW(&mut message, None, 0, 0).as_bool() {
+                    let _ = TranslateMessage(&message);
+                    DispatchMessageW(&message);
+                }
+            }) {
+                tracing::error!("hover: failed to spawn hook thread: {error}");
+            }
+        });
+        Ok(())
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn point_in_rect_is_inclusive_on_edges() {
+            let rect = RECT {
+                left: 10,
+                top: 20,
+                right: 110,
+                bottom: 120,
+            };
+            assert!(point_in_rect(POINT { x: 10, y: 20 }, rect));
+            assert!(point_in_rect(POINT { x: 110, y: 120 }, rect));
+            assert!(point_in_rect(POINT { x: 60, y: 70 }, rect));
+        }
+
+        #[test]
+        fn point_in_rect_rejects_outside_points() {
+            let rect = RECT {
+                left: 10,
+                top: 20,
+                right: 110,
+                bottom: 120,
+            };
+            assert!(!point_in_rect(POINT { x: 9, y: 70 }, rect));
+            assert!(!point_in_rect(POINT { x: 111, y: 70 }, rect));
+            assert!(!point_in_rect(POINT { x: 60, y: 19 }, rect));
+            assert!(!point_in_rect(POINT { x: 60, y: 121 }, rect));
+        }
     }
 }
 
