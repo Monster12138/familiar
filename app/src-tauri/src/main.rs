@@ -443,7 +443,11 @@ fn main() {
                             let buttons: u64 = msg_send![class!(NSEvent), pressedMouseButtons];
                             buttons & 1 != 0
                         };
-                        #[cfg(not(target_os = "macos"))]
+                        // The WH_MOUSE_LL hook in desktop_pet_window::hover
+                        // tracks the physical left-button state for us.
+                        #[cfg(target_os = "windows")]
+                        let mouse_down = desktop_pet_window::hover::left_button_down();
+                        #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
                         let mouse_down = true;
 
                         let pet_conf = app_config_state_for_pos.get_config().renderer.desktop_pet;
@@ -478,16 +482,22 @@ fn main() {
                                     if already {
                                         lock.3 = None;
                                         (dragged.x, dragged.y)
-                                    } else if let Some(snapped) = desktop_pet_window::snap_to_edges(
+                                    } else if let Some(result) = desktop_pet_window::snap_to_edges(
                                         &main_win,
                                         dragged,
+                                        lock.0,
+                                        desktop_pet_window::drag_escape(),
                                         pet_conf.snap_threshold,
                                     ) {
-                                        if snapped.x != dragged.x || snapped.y != dragged.y {
-                                            let _ = main_win
-                                                .set_position(tauri::Position::Physical(snapped));
-                                            lock.3 = Some((snapped.x, snapped.y));
-                                            (snapped.x, snapped.y)
+                                        desktop_pet_window::set_drag_escape(result.escaped);
+                                        if result.position.x != dragged.x
+                                            || result.position.y != dragged.y
+                                        {
+                                            let _ = main_win.set_position(
+                                                tauri::Position::Physical(result.position),
+                                            );
+                                            lock.3 = Some((result.position.x, result.position.y));
+                                            (result.position.x, result.position.y)
                                         } else {
                                             (dragged.x, dragged.y)
                                         }
@@ -501,6 +511,9 @@ fn main() {
                                 (pos.x, pos.y)
                             }
                         } else {
+                            // No drag in progress; a new drag starts with a
+                            // clean escape latch.
+                            desktop_pet_window::reset_drag_escape();
                             (pos.x, pos.y)
                         };
 
