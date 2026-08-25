@@ -46,7 +46,11 @@ tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", rev = "a3122e
 # WebviewWindow::hwnd() returns windows::Win32::Foundation::HWND), so this only
 # enables the extra Win32 UI features needed by the Windows hover hook in
 # desktop_pet_window.rs.
-windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+windows = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+] }
 
 [build-dependencies]
 tauri-build = { version = "2.0.0-rc", features = [] }

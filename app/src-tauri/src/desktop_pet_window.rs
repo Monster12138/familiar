@@ -398,6 +398,7 @@ pub(crate) mod hover {
     use tauri::{Emitter, Manager};
 
     use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
+    use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
     use windows::Win32::UI::WindowsAndMessaging::{
         CallNextHookEx, DispatchMessageW, GetMessageW, GetWindowRect, SetWindowsHookExW,
         TranslateMessage, MSG, MSLLHOOKSTRUCT, WH_MOUSE_LL, WM_LBUTTONDOWN, WM_LBUTTONUP,
@@ -411,9 +412,6 @@ pub(crate) mod hover {
     static LEFT_BUTTON_DOWN: AtomicBool = AtomicBool::new(false);
     /// Keeps the hook alive for the process lifetime.
     static HOOK: AtomicIsize = AtomicIsize::new(0);
-
-    /// MK_LBUTTON: the left button is held while a mouse move was sampled.
-    const MK_LBUTTON: u32 = 0x0001;
 
     /// Whether the physical left mouse button is currently held.
     pub(crate) fn left_button_down() -> bool {
@@ -454,10 +452,13 @@ pub(crate) mod hover {
             match wparam.0 as u32 {
                 // During a caption drag the cursor counts as being over the
                 // non-client area, so both move message kinds reach the hook.
-                // The button state rides in wParam's MK_* bits, NOT in
-                // MSLLHOOKSTRUCT.flags (those are LLMHF_* injection flags).
+                // In a WH_MOUSE_LL callback wParam is the message identifier,
+                // not the message's MK_* button bitmask. MSLLHOOKSTRUCT.flags
+                // contains LLMHF_* injection flags, so query the actual async
+                // key state instead.
                 WM_MOUSEMOVE | WM_NCMOUSEMOVE => {
-                    LEFT_BUTTON_DOWN.store(wparam.0 as u32 & MK_LBUTTON != 0, Ordering::Relaxed);
+                    let button_down = unsafe { GetAsyncKeyState(VK_LBUTTON.0 as i32) < 0 };
+                    LEFT_BUTTON_DOWN.store(button_down, Ordering::Relaxed);
                     let inside = cursor_over_window(info.pt);
                     let last = LAST_HOVER.swap(inside, Ordering::SeqCst);
                     if inside != last {
