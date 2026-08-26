@@ -191,6 +191,10 @@ pub struct RendererConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DesktopPetConfig {
     pub sprite: String,
+    /// Sprite packs eligible for random selection on launch. When empty,
+    /// `sprite` alone is used (single-pack mode).
+    #[serde(default)]
+    pub sprite_pool: Vec<String>,
     #[serde(serialize_with = "serialize_one_decimal")]
     pub scale: f32,
     pub position: String,
@@ -467,6 +471,7 @@ impl Default for FamiliarConfig {
                 enabled: vec!["desktop-pet".to_string(), "menu-bar".to_string()],
                 desktop_pet: DesktopPetConfig {
                     sprite: "tabby-cat".to_string(),
+                    sprite_pool: Vec::new(),
                     scale: 2.0,
                     position: "bottom-right".to_string(),
                     always_on_top: true,

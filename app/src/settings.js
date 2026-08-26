@@ -826,6 +826,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             const lang = elLanguage ? elLanguage.value : 'zh-CN';
+            const dpConf = currentConfig.renderer?.['desktop-pet'] || {};
+            const pool = Array.isArray(dpConf.sprite_pool) ? dpConf.sprite_pool : [];
 
             spritePackGrid.innerHTML = '';
 
@@ -838,6 +840,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const manifest = pack.manifest;
                 const isActive = manifest.id === activeSprite;
                 const description = simplifyPackDescription(manifest.description);
+                const inPool = pool.includes(manifest.id);
 
                 let previewSrc = '';
                 const previewFile = manifest.preview || 'idle.png';
@@ -882,7 +885,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <circle cx="12" cy="12" r="3"></circle>
                             </svg>
                         </button>
-                        <button class="sprite-pack-use-btn ${isActive ? 'in-use' : 'secondary-btn'}" ${isActive ? 'disabled' : ''} style="flex:1;">
+                        <button class="sprite-pack-use-btn btn-sm ${inPool ? 'in-use' : 'secondary-btn'} btn-pool-pack" title="${t('desc_pool_pack', lang)}" style="white-space:nowrap; display:inline-flex; align-items:center; gap:4px; padding: 6px 10px; flex:0;">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="16 3 21 3 21 8"></polyline>
+                                <line x1="4" y1="20" x2="21" y2="3"></line>
+                                <polyline points="21 16 21 21 16 21"></polyline>
+                                <line x1="15" y1="15" x2="21" y2="21"></line>
+                                <line x1="4" y1="4" x2="9" y2="9"></line>
+                            </svg>
+                            <span>${inPool ? t('btn_in_pool', lang) : t('btn_pool_pack', lang)}</span>
+                        </button>
+                        <button class="sprite-pack-use-btn ${isActive ? 'in-use' : 'secondary-btn'}" ${isActive ? 'disabled' : ''} style="flex:1; white-space:nowrap; display:inline-flex; align-items:center; justify-content:center;">
                             ${buttonText}
                         </button>
                     </div>
@@ -943,11 +956,29 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
 
                 if (!isActive) {
-                    const useBtn = card.querySelector('.sprite-pack-use-btn');
+                    const useBtn = card.querySelector('.sprite-pack-use-btn:not(.btn-pool-pack)');
                     useBtn.addEventListener('click', () => {
                         if (!currentConfig.renderer) currentConfig.renderer = {};
                         if (!currentConfig.renderer['desktop-pet']) currentConfig.renderer['desktop-pet'] = {};
                         currentConfig.renderer['desktop-pet'].sprite = manifest.id;
+                        // Explicit single-pack choice leaves the random pool.
+                        currentConfig.renderer['desktop-pet'].sprite_pool = [];
+                        loadAndRenderSpritePacks();
+                        scheduleAutoSave();
+                    });
+                }
+
+                const poolBtn = card.querySelector('.btn-pool-pack');
+                if (poolBtn) {
+                    poolBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (!currentConfig.renderer) currentConfig.renderer = {};
+                        if (!currentConfig.renderer['desktop-pet']) currentConfig.renderer['desktop-pet'] = {};
+                        const dp = currentConfig.renderer['desktop-pet'];
+                        const cur = Array.isArray(dp.sprite_pool) ? dp.sprite_pool : [];
+                        dp.sprite_pool = cur.includes(manifest.id)
+                            ? cur.filter((x) => x !== manifest.id)
+                            : [...cur, manifest.id];
                         loadAndRenderSpritePacks();
                         scheduleAutoSave();
                     });

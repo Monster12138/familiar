@@ -316,10 +316,32 @@ enabled = true
     let config = FamiliarConfig::load_from_file(&path).expect("load legacy config");
     std::fs::remove_file(path).expect("remove legacy config");
     assert_eq!(config.runtime.mode, RuntimeMode::Local);
+    assert!(
+        config.renderer.desktop_pet.sprite_pool.is_empty(),
+        "legacy config without sprite_pool must default to an empty pool"
+    );
 
     let serialized = toml::to_string_pretty(&FamiliarConfig::default()).expect("serialize config");
     assert!(serialized.contains("mode = \"local\""));
     assert!(serialized.contains("max_updates_per_second = 10"));
+}
+
+#[test]
+fn sprite_pool_round_trips_through_config() {
+    let base = include_str!("../../../config/default.toml");
+    let with_pool = base.replacen(
+        "sprite_pool = []",
+        "sprite_pool = [\"huajuan-cat\", \"douhua-cat\"]",
+        1,
+    );
+    let path = std::env::temp_dir().join(format!("familiar-pool-{}.toml", std::process::id()));
+    std::fs::write(&path, with_pool).expect("write pool config");
+    let config = FamiliarConfig::load_from_file(&path).expect("load pool config");
+    std::fs::remove_file(path).expect("remove pool config");
+    assert_eq!(
+        config.renderer.desktop_pet.sprite_pool,
+        vec!["huajuan-cat".to_string(), "douhua-cat".to_string()]
+    );
 }
 
 #[test]
