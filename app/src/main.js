@@ -501,8 +501,6 @@ async function applyConfigToWindow(config) {
     const packKey = packConfigKey(petConf);
     if (lastPackKey !== null && packKey !== lastPackKey) {
         await loadActiveSpritePack(false);
-    } else if (petConf.sprite && currentSpriteId) {
-        await loadActiveSpritePack(false);
     }
 
     baseOpacity = petConf.opacity !== undefined ? petConf.opacity : 1;
