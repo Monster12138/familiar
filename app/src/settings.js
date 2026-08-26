@@ -885,7 +885,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <circle cx="12" cy="12" r="3"></circle>
                             </svg>
                         </button>
-                        <button class="sprite-pack-use-btn btn-sm ${inPool ? 'in-use' : 'secondary-btn'} btn-pool-pack" title="${t('desc_pool_pack', lang)}" style="white-space:nowrap; display:inline-flex; align-items:center; gap:4px; padding: 6px 10px; flex:0;">
+                        <button class="sprite-pack-use-btn btn-sm ${inPool ? 'in-use' : 'secondary-btn'} btn-pool-pack sprite-pack-pool-btn" title="${t('desc_pool_pack', lang)}" aria-label="${inPool ? t('btn_in_pool', lang) : t('btn_pool_pack', lang)}">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <polyline points="16 3 21 3 21 8"></polyline>
                                 <line x1="4" y1="20" x2="21" y2="3"></line>
@@ -893,7 +893,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <line x1="15" y1="15" x2="21" y2="21"></line>
                                 <line x1="4" y1="4" x2="9" y2="9"></line>
                             </svg>
-                            <span>${inPool ? t('btn_in_pool', lang) : t('btn_pool_pack', lang)}</span>
                         </button>
                         <button class="sprite-pack-use-btn ${isActive ? 'in-use' : 'secondary-btn'}" ${isActive ? 'disabled' : ''} style="flex:1; white-space:nowrap; display:inline-flex; align-items:center; justify-content:center;">
                             ${buttonText}
