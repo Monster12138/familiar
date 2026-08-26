@@ -284,20 +284,26 @@ fn main() {
                     let Some(main_win) = watcher_app_handle.get_webview_window("main") else {
                         continue;
                     };
-                    if desktop_pet_window::is_within_visible_work_area(&main_win) {
+
+                    // Fully off-screen (e.g. monitor unplugged): re-anchor to
+                    // the saved position on a visible monitor.
+                    if !desktop_pet_window::is_within_visible_work_area(&main_win) {
+                        let spec = desktop_pet_window::parse_position(
+                            &watcher_config_state
+                                .get_config()
+                                .renderer
+                                .desktop_pet
+                                .position,
+                        );
+                        tracing::info!("desktop pet off-screen; re-anchoring to a visible monitor");
+                        let resolved = desktop_pet_window::resolve_position(&main_win, spec);
+                        let _ = main_win.set_position(tauri::Position::Physical(resolved));
                         continue;
                     }
 
-                    let spec = desktop_pet_window::parse_position(
-                        &watcher_config_state
-                            .get_config()
-                            .renderer
-                            .desktop_pet
-                            .position,
-                    );
-                    tracing::info!("desktop pet off-screen; re-anchoring to a visible monitor");
-                    let resolved = desktop_pet_window::resolve_position(&main_win, spec);
-                    let _ = main_win.set_position(tauri::Position::Physical(resolved));
+                    // Partially off-screen (e.g. sprite resize at screen edge):
+                    // clamp back fully inside the work area.
+                    desktop_pet_window::correct_partial_offscreen(&main_win);
                 }
             });
 

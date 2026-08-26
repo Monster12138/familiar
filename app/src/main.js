@@ -90,6 +90,7 @@ function setupContextMenu() {
     const contextMenu = document.getElementById("context-menu");
     const menuSettings = document.getElementById("menu-settings");
     const menuClickThrough = document.getElementById("menu-click-through");
+    const menuShuffle = document.getElementById("menu-shuffle");
 
     // Show/hide the menu and, while it is open, suspend left-click pass-through
     // so the menu items stay clickable; restore the configured pass-through on
@@ -212,6 +213,9 @@ function setupContextMenu() {
         if (menuClickThrough) {
             menuClickThrough.classList.toggle('checked', clickThroughEnabled);
         }
+        if (menuShuffle) {
+            menuShuffle.style.display = spritePoolCount > 1 ? "flex" : "none";
+        }
         positionMenuAt(clientX, clientY);
     }
 
@@ -262,6 +266,14 @@ function setupContextMenu() {
         });
     }
 
+    // Reroll a random pet from the configured sprite pool.
+    if (menuShuffle) {
+        menuShuffle.addEventListener("click", async () => {
+            setMenuOpen(false);
+            await loadActiveSpritePack(true);
+        });
+    }
+
     // Quit Application
     if (menuQuit) {
         menuQuit.addEventListener("click", async () => {
@@ -277,14 +289,49 @@ function setupContextMenu() {
 
 let currentSpriteId = null;
 let currentSpriteRevision = null;
+let lastPackKey = null;
+let spritePoolCount = 0;
 
-async function loadActiveSpritePack(force = true) {
+function packConfigKey(petConf) {
+    const pool = Array.isArray(petConf?.sprite_pool)
+        ? [...petConf.sprite_pool].sort() : [];
+    return JSON.stringify([petConf?.sprite || "", pool]);
+}
+
+async function loadActiveSpritePack(reroll = false) {
     try {
-        const packInfo = await invoke("get_active_sprite_pack");
+        const config = await invoke("get_config");
+        const petConf = config.renderer?.["desktop-pet"] || {};
+        lastPackKey = packConfigKey(petConf);
+        const pool = Array.isArray(petConf.sprite_pool)
+            ? petConf.sprite_pool.filter((id) => typeof id === "string" && id) : [];
+        spritePoolCount = pool.length;
+
+        // Random pool mode: pick one of the pooled packs (a different one
+        // when rerolling); empty pool falls back to the single `sprite`.
+        let packInfo = null;
+        if (pool.length > 0) {
+            try {
+                const packs = await invoke("get_sprite_packs");
+                let candidates = (packs || [])
+                    .filter((p) => p.manifest && pool.includes(p.manifest.id));
+                if (reroll && candidates.length > 1) {
+                    candidates = candidates.filter((p) => p.manifest.id !== currentSpriteId);
+                }
+                if (candidates.length > 0) {
+                    packInfo = candidates[Math.floor(Math.random() * candidates.length)];
+                }
+            } catch (e) {
+                console.error("Failed to resolve sprite pool", e);
+            }
+        }
+        if (!packInfo) {
+            packInfo = await invoke("get_active_sprite_pack");
+        }
         if (packInfo && packInfo.manifest) {
             const samePack = currentSpriteId === packInfo.manifest.id
                 && currentSpriteRevision === packInfo.asset_revision;
-            if (!force && samePack) return;
+            if (!reroll && samePack) return;
 
             currentSpriteId = packInfo.manifest.id;
             currentSpriteRevision = packInfo.asset_revision;
@@ -323,6 +370,11 @@ async function init() {
     }
 
     await loadActiveSpritePack();
+
+    // Periodically reroll the random pool so a pooled pet rotates over time.
+    setInterval(() => {
+        if (spritePoolCount > 1) loadActiveSpritePack(true);
+    }, 10 * 60 * 1000);
 
     // Listen for state changes from Rust Backend
     await listen("state_changed", (event) => {
@@ -446,7 +498,8 @@ async function applyConfigToWindow(config) {
     
     const petConf = config.renderer['desktop-pet'];
     
-    if (petConf.sprite && currentSpriteId) {
+    const packKey = packConfigKey(petConf);
+    if (lastPackKey !== null && packKey !== lastPackKey) {
         await loadActiveSpritePack(false);
     }
 

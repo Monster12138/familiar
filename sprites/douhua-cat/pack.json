@@ -1,14 +1,14 @@
 {
   "format_version": 1,
-  "id": "huajuan-cat",
-  "name": "花卷",
+  "id": "douhua-cat",
+  "name": "豆花",
   "author": "Familiar Studio",
   "created_at": "2026-08-01",
   "email": "glcoding@qq.com",
   "version": "1.0.0",
   "license": "MIT OR Apache-2.0",
   "source": "https://github.com/Monster12138/familiar",
-  "description": "银白长毛金吉拉小猫花卷的极简复古像素风桌面宠物",
+  "description": "金黄长毛金吉拉小猫豆花的极简复古像素风桌面宠物",
   "preview": "idle.png",
   "states": {
     "idle": "idle.png",
@@ -20,5 +20,5 @@
     "sleeping": "sleeping.png",
     "watching": "watching.png"
   },
-  "sha256": "a3ee9c65db9a6700bdc19a119ab4c839826d46898ea5bb0d312ff6f66cf29d8e"
+  "sha256": "e56e8fa0101175fc16eff84f794fca3d2840c8db1002fe2b13523147cfaf68d0"
 }

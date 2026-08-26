@@ -118,6 +118,7 @@ pub fn resize(
                 use cocoa::appkit::NSWindow;
                 use cocoa::base::{id, YES};
                 use cocoa::foundation::{NSPoint, NSRect, NSSize};
+                use objc::{class, msg_send, sel, sel_impl};
 
                 let Ok(ns_window_ptr) = window_for_main_thread.ns_window() else {
                     tracing::warn!("failed to access the desktop pet NSPanel for resize");
@@ -127,16 +128,28 @@ pub fn resize(
 
                 unsafe {
                     let frame = ns_window.frame();
-                    let x = if anchor_bottom {
+                    let mut x = if anchor_bottom {
                         frame.origin.x + (frame.size.width - width) / 2.0
                     } else {
                         frame.origin.x
                     };
-                    let y = if anchor_bottom {
+                    let mut y = if anchor_bottom {
                         frame.origin.y
                     } else {
                         frame.origin.y + frame.size.height - height
                     };
+
+                    // Clamp into the screen's visible work area so a sprite
+                    // size change never pushes the window off-screen.
+                    let screen: id = msg_send![class!(NSScreen), mainScreen];
+                    if !screen.is_null() {
+                        let visible: NSRect = msg_send![screen, visibleFrame];
+                        let max_x = visible.origin.x + visible.size.width - width;
+                        let max_y = visible.origin.y + visible.size.height - height;
+                        x = x.max(visible.origin.x).min(max_x.max(visible.origin.x));
+                        y = y.max(visible.origin.y).min(max_y.max(visible.origin.y));
+                    }
+
                     let resized_frame = NSRect::new(NSPoint::new(x, y), NSSize::new(width, height));
                     ns_window.setFrame_display_(resized_frame, YES);
                 }
@@ -157,8 +170,20 @@ pub fn resize(
         let scale_factor = window.scale_factor().map_err(|error| error.to_string())?;
         let new_width = (width * scale_factor).round() as i32;
         let new_height = (height * scale_factor).round() as i32;
-        let x = old_position.x - (new_width - old_size.width as i32) / 2;
-        let y = old_position.y - (new_height - old_size.height as i32);
+        let mut x = old_position.x - (new_width - old_size.width as i32) / 2;
+        let mut y = old_position.y - (new_height - old_size.height as i32);
+
+        // Clamp into the monitor's work area so a sprite size change never
+        // pushes the window off-screen.
+        if let Ok(Some(monitor)) = window.current_monitor() {
+            let work = monitor.work_area();
+            let wl = work.position.x;
+            let wt = work.position.y;
+            let wr = wl + work.size.width as i32;
+            let wb = wt + work.size.height as i32;
+            x = x.clamp(wl, (wr - new_width).max(wl));
+            y = y.clamp(wt, (wb - new_height).max(wt));
+        }
 
         window
             .set_size(tauri::Size::Logical(tauri::LogicalSize::new(width, height)))
@@ -936,6 +961,43 @@ pub fn is_within_visible_work_area(window: &tauri::WebviewWindow) -> bool {
         let work_bottom = work_top + work.size.height as i32;
         left < work_right && right > work_left && top < work_bottom && bottom > work_top
     })
+}
+
+/// If the window is partially outside its monitor's work area (e.g. after a
+/// sprite resize at the screen edge), clamp it back fully inside. Returns
+/// `true` when a correction was applied.
+pub fn correct_partial_offscreen(window: &tauri::WebviewWindow) -> bool {
+    let (Ok(pos), Ok(size)) = (window.outer_position(), window.outer_size()) else {
+        return false;
+    };
+    let Ok(Some(monitor)) = window.current_monitor() else {
+        return false;
+    };
+
+    let work = monitor.work_area();
+    let wl = work.position.x;
+    let wt = work.position.y;
+    let wr = wl + work.size.width as i32;
+    let wb = wt + work.size.height as i32;
+    let w = size.width as i32;
+    let h = size.height as i32;
+
+    let x = pos.x.clamp(wl, (wr - w).max(wl));
+    let y = pos.y.clamp(wt, (wb - h).max(wt));
+
+    if x != pos.x || y != pos.y {
+        tracing::info!(
+            from_x = pos.x,
+            from_y = pos.y,
+            to_x = x,
+            to_y = y,
+            "desktop pet partially off-screen; clamping back into work area"
+        );
+        let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition::new(x, y)));
+        true
+    } else {
+        false
+    }
 }
 
 /// Clamp a requested physical top-left position into the work area of the
