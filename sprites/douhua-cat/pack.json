@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "id": "douhua-cat",
+  "name": "豆花",
+  "author": "Familiar Studio",
+  "created_at": "2026-08-01",
+  "email": "glcoding@qq.com",
+  "version": "1.0.0",
+  "license": "MIT OR Apache-2.0",
+  "source": "https://github.com/Monster12138/familiar",
+  "description": "金黄长毛金吉拉小猫豆花的极简复古像素风桌面宠物",
+  "preview": "idle.png",
+  "states": {
+    "idle": "idle.png",
+    "working": "working.png",
+    "thinking": "thinking.png",
+    "interacting": "interacting.png",
+    "celebrating": "celebrating.png",
+    "alarmed": "alarmed.png",
+    "sleeping": "sleeping.png",
+    "watching": "watching.png"
+  },
+  "sha256": "ef092654e91eb2b48b597eafe2601e889b102c61c6ff3a2ac8d28a17cbfc3047",
+  "animated": true
+}
