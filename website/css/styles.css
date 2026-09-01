@@ -459,6 +459,158 @@ body {
     font-size: 14px;
 }
 
+/* Cat lab — real-life references paired with their pixel companions */
+.cat-lab-intro { max-width: 720px; margin: 0 auto; }
+
+.section-kicker {
+    display: block;
+    margin-bottom: 10px;
+    color: var(--accent-strong);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-align: center;
+}
+
+.cat-comparison-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    margin-top: 36px;
+}
+
+.cat-card {
+    overflow: hidden;
+    background: var(--bg-card);
+    border: 4px solid var(--border);
+    box-shadow: var(--shadow);
+}
+
+.cat-card-wide { grid-column: 1 / -1; }
+
+.cat-card-heading { padding: 20px 22px 0; }
+
+.cat-card-number {
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+
+.cat-card-heading h3 {
+    margin: 6px 0 4px;
+    color: var(--accent-strong);
+    font-size: 21px;
+    letter-spacing: 1px;
+}
+
+.cat-card-heading p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.cat-comparison {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 32px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    padding: 20px 22px 16px;
+}
+
+.cat-view { min-width: 0; margin: 0; }
+
+.cat-image-frame {
+    position: relative;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    aspect-ratio: 4 / 3;
+    border: 3px solid var(--border);
+}
+
+.cat-life-frame { background: #eee4d8; }
+
+.cat-life-frame img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* All life photos use the same square comparison window. */
+.cat-natural-life-frame { aspect-ratio: 1 / 1; }
+
+.cat-sprite-frame {
+    aspect-ratio: 1 / 1;
+    background:
+        linear-gradient(45deg, rgba(255, 255, 255, .05) 25%, transparent 25% 75%, rgba(255, 255, 255, .05) 75%),
+        #26312f;
+    background-size: 14px 14px;
+}
+
+.cat-sprite-frame img {
+    display: block;
+    width: 88%;
+    height: 88%;
+    object-fit: contain;
+    image-rendering: pixelated;
+    filter: drop-shadow(3px 3px 0 rgba(0, 0, 0, .3));
+}
+
+.cat-arrow {
+    align-self: center;
+    color: var(--accent);
+    font-size: 25px;
+    font-weight: 900;
+    text-align: center;
+}
+
+.cat-card-footer {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 22px 14px;
+    border-top: 2px solid var(--border);
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .5px;
+}
+
+.cat-status-dot {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 auto;
+    border: 2px solid var(--border);
+    background: #7ee3b8;
+}
+
+.cat-pair-life-frame {
+    aspect-ratio: 1 / 1;
+}
+
+.cat-pair-life-frame img { object-position: center bottom; }
+
+.cat-pair-sprites {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.cat-sprite-frame > span {
+    position: absolute;
+    right: 5px;
+    bottom: 5px;
+    padding: 2px 5px;
+    border: 2px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text);
+    font-size: 9px;
+    font-weight: 800;
+}
+
 /* Features — pixel cards */
 .features-grid {
     display: grid;
@@ -627,6 +779,10 @@ body {
     .pet-stage-real { gap: 3px; }
     .mini-dashboard { width: 92px; padding: 7px; }
     .mini-stat { grid-template-columns: 18px 1fr 22px; gap: 3px; }
+    .cat-comparison-grid { grid-template-columns: 1fr; }
+    .cat-card-wide { grid-column: auto; }
+    .cat-comparison { grid-template-columns: 1fr; gap: 8px; }
+    .cat-arrow { transform: rotate(90deg); }
     .section { padding: 40px 0; }
     .footer-inner { justify-content: center; text-align: center; }
 }
