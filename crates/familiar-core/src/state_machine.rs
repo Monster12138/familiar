@@ -166,6 +166,13 @@ impl StateMachine {
         sleep_timeout_secs: i64,
         event_status_map: &std::sync::RwLock<EventStatusMap>,
     ) {
+        // SessionStart only establishes an upstream session. Do not create a
+        // visible Agent or refresh activity here; the user-facing lifecycle
+        // begins when UserPromptSubmit becomes AgentStarted.
+        if matches!(event.event_type, AgentEventType::SessionStarted) {
+            return;
+        }
+
         state.last_activity_at = event.timestamp;
         let agent_id = event
             .session_id
@@ -429,7 +436,7 @@ mod tests {
 
         let agent_id = Uuid::new_v4();
 
-        // 1. Send SessionStart to create the agent
+        // 1. Send the first visible lifecycle event to create the agent
         bus.publish(AgentEvent {
             session_id: None,
             id: agent_id,
@@ -486,6 +493,31 @@ mod tests {
         assert_eq!(state.agents.len(), 1);
         assert_eq!(state.agents[0].status, AgentStatus::Completed);
         assert_eq!(state.mood, FamiliarMood::Celebrating);
+    }
+
+    #[tokio::test]
+    async fn test_session_started_does_not_create_visible_agent() {
+        let bus = EventBus::new(100, 1000);
+        let machine = StateMachine::new(bus.clone(), 4, 300);
+        machine.start_processing().await;
+
+        bus.publish(AgentEvent {
+            session_id: Some("session-start-only".into()),
+            id: Uuid::new_v4(),
+            timestamp: chrono::Utc::now(),
+            source: AgentSource::Codex,
+            category: AgentCategory::Coding,
+            event_type: AgentEventType::SessionStarted,
+            metadata: None,
+        })
+        .await
+        .unwrap();
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let state = machine.get_state().await;
+        assert!(state.agents.is_empty());
+        assert_eq!(state.stats.interactions, 0);
+        assert_eq!(state.mood, FamiliarMood::Idle);
     }
 
     #[tokio::test]

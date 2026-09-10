@@ -131,10 +131,9 @@ impl CliAgentHookAdapter {
 
     fn map_event_type(&self, event_name: &str, json: &Value) -> AgentEventType {
         match event_name {
-            "SessionStart" | "start" => {
-                let instruction = Self::extract_instruction(json);
-                AgentEventType::AgentStarted { instruction }
-            }
+            // Session initialization is deliberately invisible. The visible
+            // lifecycle starts at the user's prompt below.
+            "SessionStart" | "start" => AgentEventType::SessionStarted,
             "USER_INPUT" | "UserPromptSubmit" => {
                 let instruction = Self::extract_instruction(json);
                 AgentEventType::AgentStarted { instruction }
@@ -304,6 +303,19 @@ mod tests {
             );
         }
         adapter.parse_hook_input(&full).unwrap()
+    }
+
+    #[test]
+    fn session_start_maps_to_invisible_session_event() {
+        let event = parse(
+            "SessionStart",
+            json!({
+                "conversation_id": "11111111-1111-1111-1111-111111111111",
+                "prompt": "This must not appear in the bubble"
+            }),
+        );
+
+        assert!(matches!(event.event_type, AgentEventType::SessionStarted));
     }
 
     #[test]
