@@ -87,6 +87,7 @@ const HOOK_MODALS_HTML = `
 // Built-in (fallback) status per event kind, mirroring StateMachine::apply_event.
 // `null` means the event is a no-op by default (keeps the agent's current status).
 const EVENT_DEFAULT_STATUS = {
+    'SessionStarted': null,
     'AgentStarted': 'idle',
     'Thinking': 'thinking',
     'Processing': 'working',
@@ -161,7 +162,7 @@ function showToast(message, type, durationMs) {
 function hookEventKind(eventName, agent) {
     if (agent === 'antigravity') {
         switch (eventName) {
-            case 'SessionStart': return 'AgentStarted';
+            case 'SessionStart': return 'SessionStarted';
             case 'PreToolUse': return 'Processing';
             case 'PostToolUse': return 'Processing';
             case 'PreInvocation':
@@ -172,7 +173,7 @@ function hookEventKind(eventName, agent) {
         }
     }
     switch (eventName) {
-        case 'SessionStart':
+        case 'SessionStart': return 'SessionStarted';
         case 'start':
         case 'USER_INPUT':
         case 'UserPromptSubmit': return 'AgentStarted';
@@ -199,6 +200,7 @@ function hookEventKind(eventName, agent) {
 function hookEventStatus(eventName, agent) {
     const kind = hookEventKind(eventName, agent);
     if (!kind) return null;
+    if (kind === 'SessionStarted') return null;
     const map = currentConfig?.renderer?.['desktop-pet']?.event_status_map || {};
     return map[kind] || EVENT_DEFAULT_STATUS[kind] || null;
 }

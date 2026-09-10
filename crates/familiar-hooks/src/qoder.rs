@@ -484,10 +484,8 @@ mod tests {
         });
         let event = adapter.parse_hook_input(&session_start_input).unwrap();
         match event.event_type {
-            AgentEventType::AgentStarted { instruction } => {
-                assert_eq!(instruction, None);
-            }
-            _ => panic!("Expected AgentStarted"),
+            AgentEventType::SessionStarted => {}
+            _ => panic!("Expected SessionStarted"),
         }
 
         // 7. PermissionRequest

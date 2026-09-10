@@ -63,22 +63,15 @@ impl AntigravityHook {
         let event_id = || uuid::Uuid::new_v4();
 
         match event_name {
-            "SessionStart" => {
-                let instruction = json["instruction"]
-                    .as_str()
-                    .or_else(|| json["task"].as_str())
-                    .or_else(|| json["prompt"].as_str())
-                    .map(Self::extract_clean_text);
-                Some(AgentEvent {
-                    session_id: Some(session_id.clone()),
-                    id: event_id(),
-                    timestamp: chrono::Utc::now(),
-                    source: AgentSource::Antigravity,
-                    category: AgentCategory::Coding,
-                    event_type: AgentEventType::AgentStarted { instruction },
-                    metadata: None,
-                })
-            }
+            "SessionStart" => Some(AgentEvent {
+                session_id: Some(session_id.clone()),
+                id: event_id(),
+                timestamp: chrono::Utc::now(),
+                source: AgentSource::Antigravity,
+                category: AgentCategory::Coding,
+                event_type: AgentEventType::SessionStarted,
+                metadata: None,
+            }),
             "PreToolUse" => {
                 let name = json["toolCall"]["name"]
                     .as_str()
@@ -512,6 +505,12 @@ mod tests {
             "conversationId": "11111111-1111-1111-1111-111111111111",
         });
         hook.parse(event_name, &json).unwrap()
+    }
+
+    #[test]
+    fn session_start_maps_to_invisible_session_event() {
+        let event = parse("SessionStart");
+        assert!(matches!(event.event_type, AgentEventType::SessionStarted));
     }
 
     #[test]

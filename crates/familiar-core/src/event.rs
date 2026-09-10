@@ -25,6 +25,9 @@ pub enum AgentCategory {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AgentEventType {
     // Lifecycle
+    /// Emitted when an agent opens a session. This is intentionally not a
+    /// visible activity: the user-facing lifecycle starts at their prompt.
+    SessionStarted,
     AgentStarted {
         instruction: Option<String>,
     },
@@ -79,6 +82,7 @@ impl AgentEventType {
     /// and must not be formatted into persistent operational logs.
     pub fn kind(&self) -> &'static str {
         match self {
+            Self::SessionStarted => "SessionStarted",
             Self::AgentStarted { .. } => "AgentStarted",
             Self::AgentStopped => "AgentStopped",
             Self::Thinking => "Thinking",
