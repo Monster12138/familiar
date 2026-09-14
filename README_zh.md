@@ -56,6 +56,24 @@ brew install Monster12138/familiar/familiar-cli
 
 macOS 安装包尚未使用 Apple Developer ID 签名和公证，Windows 安装包尚未进行代码签名。首次启动时，Gatekeeper 或 SmartScreen 可能要求手动允许。
 
+### macOS 首次启动
+
+由于 Familiar 尚未完成 Apple 公证，macOS 会在首次启动时阻止应用打开。如果你是通过本仓库的 Homebrew Tap 或 GitHub Releases 安装 Familiar，请按以下步骤手动允许：
+
+1. 打开 Familiar。macOS 提示无法验证应用时，点击**完成**。
+
+   <img src="docs/images/macos-gatekeeper/01-unverified-app.jpg" alt="macOS 无法验证 Familiar" width="420">
+
+2. 打开**系统设置 → 隐私与安全性**，向下滚动到**安全性**区域，找到 Familiar 已被阻止的提示，然后点击**仍要打开**。
+
+   <img src="docs/images/macos-gatekeeper/02-open-anyway-setting.jpg" alt="在 macOS 隐私与安全性设置中点击仍要打开" width="680">
+
+3. 在确认对话框中再次点击**仍要打开**。如果 macOS 要求认证，请输入密码或使用 Touch ID。此后 Familiar 即可正常打开。
+
+   <img src="docs/images/macos-gatekeeper/03-confirm-open.jpg" alt="确认在 macOS 上打开 Familiar" width="420">
+
+仅当 Familiar 来自上方链接的官方来源时，才应绕过此安全警告。
+
 ## 从源码构建
 
 需要 Rust 1.88+、Node.js 18+、npm，以及对应平台的桌面开发依赖。
