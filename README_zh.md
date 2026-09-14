@@ -30,6 +30,22 @@ Familiar 只管理自己注入的 Hook。安装前会创建备份，并保留 Ag
 
 ## 安装
 
+### Homebrew
+
+在 macOS 上安装桌面应用：
+
+```bash
+brew install --cask Monster12138/familiar/familiar
+```
+
+在 macOS 或 Linux 上安装 CLI：
+
+```bash
+brew install Monster12138/familiar/familiar-cli
+```
+
+### 下载发布包
+
 从 [GitHub Releases](https://github.com/Monster12138/familiar/releases) 下载最新版本。
 
 当前发布目标：

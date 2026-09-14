@@ -30,6 +30,22 @@ Familiar only manages its own Hook entries. Installation creates a backup and pr
 
 ## Install
 
+### Homebrew
+
+Install the desktop app on macOS:
+
+```bash
+brew install --cask Monster12138/familiar/familiar
+```
+
+Install the CLI on macOS or Linux:
+
+```bash
+brew install Monster12138/familiar/familiar-cli
+```
+
+### Download a release
+
 Download the latest release from [GitHub Releases](https://github.com/Monster12138/familiar/releases).
 
 Current release targets:

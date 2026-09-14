@@ -207,12 +207,17 @@ user's other hooks or config.
 
 ### One-click install test after changes
 
-After finishing a change (and its focused checks), run
-`scripts/install-macos.sh --local` (macOS only) to build the current workspace
-and install + launch it into `/Applications` so the user can test — do this
-proactively, without waiting for the user to ask. The script runs a release
-build and takes many minutes; run it in the background and follow it through
-to the final "完成" line.
+After finishing a code, configuration, packaging, or runtime-behavior change
+(and its focused checks), run `scripts/install-macos.sh --local` (macOS only)
+to build the current workspace and install + launch it into `/Applications` so
+the user can test — do this proactively, without waiting for the user to ask.
+The script runs a release build and takes many minutes; run it in the
+background and follow it through to the final "完成" line.
+
+For documentation-only changes, do not build, install, or launch the app unless
+the documentation is itself a build input or the user explicitly requests
+runtime verification. `git diff --check` is sufficient for ordinary Markdown
+edits.
 
 - `--local` skips the `git pull` and clean-tree guard and installs the working
   tree as-is (including uncommitted changes), which is what install-testing a
