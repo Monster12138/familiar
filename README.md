@@ -30,6 +30,22 @@ Familiar only manages its own Hook entries. Installation creates a backup and pr
 
 ## Install
 
+### Homebrew
+
+Install the desktop app on macOS:
+
+```bash
+brew install --cask Monster12138/familiar/familiar
+```
+
+Install the CLI on macOS or Linux:
+
+```bash
+brew install Monster12138/familiar/familiar-cli
+```
+
+### Download a release
+
 Download the latest release from [GitHub Releases](https://github.com/Monster12138/familiar/releases).
 
 Current release targets:
@@ -39,6 +55,30 @@ Current release targets:
 - Linux x86_64 (`.deb` and AppImage)
 
 macOS packages are not notarized with an Apple Developer ID, and Windows packages are not code-signed. Gatekeeper or SmartScreen may require manual approval on first launch.
+
+### First launch on macOS
+
+Because Familiar is not yet notarized, macOS blocks it the first time you open
+it. If you installed Familiar from this repository's Homebrew tap or GitHub
+Releases, allow it manually:
+
+1. Open Familiar. When macOS says it cannot verify the app, click **Done**.
+
+   <img src="docs/images/macos-gatekeeper/01-unverified-app.jpg" alt="macOS cannot verify Familiar" width="420">
+
+2. Open **System Settings → Privacy & Security**, scroll to **Security**, find
+   the message that Familiar was blocked, and click **Open Anyway**.
+
+   <img src="docs/images/macos-gatekeeper/02-open-anyway-setting.jpg" alt="Open Anyway in macOS Privacy and Security settings" width="680">
+
+3. In the confirmation dialog, click **Open Anyway** again. Authenticate with
+   your password or Touch ID if macOS asks. Familiar will open normally from
+   then on.
+
+   <img src="docs/images/macos-gatekeeper/03-confirm-open.jpg" alt="Confirm opening Familiar on macOS" width="420">
+
+Only bypass this warning when you obtained Familiar from the official sources
+linked above.
 
 ## Build from source
 
