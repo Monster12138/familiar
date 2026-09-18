@@ -238,6 +238,9 @@ pub struct DesktopPetConfig {
     pub celebration_secs: u32,
     #[serde(default = "default_sleep_timeout_secs")]
     pub sleep_timeout_secs: u32,
+    /// Remove user-visible sessions that remain Idle without another event.
+    #[serde(default = "default_idle_session_timeout_secs")]
+    pub idle_session_timeout_secs: u32,
     #[serde(default)]
     pub event_status_map: BTreeMap<String, EventStatus>,
 }
@@ -353,6 +356,10 @@ fn default_celebration_secs() -> u32 {
 
 fn default_sleep_timeout_secs() -> u32 {
     300
+}
+
+fn default_idle_session_timeout_secs() -> u32 {
+    600
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -492,6 +499,7 @@ impl Default for FamiliarConfig {
                     dashboard_alignment: DashboardAlignment::Bottom,
                     celebration_secs: 4,
                     sleep_timeout_secs: 300,
+                    idle_session_timeout_secs: 600,
                     event_status_map: BTreeMap::new(),
                 },
                 menu_bar: MenuBarConfig {

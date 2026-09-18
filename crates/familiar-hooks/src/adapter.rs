@@ -11,6 +11,9 @@ pub struct CliAgentHookAdapter {
 }
 
 impl CliAgentHookAdapter {
+    const CODEX_INTERNAL_PROMPT: &'static str =
+        "You are a helpful assistant. You will be presented with a user prompt";
+
     pub fn new(source: AgentSource) -> Self {
         Self {
             agent_source: source,
@@ -136,7 +139,16 @@ impl CliAgentHookAdapter {
             "SessionStart" | "start" => AgentEventType::SessionStarted,
             "USER_INPUT" | "UserPromptSubmit" => {
                 let instruction = Self::extract_instruction(json);
-                AgentEventType::AgentStarted { instruction }
+                if self.agent_source == AgentSource::Codex
+                    && instruction
+                        .as_deref()
+                        .map(str::trim)
+                        .is_some_and(|prompt| prompt.starts_with(Self::CODEX_INTERNAL_PROMPT))
+                {
+                    AgentEventType::Ignored
+                } else {
+                    AgentEventType::AgentStarted { instruction }
+                }
             }
             "Stop" | "stop" | "exit" | "SessionEnd" => AgentEventType::TaskCompleted {
                 summary: "Task finished".into(),
@@ -316,6 +328,36 @@ mod tests {
         );
 
         assert!(matches!(event.event_type, AgentEventType::SessionStarted));
+    }
+
+    #[test]
+    fn codex_internal_placeholder_prompt_is_ignored() {
+        let adapter = CliAgentHookAdapter::new(AgentSource::Codex);
+        let event = adapter
+            .parse_hook_input(&json!({
+                "hook_event_name": "UserPromptSubmit",
+                "session_id": "internal-session",
+                "prompt": "You are a helpful assistant. You will be presented with a user prompt. Generate a concise title.\n"
+            }))
+            .unwrap();
+
+        assert!(matches!(event.event_type, AgentEventType::Ignored));
+    }
+
+    #[test]
+    fn non_codex_placeholder_prompt_is_not_ignored() {
+        let event = parse(
+            "UserPromptSubmit",
+            json!({
+                "session_id": "user-session",
+                "prompt": "You are a helpful assistant. You will be presented with a user prompt"
+            }),
+        );
+
+        assert!(matches!(
+            event.event_type,
+            AgentEventType::AgentStarted { .. }
+        ));
     }
 
     #[test]

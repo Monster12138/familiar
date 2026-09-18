@@ -196,6 +196,17 @@
                         <div class="divider"></div>
                         <div class="setting-item horizontal">
                             <div class="setting-info">
+                                <div class="setting-title" data-i18n="lbl_idle_session_timeout_secs">闲置会话清理时长</div>
+                                <div class="setting-desc" data-i18n="desc_idle_session_timeout_secs">会话持续闲置多久后自动移除气泡（60 - 3600 秒）</div>
+                            </div>
+                            <div class="setting-control range-control">
+                                <input type="range" id="setting-idle-session-timeout-secs" min="60" max="3600" step="60" value="600">
+                                <span class="range-value" id="val-idle-session-timeout-secs">600s</span>
+                            </div>
+                        </div>
+                        <div class="divider"></div>
+                        <div class="setting-item horizontal">
+                            <div class="setting-info">
                                 <div class="setting-title" data-i18n="lbl_pet_scale">桌宠缩放比例</div>
                                 <div class="setting-desc" data-i18n="desc_pet_scale">调整桌面宠物的显示大小 (1.0 - 5.0)</div>
                             </div>

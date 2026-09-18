@@ -21,6 +21,22 @@ fn legacy_config_defaults_to_showing_on_all_desktops() {
 }
 
 #[test]
+fn legacy_config_defaults_idle_session_timeout_to_ten_minutes() {
+    let legacy_config = include_str!("../../../config/default.toml")
+        .replace("idle_session_timeout_secs = 600\n", "");
+    let path = std::env::temp_dir().join(format!(
+        "familiar-legacy-idle-session-timeout-{}.toml",
+        std::process::id()
+    ));
+
+    std::fs::write(&path, legacy_config).expect("write legacy config");
+    let config = FamiliarConfig::load_from_file(&path).expect("load legacy config");
+    std::fs::remove_file(path).expect("remove legacy config");
+
+    assert_eq!(config.renderer.desktop_pet.idle_session_timeout_secs, 600);
+}
+
+#[test]
 fn legacy_config_defaults_onboarded_to_false() {
     let legacy_config =
         include_str!("../../../config/default.toml").replace("onboarded = false\n", "");

@@ -24,6 +24,9 @@ pub enum AgentCategory {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AgentEventType {
+    /// An upstream lifecycle event that is intentionally excluded from the
+    /// user-visible state machine (for example, a known internal prompt).
+    Ignored,
     // Lifecycle
     /// Emitted when an agent opens a session. This is intentionally not a
     /// visible activity: the user-facing lifecycle starts at their prompt.
@@ -82,6 +85,7 @@ impl AgentEventType {
     /// and must not be formatted into persistent operational logs.
     pub fn kind(&self) -> &'static str {
         match self {
+            Self::Ignored => "Ignored",
             Self::SessionStarted => "SessionStarted",
             Self::AgentStarted { .. } => "AgentStarted",
             Self::AgentStopped => "AgentStopped",

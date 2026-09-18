@@ -132,15 +132,20 @@ fn main() {
     let event_bus = EventBus::new(100, 100);
     let config = load_config();
     let event_status_map = Arc::new(std::sync::RwLock::new(EventStatusMap::new()));
+    let idle_session_timeout_secs = Arc::new(std::sync::atomic::AtomicU64::new(u64::from(
+        config.renderer.desktop_pet.idle_session_timeout_secs,
+    )));
     let app_config_state = Arc::new(AppConfigState::new(
         config.clone(),
         event_status_map.clone(),
+        idle_session_timeout_secs.clone(),
     ));
-    let state_machine = StateMachine::with_event_map(
+    let state_machine = StateMachine::with_event_map_and_idle_timeout(
         event_bus.clone(),
         config.renderer.desktop_pet.celebration_secs,
         config.renderer.desktop_pet.sleep_timeout_secs,
         event_status_map.clone(),
+        idle_session_timeout_secs,
     );
     let event_bus_for_server = event_bus.clone();
     let config_for_setup = config.clone();

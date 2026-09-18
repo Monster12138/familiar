@@ -162,6 +162,8 @@ export const translations = {
         'desc_celebration_secs': '任务完成后庆祝动画持续的秒数（1 - 15）',
         'lbl_sleep_timeout_secs': '休眠超时时长',
         'desc_sleep_timeout_secs': '待命状态下无事件输入自动进入休眠的秒数（10 - 3600）',
+        'lbl_idle_session_timeout_secs': '闲置会话清理时长',
+        'desc_idle_session_timeout_secs': '会话持续闲置多久后自动移除气泡（60 - 3600 秒）',
 
         'group_pet_pack': '素材包管理',
         'desc_pet_pack': '管理与切换桌面宠物显示的素材包，支持从外部导入 .fpack 格式的素材包',
@@ -482,6 +484,8 @@ export const translations = {
         'desc_celebration_secs': 'How long (in seconds) the celebration animation plays after a task completes (1 - 15)',
         'lbl_sleep_timeout_secs': 'Sleep Inactivity Timeout',
         'desc_sleep_timeout_secs': 'Seconds of inactivity in Idle state before automatically entering Sleepy state (10 - 3600)',
+        'lbl_idle_session_timeout_secs': 'Idle Session Cleanup',
+        'desc_idle_session_timeout_secs': 'Remove a session bubble after it remains Idle for this many seconds (60 - 3600)',
 
         'group_pet_pack': 'Sprite Pack Management',
         'desc_pet_pack': 'Manage and switch desktop pet sprite packs. Import .fpack format sprite packs from external sources',

@@ -115,6 +115,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const valCelebrationSecs = document.getElementById('val-celebration-secs');
     const elSleepTimeoutSecs = document.getElementById('setting-sleep-timeout-secs');
     const valSleepTimeoutSecs = document.getElementById('val-sleep-timeout-secs');
+    const elIdleSessionTimeoutSecs = document.getElementById('setting-idle-session-timeout-secs');
+    const valIdleSessionTimeoutSecs = document.getElementById('val-idle-session-timeout-secs');
 
     const saveBtn = document.getElementById('save-btn');
     const sessionListContainer = document.getElementById('session-list-container');
@@ -416,6 +418,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         elSleepTimeoutSecs.addEventListener('input', updateSleepVal);
         updateSleepVal();
     }
+    if (elIdleSessionTimeoutSecs && valIdleSessionTimeoutSecs) {
+        const updateIdleSessionVal = () => {
+            valIdleSessionTimeoutSecs.textContent = elIdleSessionTimeoutSecs.value + 's';
+        };
+        elIdleSessionTimeoutSecs.addEventListener('input', updateIdleSessionVal);
+        updateIdleSessionVal();
+    }
 
     // --- Auto-Save Logic ---
 
@@ -495,6 +504,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentConfig.renderer['desktop-pet'].celebration_secs = parseInt(elCelebrationSecs.value, 10);
         if (elSleepTimeoutSecs) {
             currentConfig.renderer['desktop-pet'].sleep_timeout_secs = parseInt(elSleepTimeoutSecs.value, 10);
+        }
+        if (elIdleSessionTimeoutSecs) {
+            currentConfig.renderer['desktop-pet'].idle_session_timeout_secs = parseInt(elIdleSessionTimeoutSecs.value, 10);
         }
         // Drop an empty mapping so no empty `[..event_status_map]` section is
         // written to the TOML file on save.
@@ -699,6 +711,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (petConf.sleep_timeout_secs !== undefined && elSleepTimeoutSecs) {
                 elSleepTimeoutSecs.value = petConf.sleep_timeout_secs;
                 if (valSleepTimeoutSecs) valSleepTimeoutSecs.textContent = petConf.sleep_timeout_secs + 's';
+            }
+            if (petConf.idle_session_timeout_secs !== undefined && elIdleSessionTimeoutSecs) {
+                elIdleSessionTimeoutSecs.value = petConf.idle_session_timeout_secs;
+                if (valIdleSessionTimeoutSecs) {
+                    valIdleSessionTimeoutSecs.textContent = petConf.idle_session_timeout_secs + 's';
+                }
             }
         }
 
@@ -1163,7 +1181,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const autoSaveInputs = [
         elRemoteEndpoint, elRemotePath, elRemoteToken, elRemoteConnectTimeout,
         elRemoteReconnectInitial, elRemoteReconnectMax,
-        elApiPort, elPetScale, elPetOpacity, elPetHoverOpacity, elUdsPath, elTcpPort, elCelebrationSecs, elSleepTimeoutSecs,
+        elApiPort, elPetScale, elPetOpacity, elPetHoverOpacity, elUdsPath, elTcpPort, elCelebrationSecs, elSleepTimeoutSecs, elIdleSessionTimeoutSecs,
         elCleanupAgeDays
     ];
     autoSaveInputs.forEach(el => {
