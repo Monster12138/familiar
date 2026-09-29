@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Familiar Workshop</title><link rel="stylesheet" href="./workshop.css">
+</head>
+<body>
+  <header><div><h1 data-i18n="workshop_title">创意工坊</h1><p data-i18n="workshop_intro">用本地图片制作 Familiar 素材包</p></div><div class="actions"><button id="new" data-i18n="workshop_new">新建</button><button id="save" class="primary" data-i18n="workshop_save">保存</button><button id="export" data-i18n="workshop_export">导出素材包</button></div></header>
+  <main>
+    <aside><h2 data-i18n="workshop_packs">素材包</h2><div id="packs"></div></aside>
+    <section class="editor"><div class="fields">
+      <label><span data-i18n="workshop_name">名称</span><input id="name" maxlength="100" required></label>
+      <label><span data-i18n="workshop_author">作者（选填）</span><input id="author"></label>
+      <label><span data-i18n="workshop_version">版本（选填）</span><input id="version" value="1.0.0"></label>
+      <label><span data-i18n="workshop_email">邮箱（选填）</span><input id="email" type="email"></label>
+      <label><span data-i18n="workshop_license">许可证（选填）</span><input id="license" placeholder="CC-BY-4.0"></label>
+      <label class="wide"><span data-i18n="workshop_source">来源链接（选填）</span><input id="source" type="url"></label>
+      <label class="wide"><span data-i18n="workshop_description">简介（选填）</span><textarea id="description" rows="2"></textarea></label>
+    </div><h2 data-i18n="workshop_states">状态图片</h2><p class="hint" data-i18n="workshop_hint">空闲态必填；其余状态缺省时会回退到空闲态。支持 PNG、APNG、GIF、WebP、SVG。</p><div id="states"></div></section>
+    <aside class="preview"><h2 data-i18n="workshop_preview">实时预览</h2><div class="preview-stage"><img id="preview-image" alt=""></div><div id="preview-state-name"></div><p id="preview-file"></p></aside>
+  </main>
+  <div id="discard-overlay" class="dialog-overlay" hidden>
+    <div class="dialog-card" role="dialog" aria-modal="true" aria-labelledby="discard-title">
+      <h2 id="discard-title" data-i18n="workshop_discard">有未保存的改动，确定放弃吗？</h2>
+      <div class="actions"><button id="discard-cancel" data-i18n="workshop_keep_editing">继续编辑</button><button id="discard-confirm" class="primary" data-i18n="workshop_discard_action">放弃改动</button></div>
+    </div>
+  </div>
+  <div id="toast" role="status"></div><script type="module" src="./workshop.js"></script>
+</body></html>

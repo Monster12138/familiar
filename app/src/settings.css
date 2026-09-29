@@ -121,6 +121,15 @@ body {
     margin-bottom: 2px;
 }
 
+.menu-action {
+    width: 100%;
+    border: 0;
+    background: none;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
 .menu-item svg {
     color: var(--text-muted);
 }

@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Nav elements
-    const menuItems = document.querySelectorAll('.menu-item');
+    const menuItems = document.querySelectorAll('.menu-item[data-target]');
     const contentTitle = document.getElementById('content-title');
     const contentScroll = document.getElementById('content-scroll');
 
@@ -124,6 +124,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Sprite pack UI elements
     const convertFileSrc = window.__TAURI__.core.convertFileSrc || ((p) => p);
     const spritePackGrid = document.getElementById('sprite-pack-grid');
+    const btnOpenWorkshop = document.getElementById('btn-open-workshop');
     const btnOpenSpriteDir = document.getElementById('btn-open-sprite-dir');
     const btnImportPack = document.getElementById('btn-import-pack');
     const fileImportPack = document.getElementById('file-import-pack');
@@ -826,6 +827,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Load sprite packs (must be after DOM and config are ready)
     await loadAndRenderSpritePacks();
+    window.__TAURI__.event.listen('sprite_pack_imported', loadAndRenderSpritePacks);
+    window.__TAURI__.event.listen('sprite_pack_deleted', loadAndRenderSpritePacks);
     
     async function loadAndRenderSpritePacks() {
         if (!spritePackGrid) return;
@@ -1125,6 +1128,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    const updateWorkshopButtonLabel = () => {
+        if (!btnOpenWorkshop) return;
+        const label = t('btn_open_workshop', elLanguage ? elLanguage.value : 'zh-CN');
+        btnOpenWorkshop.setAttribute('aria-label', label);
+    };
+    updateWorkshopButtonLabel();
+    const openWorkshop = async () => {
+        try { await invoke('open_workshop_window'); }
+        catch (error) { showToast(String(error), 'error'); }
+    };
+    btnOpenWorkshop?.addEventListener('click', openWorkshop);
+    document.getElementById('btn-open-workshop-sidebar')?.addEventListener('click', openWorkshop);
+
     if (btnImportPack) {
         btnImportPack.addEventListener('click', async () => {
             const lang = elLanguage ? elLanguage.value : 'zh-CN';
@@ -1149,6 +1165,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Language setting update UI + auto save
     elLanguage.addEventListener('change', () => {
         applyTranslations(elLanguage.value);
+        updateWorkshopButtonLabel();
         updateRemoteTokenPlaceholder();
         loadAndRenderSpritePacks();
         renderEventStatusTable();

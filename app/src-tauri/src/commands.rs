@@ -1096,7 +1096,72 @@ fn test_via_shell(agent: &str, event_name: &str) -> Result<TestHookResult, Strin
     })
 }
 
-use familiar_core::sprite_pack::{SpritePackInfo, SpritePackManager};
+use familiar_core::sprite_pack::{SpritePackInfo, SpritePackManager, WorkshopDraft};
+
+#[tauri::command]
+pub async fn open_workshop_window(app_handle: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app_handle.get_webview_window("workshop") {
+        let _ = window.show();
+        let _ = window.set_focus();
+        return Ok(());
+    }
+    tauri::WebviewWindowBuilder::new(
+        &app_handle,
+        "workshop",
+        tauri::WebviewUrl::App("workshop.html".into()),
+    )
+    .title("Familiar Workshop")
+    .inner_size(1040.0, 740.0)
+    .min_inner_size(760.0, 560.0)
+    .build()
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn pick_workshop_image() -> Result<Option<String>, String> {
+    Ok(rfd::AsyncFileDialog::new()
+        .add_filter("Image", &["png", "apng", "gif", "webp", "svg"])
+        .pick_file()
+        .await
+        .map(|file| file.path().to_string_lossy().to_string()))
+}
+
+#[tauri::command]
+pub fn read_workshop_image(path: String) -> Result<Vec<u8>, String> {
+    let path = std::path::Path::new(&path);
+    let metadata = std::fs::metadata(path).map_err(|e| e.to_string())?;
+    if !metadata.is_file() || metadata.len() > 20 * 1024 * 1024 {
+        return Err("Image exceeds 20 MiB".to_string());
+    }
+    std::fs::read(path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn save_workshop_pack(
+    app_handle: tauri::AppHandle,
+    draft: WorkshopDraft,
+) -> Result<SpritePackInfo, String> {
+    let info = SpritePackManager::save_workshop(draft).map_err(|e| e.to_string())?;
+    use tauri::Emitter;
+    let _ = app_handle.emit("sprite_pack_imported", &info);
+    Ok(info)
+}
+
+#[tauri::command]
+pub async fn export_workshop_pack(id: String) -> Result<Option<String>, String> {
+    let Some(file) = rfd::AsyncFileDialog::new()
+        .set_file_name(format!("{id}.fpack"))
+        .add_filter("Familiar Sprite Pack", &["fpack"])
+        .save_file()
+        .await
+    else {
+        return Ok(None);
+    };
+    let path = file.path().to_path_buf();
+    SpritePackManager::export_workshop(&id, &path).map_err(|e| e.to_string())?;
+    Ok(Some(path.to_string_lossy().to_string()))
+}
 
 use tauri::Manager;
 
@@ -1136,6 +1201,7 @@ pub async fn import_sprite_pack(
 
 #[tauri::command]
 pub fn delete_sprite_pack(
+    app_handle: tauri::AppHandle,
     config_state: tauri::State<'_, Arc<AppConfigState>>,
     id: String,
 ) -> Result<(), String> {
@@ -1143,7 +1209,10 @@ pub fn delete_sprite_pack(
         return Err("Cannot delete the active sprite pack; switch packs first".to_string());
     }
 
-    SpritePackManager::delete_user_pack(&id).map_err(|error| error.to_string())
+    SpritePackManager::delete_user_pack(&id).map_err(|error| error.to_string())?;
+    use tauri::Emitter;
+    let _ = app_handle.emit("sprite_pack_deleted", &id);
+    Ok(())
 }
 
 #[tauri::command]
