@@ -40,6 +40,7 @@ Familiar 是一个本地优先的编程 Agent 桌面伴侣。它把 Hook 事件�
 
 ## 为什么选择 Familiar
 
+- **多 Agent 支持**：Claude-code、ChatGpt、DeepSeek Harness...，一只桌面宠物全搞定。
 - **少盯一个窗口**：用桌宠动作和任务气泡感知 Agent 活动。
 - **融入现有工作流**：通过 Agent 的 Hook API 接入，保留已有配置。
 - **由你掌控数据**：默认本地运行；需要跨机器协作时再配置远程连接。

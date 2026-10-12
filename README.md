@@ -40,6 +40,7 @@ Familiar is a local-first desktop companion for coding agents. It turns Hook eve
 
 ## Why Familiar?
 
+- **Multi-agent support**: Claude-code, ChatGpt, DeepSeek Harness... one desktop pet handles them all.
 - **One less window to watch**: Follow agent activity through pet actions and task bubbles.
 - **Fits your workflow**: Connect through agent Hook APIs while preserving existing configuration.
 - **Your data, your choice**: Run locally by default; configure remote connections when needed.
