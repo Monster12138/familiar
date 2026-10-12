@@ -635,3 +635,16 @@ fn show_window_frame_serializes_as_bool() {
         "unexpected serialized show_window_frame:\n{serialized}"
     );
 }
+
+#[test]
+fn fullscreen_hiding_defaults_off_and_roundtrips() {
+    let source = include_str!("../../../config/default.toml");
+    let legacy: FamiliarConfig = toml::from_str(&source.replace("hide_on_fullscreen = false\n", "")).unwrap();
+    assert!(!legacy.renderer.desktop_pet.hide_on_fullscreen);
+    let mut enabled = legacy;
+    enabled.renderer.desktop_pet.hide_on_fullscreen = true;
+    let serialized = toml::to_string(&enabled).unwrap();
+    assert!(serialized.contains("hide_on_fullscreen = true"));
+    let restored: FamiliarConfig = toml::from_str(&serialized).unwrap();
+    assert!(restored.renderer.desktop_pet.hide_on_fullscreen);
+}

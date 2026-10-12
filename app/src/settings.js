@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     const elPetScale = document.getElementById('setting-pet-scale');
     const valPetScale = document.getElementById('val-pet-scale');
+    const elPetFullscreen = document.getElementById('setting-pet-fullscreen');
     const elPetAlwaysTop = document.getElementById('setting-pet-always-top');
     const elPetAllDesktops = document.getElementById('setting-pet-all-desktops');
     const elPetClickThrough = document.getElementById('setting-pet-click-through');
@@ -107,6 +108,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         const platform = await invoke('get_platform');
         if (platform === 'windows') hideSettingItem(elUdsPath);
+        if (platform === 'linux') hideSettingItem(elPetFullscreen);
         if (platform !== 'darwin') hideSettingItem(elPetAllDesktops);
     } catch (e) {
         console.error('Failed to detect platform:', e);
@@ -487,6 +489,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         elRemoteReconnectMax.value = reconnectMax;
 
         currentConfig.renderer['desktop-pet'].scale = parseFloat(elPetScale.value);
+        currentConfig.renderer['desktop-pet'].hide_on_fullscreen = elPetFullscreen.checked;
         currentConfig.renderer['desktop-pet'].always_on_top = elPetAlwaysTop.checked;
         currentConfig.renderer['desktop-pet'].show_on_all_desktops = elPetAllDesktops.checked;
         currentConfig.renderer['desktop-pet'].click_through = elPetClickThrough.checked;
@@ -674,6 +677,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 elPetScale.value = petConf.scale;
                 if (valPetScale) valPetScale.textContent = Number(petConf.scale).toFixed(1);
             }
+            elPetFullscreen.checked = petConf.hide_on_fullscreen ?? false;
             if (petConf.always_on_top !== undefined) elPetAlwaysTop.checked = petConf.always_on_top;
             if (petConf.show_on_all_desktops !== undefined) {
                 elPetAllDesktops.checked = petConf.show_on_all_desktops;
@@ -1186,7 +1190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Bind all controls for auto-save
     const autoSaveControls = [
         elRuntimeMode, elRemoteTls,
-        elPetAlwaysTop, elPetAllDesktops, elPetClickThrough, elPetHideOnHover, elPetWindowFrame, elPetSnapCorner, elShowBubble, elShowPet, elShowStats,
+        elPetFullscreen, elPetAlwaysTop, elPetAllDesktops, elPetClickThrough, elPetHideOnHover, elPetWindowFrame, elPetSnapCorner, elShowBubble, elShowPet, elShowStats,
         elDashboardStyle, elDashboardPosition, elDashboardLayout, elDashboardAlignment,
         elCleanupBackups, elCleanupLogs,
         elUpdateStartup, elUpdateInterval

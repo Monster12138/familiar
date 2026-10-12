@@ -134,6 +134,8 @@ export const translations = {
         'lbl_pet_scale': '缩放比例',
         'desc_pet_scale': '调整显示大小 (1.0 - 5.0)',
 
+        'lbl_hide_fullscreen': '全屏时自动隐藏',
+        'desc_hide_fullscreen': '前台应用在桌宠所在屏幕全屏时隐藏，退出后自动恢复（macOS / Windows）',
         'lbl_always_top': '总是在最前',
         'desc_always_top': '悬浮在所有系统窗口之上，避免被遮挡',
         'lbl_all_desktops': '跟随桌面切换',
@@ -472,6 +474,8 @@ export const translations = {
         'lbl_pet_scale': 'Scale',
         'desc_pet_scale': 'Adjust the display size (1.0 - 5.0)',
 
+        'lbl_hide_fullscreen': 'Auto-hide in fullscreen',
+        'desc_hide_fullscreen': 'Hide when the foreground app fills the pet’s screen; restore on exit (macOS / Windows).',
         'lbl_always_top': 'Always on Top',
         'desc_always_top': 'Keep floating above all system windows',
         'lbl_all_desktops': 'Follow Desktop Switching',

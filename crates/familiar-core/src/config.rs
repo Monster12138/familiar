@@ -199,6 +199,8 @@ pub struct DesktopPetConfig {
     pub scale: f32,
     pub position: String,
     pub always_on_top: bool,
+    #[serde(default)]
+    pub hide_on_fullscreen: bool,
     #[serde(default = "default_true")]
     pub show_on_all_desktops: bool,
     pub opacity: f32,
@@ -482,6 +484,7 @@ impl Default for FamiliarConfig {
                     scale: 2.0,
                     position: "bottom-right".to_string(),
                     always_on_top: true,
+                    hide_on_fullscreen: false,
                     show_on_all_desktops: true,
                     opacity: 0.95,
                     show_task_bubble: true,

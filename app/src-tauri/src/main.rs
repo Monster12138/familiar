@@ -6,6 +6,7 @@
 
 mod commands;
 mod desktop_pet_window;
+mod fullscreen_visibility;
 mod remote_state;
 mod tray;
 mod updates;
@@ -279,6 +280,7 @@ fn main() {
             // unplugged. A pet that is still visible is never touched, so
             // unrelated monitor changes (another display sleeping, docking
             // flaps) no longer move it.
+            fullscreen_visibility::start(app.handle().clone(), app_config_state_for_setup.clone());
             let watcher_app_handle = app.handle().clone();
             let watcher_config_state = app_config_state_for_setup.clone();
             tauri::async_runtime::spawn(async move {
