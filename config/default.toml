@@ -32,6 +32,8 @@ scale = 1.3
 # pet keeps its relative spot when monitors change.
 position = "bottom-right"
 always_on_top = true
+# Hide on this monitor while the foreground application fills the screen.
+hide_on_fullscreen = false
 show_on_all_desktops = true
 opacity = 1.0
 # Opacity applied while the pointer hovers over the pet (0.1 - 1.0). Keeps the
@@ -55,6 +57,7 @@ dashboard_layout = "vertical"
 dashboard_alignment = "bottom"
 celebration_secs = 10
 sleep_timeout_secs = 300
+idle_session_timeout_secs = 600
 
 # Optional event → pet status overrides. Keys are AgentEventType kinds
 # (AgentStarted, Thinking, Processing, ReadingFile, WritingFile,

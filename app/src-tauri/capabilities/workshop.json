@@ -1,0 +1,6 @@
+{
+  "identifier": "workshop-close",
+  "description": "Allow the workshop to finish its own close confirmation",
+  "windows": ["workshop"],
+  "permissions": ["core:window:allow-destroy"]
+}

@@ -518,7 +518,45 @@ Alpha、Beta 或 RC 版本增加 `--prerelease`。正式语义化版本不加该
 
 发布动作是外部状态变更。只有用户明确要求发布时才能执行，不得因为完成了本地构建就自动创建 Release。
 
-## 15. 发布后复核
+## 15. 同步 Homebrew tap
+
+GitHub Release 发布并确认公开制品可下载后，必须同步更新
+[`Monster12138/homebrew-familiar`](https://github.com/Monster12138/homebrew-familiar)。
+Formula 使用源码 Tag，Cask 使用 Release 中的两个 macOS DMG；校验和必须从实际
+下载文件计算，不要手工填写：
+
+```bash
+VERSION=2.4.1
+TAG="v${VERSION}"
+TAP_DIR="$(mktemp -d)/homebrew-familiar"
+WORK_DIR="$(mktemp -d)"
+git clone https://github.com/Monster12138/homebrew-familiar.git "$TAP_DIR"
+gh release download "$TAG" --repo Monster12138/familiar \
+  --pattern "Familiar_${VERSION}_macos_aarch64.dmg" \
+  --pattern "Familiar_${VERSION}_macos_x64.dmg" --dir "$WORK_DIR"
+curl -LfsS -o "$WORK_DIR/source.tar.gz" \
+  "https://codeload.github.com/Monster12138/familiar/tar.gz/refs/tags/${TAG}"
+
+SOURCE_SHA="$(shasum -a 256 "$WORK_DIR/source.tar.gz" | awk '{print $1}')"
+ARM_SHA="$(shasum -a 256 "$WORK_DIR/Familiar_${VERSION}_macos_aarch64.dmg" | awk '{print $1}')"
+INTEL_SHA="$(shasum -a 256 "$WORK_DIR/Familiar_${VERSION}_macos_x64.dmg" | awk '{print $1}')"
+perl -0pi -e \
+  "s#v[0-9]+\\.[0-9]+\\.[0-9]+\\.tar\\.gz#v${VERSION}.tar.gz#; s/sha256 \"[0-9a-f]{64}\"/sha256 \"$SOURCE_SHA\"/" \
+  "$TAP_DIR/Formula/familiar-cli.rb"
+perl -0pi -e \
+  "s/version \"[^\"]+\"/version \"$VERSION\"/; s/sha256 arm: \"[^\"]+\", intel: \"[^\"]+\"/sha256 arm: \"$ARM_SHA\", intel: \"$INTEL_SHA\"/" \
+  "$TAP_DIR/Casks/familiar.rb"
+git -C "$TAP_DIR" diff --check
+git -C "$TAP_DIR" add Formula/familiar-cli.rb Casks/familiar.rb
+git -C "$TAP_DIR" commit -m "chore: update Familiar to v${VERSION}"
+git -C "$TAP_DIR" push origin main
+```
+
+推送后确认 tap 的最新提交和两个文件均为目标版本；如本机安装了 Homebrew，
+再运行 `brew audit --new --strict --formula Monster12138/familiar/familiar-cli`
+和 `brew test Monster12138/familiar/familiar-cli`。
+
+## 16. 发布后复核
 
 ```bash
 gh release view "$VERSION" \

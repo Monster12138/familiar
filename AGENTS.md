@@ -130,6 +130,36 @@ cover the change and report the unrelated failure clearly.
 - Prefer focused comments that explain platform constraints or non-obvious
   behavior; do not narrate straightforward code.
 
+## Desktop UI and Sprite Pack Workshop
+
+- Keep secondary windows visually consistent with the settings panel. Reuse its
+  neutral dark backgrounds, text, borders, blue action accent, control shapes,
+  and spacing; reserve a checkerboard for transparent image previews. When a
+  style token changes, update related windows together or share the token.
+- Put major features in the settings sidebar as clear, labeled entries. Small
+  actions inside a section may use simple icons with accessible names. Avoid
+  redundant instructional labels when the action is clear from context.
+- Keep user-facing forms focused on concepts users choose. Generate technical
+  identifiers internally, and do not require or display them unless users need
+  them to complete a task. Mark optional fields explicitly; validate only
+  fields and assets that the format actually requires.
+- In image editors, make selection and preview direct: selecting a state shows
+  that state's image, switching packs selects the first available image, and
+  previews preserve the source aspect ratio. Support both file picking and
+  dropping onto a specific state; highlight the drop target and report invalid
+  files at that state. For native Tauri drops, use the webview event and verify
+  platform coordinate units before mapping the drop point to a DOM element.
+- Keep editable user packs distinct from built-in packs. Copy built-in packs
+  before editing; allow deletion only for user packs. Save through the backend
+  with validation and recovery of the previous version, then refresh the pack
+  list and active pet through the existing update event. Export the saved
+  version, saving pending edits first.
+- Protect unsaved work on navigation and the system close button with an
+  in-window confirmation that does not block other app windows. Do not add a
+  second close control when the native window control already serves that
+  purpose. Use transient feedback for successes and errors, and provide both
+  Chinese and English text for every visible label and message.
+
 ## Agent Hooks Integration
 
 Rules for adding or updating hook integration for a coding agent (Claude Code,

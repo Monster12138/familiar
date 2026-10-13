@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Nav elements
-    const menuItems = document.querySelectorAll('.menu-item');
+    const menuItems = document.querySelectorAll('.menu-item[data-target]');
     const contentTitle = document.getElementById('content-title');
     const contentScroll = document.getElementById('content-scroll');
 
@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     const elPetScale = document.getElementById('setting-pet-scale');
     const valPetScale = document.getElementById('val-pet-scale');
+    const elPetFullscreen = document.getElementById('setting-pet-fullscreen');
     const elPetAlwaysTop = document.getElementById('setting-pet-always-top');
     const elPetAllDesktops = document.getElementById('setting-pet-all-desktops');
     const elPetClickThrough = document.getElementById('setting-pet-click-through');
@@ -107,6 +108,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         const platform = await invoke('get_platform');
         if (platform === 'windows') hideSettingItem(elUdsPath);
+        if (platform === 'linux') hideSettingItem(elPetFullscreen);
         if (platform !== 'darwin') hideSettingItem(elPetAllDesktops);
     } catch (e) {
         console.error('Failed to detect platform:', e);
@@ -115,6 +117,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const valCelebrationSecs = document.getElementById('val-celebration-secs');
     const elSleepTimeoutSecs = document.getElementById('setting-sleep-timeout-secs');
     const valSleepTimeoutSecs = document.getElementById('val-sleep-timeout-secs');
+    const elIdleSessionTimeoutSecs = document.getElementById('setting-idle-session-timeout-secs');
+    const valIdleSessionTimeoutSecs = document.getElementById('val-idle-session-timeout-secs');
 
     const saveBtn = document.getElementById('save-btn');
     const sessionListContainer = document.getElementById('session-list-container');
@@ -122,6 +126,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Sprite pack UI elements
     const convertFileSrc = window.__TAURI__.core.convertFileSrc || ((p) => p);
     const spritePackGrid = document.getElementById('sprite-pack-grid');
+    const btnOpenWorkshop = document.getElementById('btn-open-workshop');
     const btnOpenSpriteDir = document.getElementById('btn-open-sprite-dir');
     const btnImportPack = document.getElementById('btn-import-pack');
     const fileImportPack = document.getElementById('file-import-pack');
@@ -416,6 +421,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         elSleepTimeoutSecs.addEventListener('input', updateSleepVal);
         updateSleepVal();
     }
+    if (elIdleSessionTimeoutSecs && valIdleSessionTimeoutSecs) {
+        const updateIdleSessionVal = () => {
+            valIdleSessionTimeoutSecs.textContent = elIdleSessionTimeoutSecs.value + 's';
+        };
+        elIdleSessionTimeoutSecs.addEventListener('input', updateIdleSessionVal);
+        updateIdleSessionVal();
+    }
 
     // --- Auto-Save Logic ---
 
@@ -477,6 +489,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         elRemoteReconnectMax.value = reconnectMax;
 
         currentConfig.renderer['desktop-pet'].scale = parseFloat(elPetScale.value);
+        currentConfig.renderer['desktop-pet'].hide_on_fullscreen = elPetFullscreen.checked;
         currentConfig.renderer['desktop-pet'].always_on_top = elPetAlwaysTop.checked;
         currentConfig.renderer['desktop-pet'].show_on_all_desktops = elPetAllDesktops.checked;
         currentConfig.renderer['desktop-pet'].click_through = elPetClickThrough.checked;
@@ -495,6 +508,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentConfig.renderer['desktop-pet'].celebration_secs = parseInt(elCelebrationSecs.value, 10);
         if (elSleepTimeoutSecs) {
             currentConfig.renderer['desktop-pet'].sleep_timeout_secs = parseInt(elSleepTimeoutSecs.value, 10);
+        }
+        if (elIdleSessionTimeoutSecs) {
+            currentConfig.renderer['desktop-pet'].idle_session_timeout_secs = parseInt(elIdleSessionTimeoutSecs.value, 10);
         }
         // Drop an empty mapping so no empty `[..event_status_map]` section is
         // written to the TOML file on save.
@@ -661,6 +677,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 elPetScale.value = petConf.scale;
                 if (valPetScale) valPetScale.textContent = Number(petConf.scale).toFixed(1);
             }
+            elPetFullscreen.checked = petConf.hide_on_fullscreen ?? false;
             if (petConf.always_on_top !== undefined) elPetAlwaysTop.checked = petConf.always_on_top;
             if (petConf.show_on_all_desktops !== undefined) {
                 elPetAllDesktops.checked = petConf.show_on_all_desktops;
@@ -699,6 +716,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (petConf.sleep_timeout_secs !== undefined && elSleepTimeoutSecs) {
                 elSleepTimeoutSecs.value = petConf.sleep_timeout_secs;
                 if (valSleepTimeoutSecs) valSleepTimeoutSecs.textContent = petConf.sleep_timeout_secs + 's';
+            }
+            if (petConf.idle_session_timeout_secs !== undefined && elIdleSessionTimeoutSecs) {
+                elIdleSessionTimeoutSecs.value = petConf.idle_session_timeout_secs;
+                if (valIdleSessionTimeoutSecs) {
+                    valIdleSessionTimeoutSecs.textContent = petConf.idle_session_timeout_secs + 's';
+                }
             }
         }
 
@@ -808,6 +831,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Load sprite packs (must be after DOM and config are ready)
     await loadAndRenderSpritePacks();
+    window.__TAURI__.event.listen('sprite_pack_imported', loadAndRenderSpritePacks);
+    window.__TAURI__.event.listen('sprite_pack_deleted', loadAndRenderSpritePacks);
     
     async function loadAndRenderSpritePacks() {
         if (!spritePackGrid) return;
@@ -1107,6 +1132,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    const updateWorkshopButtonLabel = () => {
+        if (!btnOpenWorkshop) return;
+        const label = t('btn_open_workshop', elLanguage ? elLanguage.value : 'zh-CN');
+        btnOpenWorkshop.setAttribute('aria-label', label);
+    };
+    updateWorkshopButtonLabel();
+    const openWorkshop = async () => {
+        try { await invoke('open_workshop_window'); }
+        catch (error) { showToast(String(error), 'error'); }
+    };
+    btnOpenWorkshop?.addEventListener('click', openWorkshop);
+    document.getElementById('btn-open-workshop-sidebar')?.addEventListener('click', openWorkshop);
+
     if (btnImportPack) {
         btnImportPack.addEventListener('click', async () => {
             const lang = elLanguage ? elLanguage.value : 'zh-CN';
@@ -1131,6 +1169,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Language setting update UI + auto save
     elLanguage.addEventListener('change', () => {
         applyTranslations(elLanguage.value);
+        updateWorkshopButtonLabel();
         updateRemoteTokenPlaceholder();
         loadAndRenderSpritePacks();
         renderEventStatusTable();
@@ -1151,7 +1190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Bind all controls for auto-save
     const autoSaveControls = [
         elRuntimeMode, elRemoteTls,
-        elPetAlwaysTop, elPetAllDesktops, elPetClickThrough, elPetHideOnHover, elPetWindowFrame, elPetSnapCorner, elShowBubble, elShowPet, elShowStats,
+        elPetFullscreen, elPetAlwaysTop, elPetAllDesktops, elPetClickThrough, elPetHideOnHover, elPetWindowFrame, elPetSnapCorner, elShowBubble, elShowPet, elShowStats,
         elDashboardStyle, elDashboardPosition, elDashboardLayout, elDashboardAlignment,
         elCleanupBackups, elCleanupLogs,
         elUpdateStartup, elUpdateInterval
@@ -1163,7 +1202,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const autoSaveInputs = [
         elRemoteEndpoint, elRemotePath, elRemoteToken, elRemoteConnectTimeout,
         elRemoteReconnectInitial, elRemoteReconnectMax,
-        elApiPort, elPetScale, elPetOpacity, elPetHoverOpacity, elUdsPath, elTcpPort, elCelebrationSecs, elSleepTimeoutSecs,
+        elApiPort, elPetScale, elPetOpacity, elPetHoverOpacity, elUdsPath, elTcpPort, elCelebrationSecs, elSleepTimeoutSecs, elIdleSessionTimeoutSecs,
         elCleanupAgeDays
     ];
     autoSaveInputs.forEach(el => {

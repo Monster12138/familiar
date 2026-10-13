@@ -21,6 +21,22 @@ fn legacy_config_defaults_to_showing_on_all_desktops() {
 }
 
 #[test]
+fn legacy_config_defaults_idle_session_timeout_to_ten_minutes() {
+    let legacy_config = include_str!("../../../config/default.toml")
+        .replace("idle_session_timeout_secs = 600\n", "");
+    let path = std::env::temp_dir().join(format!(
+        "familiar-legacy-idle-session-timeout-{}.toml",
+        std::process::id()
+    ));
+
+    std::fs::write(&path, legacy_config).expect("write legacy config");
+    let config = FamiliarConfig::load_from_file(&path).expect("load legacy config");
+    std::fs::remove_file(path).expect("remove legacy config");
+
+    assert_eq!(config.renderer.desktop_pet.idle_session_timeout_secs, 600);
+}
+
+#[test]
 fn legacy_config_defaults_onboarded_to_false() {
     let legacy_config =
         include_str!("../../../config/default.toml").replace("onboarded = false\n", "");
@@ -618,4 +634,17 @@ fn show_window_frame_serializes_as_bool() {
             .any(|line| line == "show_window_frame = true"),
         "unexpected serialized show_window_frame:\n{serialized}"
     );
+}
+
+#[test]
+fn fullscreen_hiding_defaults_off_and_roundtrips() {
+    let source = include_str!("../../../config/default.toml");
+    let legacy: FamiliarConfig = toml::from_str(&source.replace("hide_on_fullscreen = false\n", "")).unwrap();
+    assert!(!legacy.renderer.desktop_pet.hide_on_fullscreen);
+    let mut enabled = legacy;
+    enabled.renderer.desktop_pet.hide_on_fullscreen = true;
+    let serialized = toml::to_string(&enabled).unwrap();
+    assert!(serialized.contains("hide_on_fullscreen = true"));
+    let restored: FamiliarConfig = toml::from_str(&serialized).unwrap();
+    assert!(restored.renderer.desktop_pet.hide_on_fullscreen);
 }

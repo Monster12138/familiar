@@ -100,13 +100,17 @@ async fn run_server(config_path: Option<&Path>, bind_override: Option<&str>) -> 
     let config = load_config(config_path)?;
     let event_bus = EventBus::new(100, 100);
     let ingest_bus = event_bus.clone();
-    let state_machine = StateMachine::with_event_map(
+    let idle_session_timeout_secs = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(
+        u64::from(config.renderer.desktop_pet.idle_session_timeout_secs),
+    ));
+    let state_machine = StateMachine::with_event_map_and_idle_timeout(
         event_bus,
         config.renderer.desktop_pet.celebration_secs,
         config.renderer.desktop_pet.sleep_timeout_secs,
         std::sync::Arc::new(std::sync::RwLock::new(
             config.renderer.desktop_pet.event_status_agent_map(),
         )),
+        idle_session_timeout_secs,
     );
     state_machine.start_processing().await;
 

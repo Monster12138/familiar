@@ -12,6 +12,7 @@ pub struct StateMachine {
     event_bus: EventBus,
     celebration_secs: i64,
     sleep_timeout_secs: i64,
+    idle_session_timeout_secs: Arc<AtomicU64>,
     event_status_map: Arc<std::sync::RwLock<EventStatusMap>>,
     revision: Arc<AtomicU64>,
     state_updates: watch::Sender<Arc<RenderState>>,
@@ -19,11 +20,12 @@ pub struct StateMachine {
 
 impl StateMachine {
     pub fn new(event_bus: EventBus, celebration_secs: u32, sleep_timeout_secs: u32) -> Self {
-        Self::with_event_map(
+        Self::with_event_map_and_idle_timeout(
             event_bus,
             celebration_secs,
             sleep_timeout_secs,
             Arc::new(std::sync::RwLock::new(EventStatusMap::new())),
+            Arc::new(AtomicU64::new(600)),
         )
     }
 
@@ -36,12 +38,29 @@ impl StateMachine {
         sleep_timeout_secs: u32,
         event_status_map: Arc<std::sync::RwLock<EventStatusMap>>,
     ) -> Self {
+        Self::with_event_map_and_idle_timeout(
+            event_bus,
+            celebration_secs,
+            sleep_timeout_secs,
+            event_status_map,
+            Arc::new(AtomicU64::new(600)),
+        )
+    }
+
+    pub fn with_event_map_and_idle_timeout(
+        event_bus: EventBus,
+        celebration_secs: u32,
+        sleep_timeout_secs: u32,
+        event_status_map: Arc<std::sync::RwLock<EventStatusMap>>,
+        idle_session_timeout: Arc<AtomicU64>,
+    ) -> Self {
         let (state_updates, _) = watch::channel(Arc::new(RenderState::default()));
         Self {
             render_state: Arc::new(RwLock::new(RenderState::default())),
             event_bus,
             celebration_secs: celebration_secs as i64,
             sleep_timeout_secs: sleep_timeout_secs as i64,
+            idle_session_timeout_secs: idle_session_timeout,
             event_status_map,
             revision: Arc::new(AtomicU64::new(1)),
             state_updates,
@@ -103,6 +122,7 @@ impl StateMachine {
         let state_ref_cleanup = self.render_state.clone();
         let celebration_secs = self.celebration_secs;
         let sleep_timeout_secs = self.sleep_timeout_secs;
+        let idle_session_timeout_secs = self.idle_session_timeout_secs.clone();
         let revision_ref_cleanup = self.revision.clone();
         let state_updates_cleanup = self.state_updates.clone();
         tokio::spawn(async move {
@@ -114,14 +134,19 @@ impl StateMachine {
                 let len_before = state.agents.len();
                 let mood_before = state.mood.clone();
 
-                // Handle cleanup of completed agents
+                // Handle cleanup of completed agents and stale Idle sessions.
                 state.agents.retain(|agent| {
-                    if agent.status == AgentStatus::Completed {
-                        if let Some(last) = agent.last_event_at {
-                            if now.signed_duration_since(last).num_seconds() > celebration_secs {
-                                return false; // Remove if completed for > celebration_secs seconds
-                            }
-                        }
+                    let Some(last) = agent.last_event_at else {
+                        return true;
+                    };
+                    let inactive_secs = now.signed_duration_since(last).num_seconds();
+                    if agent.status == AgentStatus::Completed && inactive_secs > celebration_secs {
+                        return false;
+                    }
+                    if agent.status == AgentStatus::Idle
+                        && inactive_secs >= idle_session_timeout_secs.load(Ordering::SeqCst) as i64
+                    {
+                        return false;
                     }
                     true
                 });
@@ -169,7 +194,10 @@ impl StateMachine {
         // SessionStart only establishes an upstream session. Do not create a
         // visible Agent or refresh activity here; the user-facing lifecycle
         // begins when UserPromptSubmit becomes AgentStarted.
-        if matches!(event.event_type, AgentEventType::SessionStarted) {
+        if matches!(
+            event.event_type,
+            AgentEventType::Ignored | AgentEventType::SessionStarted
+        ) {
             return;
         }
 
@@ -590,6 +618,37 @@ mod tests {
         // Should transition to Sleepy
         let state = machine.get_state().await;
         assert_eq!(state.mood, FamiliarMood::Sleepy);
+    }
+
+    #[tokio::test]
+    async fn test_idle_session_is_removed_after_configured_timeout() {
+        let bus = EventBus::new(100, 1000);
+        let idle_timeout = Arc::new(AtomicU64::new(1));
+        let machine = StateMachine::with_event_map_and_idle_timeout(
+            bus.clone(),
+            4,
+            300,
+            Arc::new(std::sync::RwLock::new(EventStatusMap::new())),
+            idle_timeout,
+        );
+        machine.start_processing().await;
+
+        bus.publish(AgentEvent {
+            session_id: Some("stale-idle-session".into()),
+            id: Uuid::new_v4(),
+            timestamp: chrono::Utc::now(),
+            source: AgentSource::Codex,
+            category: AgentCategory::Coding,
+            event_type: AgentEventType::AgentStarted {
+                instruction: Some("hello".into()),
+            },
+            metadata: None,
+        })
+        .await
+        .unwrap();
+
+        tokio::time::sleep(std::time::Duration::from_millis(2200)).await;
+        assert!(machine.get_state().await.agents.is_empty());
     }
 
     #[tokio::test]

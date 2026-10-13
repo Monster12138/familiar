@@ -6,6 +6,7 @@
 
 mod commands;
 mod desktop_pet_window;
+mod fullscreen_visibility;
 mod remote_state;
 mod tray;
 mod updates;
@@ -132,15 +133,20 @@ fn main() {
     let event_bus = EventBus::new(100, 100);
     let config = load_config();
     let event_status_map = Arc::new(std::sync::RwLock::new(EventStatusMap::new()));
+    let idle_session_timeout_secs = Arc::new(std::sync::atomic::AtomicU64::new(u64::from(
+        config.renderer.desktop_pet.idle_session_timeout_secs,
+    )));
     let app_config_state = Arc::new(AppConfigState::new(
         config.clone(),
         event_status_map.clone(),
+        idle_session_timeout_secs.clone(),
     ));
-    let state_machine = StateMachine::with_event_map(
+    let state_machine = StateMachine::with_event_map_and_idle_timeout(
         event_bus.clone(),
         config.renderer.desktop_pet.celebration_secs,
         config.renderer.desktop_pet.sleep_timeout_secs,
         event_status_map.clone(),
+        idle_session_timeout_secs,
     );
     let event_bus_for_server = event_bus.clone();
     let config_for_setup = config.clone();
@@ -274,6 +280,7 @@ fn main() {
             // unplugged. A pet that is still visible is never touched, so
             // unrelated monitor changes (another display sleeping, docking
             // flaps) no longer move it.
+            fullscreen_visibility::start(app.handle().clone(), app_config_state_for_setup.clone());
             let watcher_app_handle = app.handle().clone();
             let watcher_config_state = app_config_state_for_setup.clone();
             tauri::async_runtime::spawn(async move {
@@ -618,6 +625,11 @@ fn main() {
             commands::preview_uninstall_hook,
             commands::test_hook_point,
             commands::get_sprite_packs,
+            commands::open_workshop_window,
+            commands::pick_workshop_image,
+            commands::read_workshop_image,
+            commands::save_workshop_pack,
+            commands::export_workshop_pack,
             commands::import_sprite_pack,
             commands::delete_sprite_pack,
             commands::get_active_sprite_pack,

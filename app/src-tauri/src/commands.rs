@@ -22,20 +22,30 @@ pub struct AppConfigState {
     /// Shared with `StateMachine` so event→status mapping changes take effect
     /// immediately on save (mirrors how `hidden_sessions` is kept in sync).
     pub event_status_map: Arc<RwLock<EventStatusMap>>,
+    pub idle_session_timeout_secs: Arc<AtomicU64>,
     pub revision: AtomicU64,
 }
 
 impl AppConfigState {
-    pub fn new(config: FamiliarConfig, event_status_map: Arc<RwLock<EventStatusMap>>) -> Self {
+    pub fn new(
+        config: FamiliarConfig,
+        event_status_map: Arc<RwLock<EventStatusMap>>,
+        idle_session_timeout_secs: Arc<AtomicU64>,
+    ) -> Self {
         let hidden_sessions = config.sessions.hidden_sessions.iter().cloned().collect();
         let map = config.renderer.desktop_pet.event_status_agent_map();
         if let Ok(mut guard) = event_status_map.write() {
             *guard = map;
         }
+        idle_session_timeout_secs.store(
+            u64::from(config.renderer.desktop_pet.idle_session_timeout_secs),
+            Ordering::SeqCst,
+        );
         Self {
             config: RwLock::new(config),
             hidden_sessions: RwLock::new(hidden_sessions),
             event_status_map,
+            idle_session_timeout_secs,
             revision: AtomicU64::new(1),
         }
     }
@@ -55,6 +65,10 @@ impl AppConfigState {
         if let Ok(mut guard) = self.event_status_map.write() {
             *guard = new_map;
         }
+        self.idle_session_timeout_secs.store(
+            u64::from(new_config.renderer.desktop_pet.idle_session_timeout_secs),
+            Ordering::SeqCst,
+        );
         *self.config.write().unwrap() = new_config;
         *self.hidden_sessions.write().unwrap() = new_hidden;
         self.revision.fetch_add(1, Ordering::SeqCst);
@@ -1082,7 +1096,72 @@ fn test_via_shell(agent: &str, event_name: &str) -> Result<TestHookResult, Strin
     })
 }
 
-use familiar_core::sprite_pack::{SpritePackInfo, SpritePackManager};
+use familiar_core::sprite_pack::{SpritePackInfo, SpritePackManager, WorkshopDraft};
+
+#[tauri::command]
+pub async fn open_workshop_window(app_handle: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app_handle.get_webview_window("workshop") {
+        let _ = window.show();
+        let _ = window.set_focus();
+        return Ok(());
+    }
+    tauri::WebviewWindowBuilder::new(
+        &app_handle,
+        "workshop",
+        tauri::WebviewUrl::App("workshop.html".into()),
+    )
+    .title("Familiar Workshop")
+    .inner_size(1040.0, 740.0)
+    .min_inner_size(760.0, 560.0)
+    .build()
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn pick_workshop_image() -> Result<Option<String>, String> {
+    Ok(rfd::AsyncFileDialog::new()
+        .add_filter("Image", &["png", "apng", "gif", "webp", "svg"])
+        .pick_file()
+        .await
+        .map(|file| file.path().to_string_lossy().to_string()))
+}
+
+#[tauri::command]
+pub fn read_workshop_image(path: String) -> Result<Vec<u8>, String> {
+    let path = std::path::Path::new(&path);
+    let metadata = std::fs::metadata(path).map_err(|e| e.to_string())?;
+    if !metadata.is_file() || metadata.len() > 20 * 1024 * 1024 {
+        return Err("Image exceeds 20 MiB".to_string());
+    }
+    std::fs::read(path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn save_workshop_pack(
+    app_handle: tauri::AppHandle,
+    draft: WorkshopDraft,
+) -> Result<SpritePackInfo, String> {
+    let info = SpritePackManager::save_workshop(draft).map_err(|e| e.to_string())?;
+    use tauri::Emitter;
+    let _ = app_handle.emit("sprite_pack_imported", &info);
+    Ok(info)
+}
+
+#[tauri::command]
+pub async fn export_workshop_pack(id: String) -> Result<Option<String>, String> {
+    let Some(file) = rfd::AsyncFileDialog::new()
+        .set_file_name(format!("{id}.fpack"))
+        .add_filter("Familiar Sprite Pack", &["fpack"])
+        .save_file()
+        .await
+    else {
+        return Ok(None);
+    };
+    let path = file.path().to_path_buf();
+    SpritePackManager::export_workshop(&id, &path).map_err(|e| e.to_string())?;
+    Ok(Some(path.to_string_lossy().to_string()))
+}
 
 use tauri::Manager;
 
@@ -1122,6 +1201,7 @@ pub async fn import_sprite_pack(
 
 #[tauri::command]
 pub fn delete_sprite_pack(
+    app_handle: tauri::AppHandle,
     config_state: tauri::State<'_, Arc<AppConfigState>>,
     id: String,
 ) -> Result<(), String> {
@@ -1129,7 +1209,10 @@ pub fn delete_sprite_pack(
         return Err("Cannot delete the active sprite pack; switch packs first".to_string());
     }
 
-    SpritePackManager::delete_user_pack(&id).map_err(|error| error.to_string())
+    SpritePackManager::delete_user_pack(&id).map_err(|error| error.to_string())?;
+    use tauri::Emitter;
+    let _ = app_handle.emit("sprite_pack_deleted", &id);
+    Ok(())
 }
 
 #[tauri::command]
