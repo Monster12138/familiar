@@ -24,10 +24,12 @@ pub fn start(app: tauri::AppHandle, config: Arc<crate::commands::AppConfigState>
                     let suppress = enabled && is_fullscreen(&target);
                     let mut next = hidden;
                     if suppress {
-                        if target.is_visible().unwrap_or(false) && target.hide().is_ok() {
+                        if target.is_visible().unwrap_or(false)
+                            && hide_for_fullscreen(&target).is_ok()
+                        {
                             next = true;
                         }
-                    } else if hidden && target.show().is_ok() {
+                    } else if hidden && restore_without_focus(&target).is_ok() {
                         next = false;
                     }
                     let _ = tx.send(next);
@@ -41,6 +43,58 @@ pub fn start(app: tauri::AppHandle, config: Arc<crate::commands::AppConfigState>
             }
         }
     });
+}
+
+fn hide_for_fullscreen(window: &tauri::WebviewWindow) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        // Pair native hide/show: Tauri caches visibility when hiding, so
+        // mixing Tauri hide with native show makes subsequent hides no-ops.
+        set_windows_visibility(window.hwnd().map_err(|error| error.to_string())?, false)
+    }
+    #[cfg(not(target_os = "windows"))]
+    window.hide().map_err(|error| error.to_string())
+}
+
+/// Called on the main thread. Automatic restoration must preserve the user's
+/// input target; Tauri's macOS `show()` calls `makeKeyAndOrderFront`.
+fn restore_without_focus(window: &tauri::WebviewWindow) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        use cocoa::base::id;
+        use objc::{msg_send, sel, sel_impl};
+
+        let native = window.ns_window().map_err(|error| error.to_string())?;
+        unsafe {
+            let _: () = msg_send![native as id, orderFrontRegardless];
+        }
+        Ok(())
+    }
+    #[cfg(target_os = "windows")]
+    {
+        set_windows_visibility(window.hwnd().map_err(|error| error.to_string())?, true)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    window.show().map_err(|error| error.to_string())
+}
+
+#[cfg(target_os = "windows")]
+fn set_windows_visibility(
+    window: windows::Win32::Foundation::HWND,
+    visible: bool,
+) -> Result<(), String> {
+    use windows::Win32::UI::WindowsAndMessaging::{
+        IsWindowVisible, ShowWindow, SW_HIDE, SW_SHOWNA,
+    };
+    unsafe {
+        // ShowWindow returns the previous visibility, not a success flag.
+        // SW_SHOWNA preserves size/position and never activates the pet.
+        let _ = ShowWindow(window, if visible { SW_SHOWNA } else { SW_HIDE });
+        if IsWindowVisible(window).as_bool() != visible {
+            return Err("failed to update desktop pet visibility".to_string());
+        }
+    }
+    Ok(())
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows", test))]
@@ -205,6 +259,51 @@ fn is_fullscreen(_window: &tauri::WebviewWindow) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn repeated_windows_restoration_preserves_foreground_window() {
+        use windows::core::w;
+        use windows::Win32::UI::WindowsAndMessaging::{
+            CreateWindowExW, DestroyWindow, GetForegroundWindow, IsWindowVisible, WINDOW_EX_STYLE,
+            WS_POPUP,
+        };
+        unsafe {
+            let native = CreateWindowExW(
+                WINDOW_EX_STYLE::default(),
+                w!("STATIC"),
+                w!("Familiar visibility test"),
+                WS_POPUP,
+                0,
+                0,
+                100,
+                100,
+                None,
+                None,
+                None,
+                None,
+            )
+            .expect("create hidden test window");
+            struct TestWindow(windows::Win32::Foundation::HWND);
+            impl Drop for TestWindow {
+                fn drop(&mut self) {
+                    unsafe {
+                        let _ = DestroyWindow(self.0);
+                    }
+                }
+            }
+            let _guard = TestWindow(native);
+            let foreground = GetForegroundWindow();
+            for _ in 0..3 {
+                set_windows_visibility(native, true).expect("restore without activation");
+                assert!(IsWindowVisible(native).as_bool());
+                assert_eq!(GetForegroundWindow(), foreground);
+                set_windows_visibility(native, false).expect("hide again");
+                assert!(!IsWindowVisible(native).as_bool());
+                assert_eq!(GetForegroundWindow(), foreground);
+            }
+        }
+    }
+
     #[test]
     fn distinguishes_fullscreen_from_maximized_and_other_monitors() {
         let screen = (0., 0., 1920., 1080.);
